@@ -77,9 +77,9 @@ export async function ingestEvents(ctx: Ctx, provider: string, events: ProviderE
   let inserted = 0;
   for (const ev of events) {
     const r = await ctx.db.query(
-      `INSERT INTO provider_events (provider, event_id, order_ref, sequence, type, payload, occurred_at) VALUES ($1,$2,$3,$4,$5,$6,$7)
+      `INSERT INTO provider_events (provider, event_id, order_ref, sequence, type, payload, occurred_at, received_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
        ON CONFLICT (provider, event_id) DO NOTHING`,
-      [provider, ev.event_id, ev.order_ref, ev.sequence, ev.type, JSON.stringify(ev), ev.occurred_at],
+      [provider, ev.event_id, ev.order_ref, ev.sequence, ev.type, JSON.stringify(ev), ev.occurred_at, ctx.clock.now()],
     );
     inserted += r.rowCount;
   }
@@ -88,7 +88,11 @@ export async function ingestEvents(ctx: Ctx, provider: string, events: ProviderE
 }
 
 export async function processPendingEvents(ctx: Ctx, limit = 100) {
-  const pending = await ctx.db.query('SELECT id FROM provider_events WHERE processed_at IS NULL ORDER BY sequence, id LIMIT $1', [limit]);
+  // Events waiting for their order row are retried with backoff so they cannot starve newer events.
+  const pending = await ctx.db.query(
+    'SELECT id FROM provider_events WHERE processed_at IS NULL AND (next_try_at IS NULL OR next_try_at <= $2) ORDER BY id LIMIT $1',
+    [limit, ctx.clock.now()],
+  );
   let n = 0;
   for (const { id } of pending.rows) {
     await ctx.db.tx(async (q) => {
@@ -98,7 +102,11 @@ export async function processPendingEvents(ctx: Ctx, limit = 100) {
       if (outcome === 'order_unknown') {
         // The webhook may arrive before we stored the order. Retry for 24h, then park it.
         const ageMs = ctx.clock.now().getTime() - new Date(ev.received_at).getTime();
-        if (ageMs < 24 * 3600_000) return;
+        if (ageMs < 24 * 3600_000) {
+          const delay = Math.min(15_000 * 2 ** ev.tries, 30 * 60_000);
+          await q.query('UPDATE provider_events SET tries = tries + 1, next_try_at = $2 WHERE id = $1', [id, new Date(ctx.clock.now().getTime() + delay)]);
+          return;
+        }
         await q.query(`UPDATE provider_events SET processed_at = now(), outcome = 'orphaned' WHERE id = $1`, [id]);
         return;
       }
@@ -232,17 +240,22 @@ export async function approveCancellation(ctx: Ctx, userId: string, id: string) 
   }
   const o = await loadOrder(ctx.db, userId, c.order_id);
   const terms = await callProvider(() => ctx.provider(o.mode).getCancellationTerms(o.provider_order_ref));
-  if (!terms.allowed || terms.fee_minor !== c.fee_minor) {
-    await ctx.db.query(`UPDATE cancellation_requests SET status='invalidated' WHERE id=$1`, [id]);
+  if (!terms.allowed || terms.fee_minor !== Number(c.fee_minor)) {
+    await ctx.db.query(`UPDATE cancellation_requests SET status='invalidated' WHERE id=$1 AND status='awaiting_user'`, [id]);
     throw new DomainError('PRICE_CHANGED', `Cancellation terms changed: ${terms.terms}`);
   }
-  return ctx.db.tx(async (q) => {
-    const locked = await loadCancellation(q, userId, id, true);
-    if (locked.status !== 'awaiting_user') return locked;
-    const r = await q.query<CancellationRow>(`UPDATE cancellation_requests SET status='approved', approved_at=$2 WHERE id=$1 RETURNING *`, [id, ctx.clock.now()]);
-    await audit(q, { userId, actor: 'web', action: 'cancellation.approved', mode: o.mode, entity: 'order', entityId: o.id });
-    return r.rows[0];
-  });
+  try {
+    return await ctx.db.tx(async (q) => {
+      const locked = await loadCancellation(q, userId, id, true);
+      if (locked.status !== 'awaiting_user') return locked;
+      const r = await q.query<CancellationRow>(`UPDATE cancellation_requests SET status='approved', approved_at=$2 WHERE id=$1 RETURNING *`, [id, ctx.clock.now()]);
+      await audit(q, { userId, actor: 'web', action: 'cancellation.approved', mode: o.mode, entity: 'order', entityId: o.id });
+      return r.rows[0];
+    });
+  } catch (e: any) {
+    if (e?.code === '23505') throw new DomainError('CANCELLATION_NOT_ALLOWED', 'Another cancellation for this order is already in progress.');
+    throw e;
+  }
 }
 
 export async function cancelOrder(ctx: Ctx, actor: Actor, cancellationId: string) {
@@ -255,23 +268,12 @@ export async function cancelOrder(ctx: Ctx, actor: Actor, cancellationId: string
       throw new DomainError('CONFIRMATION_REQUIRED', 'The user must confirm the cancellation (and any fee) on the Unyly page first.', { confirm_url: cancelConfirmUrl(ctx, c.id) });
     }
     if (c.status !== 'approved') return { done: c };
-    await q.query(`UPDATE cancellation_requests SET status='executing' WHERE id=$1`, [c.id]);
+    await q.query(`UPDATE cancellation_requests SET status='executing', executing_at=$2 WHERE id=$1`, [c.id, ctx.clock.now()]);
     return { go: c };
   });
   if ('done' in claimed) return describeCancellation(claimed.done!);
   const c = claimed.go!;
-  const provider = ctx.provider(o.mode);
-  try {
-    const r = await withTimeout(provider.cancelOrder(o.provider_order_ref, `unyly-cancel-${c.id}`), ctx.cfg.providerTimeoutMs, () => new ProviderOutcomeUnknownError('timeout'));
-    if (r.outcome === 'cancelled') {
-      await ctx.db.query(`UPDATE cancellation_requests SET status='executed', executed_at=$2 WHERE id=$1`, [c.id, ctx.clock.now()]);
-      await audit(ctx.db, { userId: actor.userId, actor: actorLabel(actor), action: 'order.cancelled', mode: o.mode, entity: 'order', entityId: o.id, details: { fee: r.fee_minor } });
-    } else {
-      await ctx.db.query(`UPDATE cancellation_requests SET status='rejected', error_code='PROVIDER_REJECTED' WHERE id=$1`, [c.id]);
-    }
-  } catch (e) {
-    await ctx.db.query(`UPDATE cancellation_requests SET status='unknown', error_code='CANCELLATION_UNKNOWN' WHERE id=$1`, [c.id]);
-  }
+  await executeCancellation(ctx, c, o, actorLabel(actor));
   await getOrderStatus(ctx, actor, o.id).catch(() => undefined);
   return describeCancellation(await loadCancellation(ctx.db, actor.userId, c.id));
 }
@@ -285,7 +287,7 @@ export function describeCancellation(c: CancellationRow) {
     rejected: 'The provider refused the cancellation. The order continues.',
     expired: 'The confirmation expired. Nothing was cancelled.',
     unknown: 'We could not confirm whether the cancellation went through. Check the order status; do not assume it was cancelled.',
-    invalidated: 'Superseded or terms changed. Nothing was cancelled.',
+    invalidated: 'Superseded, or the fee changed before execution. Nothing was cancelled; prepare the cancellation again to see the new terms.',
   };
   return {
     cancellation_id: c.id,
@@ -298,17 +300,52 @@ export function describeCancellation(c: CancellationRow) {
   };
 }
 
-/** Background: resolve unknown cancellations by reading the order status. */
+async function executeCancellation(ctx: Ctx, c: CancellationRow, o: OrderRow, actor: string) {
+  const provider = ctx.provider(o.mode);
+  try {
+    const r = await withTimeout(
+      provider.cancelOrder(o.provider_order_ref, `unyly-cancel-${c.id}`, Number(c.fee_minor)),
+      ctx.cfg.providerTimeoutMs,
+      () => new ProviderOutcomeUnknownError('timeout'),
+    );
+    if (r.outcome === 'cancelled') {
+      await ctx.db.query(`UPDATE cancellation_requests SET status='executed', executed_at=$2 WHERE id=$1 AND status IN ('executing','unknown')`, [c.id, ctx.clock.now()]);
+      await audit(ctx.db, { userId: c.user_id, actor, action: 'order.cancelled', mode: o.mode, entity: 'order', entityId: o.id, details: { fee: r.fee_minor } });
+    } else {
+      const code = r.message.startsWith('FEE_CHANGED') ? 'FEE_CHANGED' : 'PROVIDER_REJECTED';
+      // Leaves the "active" set, so the user can prepare a new cancellation with the new terms.
+      await ctx.db.query(`UPDATE cancellation_requests SET status=$2, error_code=$3 WHERE id=$1 AND status IN ('executing','unknown')`, [c.id, code === 'FEE_CHANGED' ? 'invalidated' : 'rejected', code]);
+    }
+  } catch {
+    await ctx.db.query(`UPDATE cancellation_requests SET status='unknown', error_code='CANCELLATION_UNKNOWN' WHERE id=$1 AND status='executing'`, [c.id]);
+  }
+}
+
+/**
+ * Background: resolve cancellations whose outcome is unknown or that were interrupted by a crash.
+ * Reads the order status; if the order is still cancellable, re-sends the SAME idempotent request
+ * with the fee cap the user approved (never a higher fee).
+ */
 export async function reconcileCancellations(ctx: Ctx) {
-  const r = await ctx.db.query<CancellationRow>(`SELECT * FROM cancellation_requests WHERE status IN ('unknown','executing') AND created_at < now() - interval '30 seconds' LIMIT 50`);
+  const settle = new Date(ctx.clock.now().getTime() - Math.max(3 * ctx.cfg.providerTimeoutMs, 30_000));
+  const r = await ctx.db.query<CancellationRow>(
+    `SELECT * FROM cancellation_requests WHERE status IN ('unknown','executing','approved') AND COALESCE(executing_at, approved_at, created_at) < $1 LIMIT 50`,
+    [settle],
+  );
   for (const c of r.rows) {
     const o = (await ctx.db.query<OrderRow>('SELECT * FROM orders WHERE id=$1', [c.order_id])).rows[0];
     try {
       const s = await ctx.provider(o.mode).getOrderStatus(o.provider_order_ref);
-      if (s.status === 'cancelled') await ctx.db.query(`UPDATE cancellation_requests SET status='executed', executed_at=now() WHERE id=$1`, [c.id]);
-      else if (TERMINAL.includes(s.status) || STATUS_RANK[s.status] >= STATUS_RANK.picked_up) await ctx.db.query(`UPDATE cancellation_requests SET status='rejected' WHERE id=$1`, [c.id]);
+      if (s.status === 'cancelled') {
+        await ctx.db.query(`UPDATE cancellation_requests SET status='executed', executed_at=$2 WHERE id=$1 AND status IN ('unknown','executing','approved')`, [c.id, ctx.clock.now()]);
+      } else if (TERMINAL.includes(s.status) || STATUS_RANK[s.status] >= STATUS_RANK.picked_up) {
+        await ctx.db.query(`UPDATE cancellation_requests SET status='rejected', error_code='TOO_LATE' WHERE id=$1 AND status IN ('unknown','executing','approved')`, [c.id]);
+      } else {
+        await ctx.db.query(`UPDATE cancellation_requests SET status='executing', executing_at=$2 WHERE id=$1 AND status IN ('unknown','executing','approved')`, [c.id, ctx.clock.now()]);
+        await executeCancellation(ctx, { ...c, status: 'executing' }, o, 'system');
+      }
     } catch {
-      /* stay unknown; retried next cycle */
+      /* provider unreachable: stays unknown and is retried next cycle */
     }
   }
 }

@@ -205,7 +205,8 @@ export interface Provider {
   lookupByIdempotencyKey(key: string): Promise<LookupResult>;
   getOrderStatus(ref: string): Promise<ProviderOrderStatus>;
   getCancellationTerms(ref: string): Promise<CancellationTerms>;
-  cancelOrder(ref: string, idempotencyKey: string): Promise<CancelResult>;
+  /** Must be idempotent per key and must refuse if the current fee exceeds maxFeeMinor (what the user approved). */
+  cancelOrder(ref: string, idempotencyKey: string, maxFeeMinor: number): Promise<CancelResult>;
   verifyWebhook(rawBody: string, headers: Record<string, string | string[] | undefined>): ProviderEvent[];
   handoffUrl?(region: string): { url: string; source: string; verified_at: string } | null;
 }

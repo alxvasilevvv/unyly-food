@@ -10,7 +10,9 @@ export async function runJobsOnce(ctx: Ctx) {
   const out = { reconciled: 0, demoEvents: 0, events: 0, stalePolled: 0, expired: 0 };
   // 1) Submissions with unknown outcome, or stuck in flight (e.g. after a crash/restart).
   const due = await ctx.db.query(
-    `SELECT id FROM submission_attempts WHERE status IN ('in_flight','unknown') AND next_reconcile_at <= $1 ORDER BY next_reconcile_at LIMIT 50`,
+    `SELECT id FROM submission_attempts
+     WHERE (status IN ('in_flight','unknown') OR (status = 'rejected' AND error_code = 'NOT_RECEIVED_BY_PROVIDER'))
+       AND next_reconcile_at <= $1 ORDER BY next_reconcile_at LIMIT 50`,
     [ctx.clock.now()],
   );
   for (const { id } of due.rows) {

@@ -44,12 +44,12 @@ npx @modelcontextprotocol/inspector --cli http://localhost:3000/mcp --transport 
 
 ## Тесты
 ```bash
-npm test          # 52 теста: MCP через официальный SDK, OAuth, веб-подтверждение, сбои, гонки
+npm test          # 59 тестов: MCP через официальный SDK, OAuth, веб-подтверждение, сбои, гонки
 npm run typecheck
 ```
 
 ## Проверки, выполненные при сдаче
-- `npm test`: 5 файлов, 52 теста, все прошли.
+- `npm test`: 6 файлов, 59 тестов, все прошли (включая регрессионные тесты по итогам независимого ревью).
 - `npm run e2e:mcp` на запущенном сервере - пройден; MCP Inspector 2.8.0 CLI - `tools/list`, `tools/call` работают.
 - Мобильный путь в Chromium 390×844 без горизонтальной прокрутки и ошибок консоли; клавиатурная навигация.
 - Production-сборка стартует, `/readyz` = ready; `caddy validate` - ok; бэкап и восстановление - ok.

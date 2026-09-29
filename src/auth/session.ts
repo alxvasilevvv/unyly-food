@@ -32,7 +32,7 @@ export async function requestLoginCode(ctx: Ctx, emailRaw: string, locale: 'ru' 
 
 export async function verifyLoginCode(ctx: Ctx, emailRaw: string, code: string, locale: 'ru' | 'en') {
   const email = emailRaw.trim().toLowerCase();
-  return ctx.db.tx(async (q) => {
+  const out = await ctx.db.tx(async (q) => {
     const r = await q.query(
       `SELECT * FROM login_codes WHERE lower(email) = $1 AND consumed_at IS NULL AND expires_at > now() ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
       [email],
@@ -40,8 +40,9 @@ export async function verifyLoginCode(ctx: Ctx, emailRaw: string, code: string, 
     const row = r.rows[0];
     if (!row || row.attempts >= MAX_ATTEMPTS) throw new DomainError('AUTH_REQUIRED', 'Code expired or too many attempts. Request a new code.');
     if (!safeEqual(row.code_hash, sha256(`${email}:${code.trim()}`))) {
+      // Must commit, so the error is returned (a throw would roll the counter back).
       await q.query('UPDATE login_codes SET attempts = attempts + 1 WHERE id = $1', [row.id]);
-      throw new DomainError('AUTH_REQUIRED', 'Wrong code');
+      return new DomainError('AUTH_REQUIRED', 'Wrong code');
     }
     await q.query('UPDATE login_codes SET consumed_at = now() WHERE id = $1', [row.id]);
     const user = await findOrCreateUserByEmail(q, email, locale);
@@ -51,6 +52,8 @@ export async function verifyLoginCode(ctx: Ctx, emailRaw: string, code: string, 
     await audit(q, { userId: user.id, actor: 'web', action: 'user.login' });
     return { user, token };
   });
+  if (out instanceof DomainError) throw out;
+  return out;
 }
 
 export interface WebSession {
@@ -94,7 +97,15 @@ export async function logout(ctx: Ctx, reply: FastifyReply, s: WebSession | null
 export function checkCsrf(ctx: Ctx, req: FastifyRequest, s: WebSession) {
   const body = (req.body ?? {}) as Record<string, string>;
   const origin = (req.headers.origin as string | undefined) ?? (req.headers.referer as string | undefined);
-  if (origin && !origin.startsWith(ctx.cfg.webOrigin)) throw new DomainError('AUTH_REQUIRED', 'Cross-site request blocked');
+  let originOk = true;
+  if (origin) {
+    try {
+      originOk = new URL(origin).origin === ctx.cfg.webOrigin;
+    } catch {
+      originOk = false;
+    }
+  }
+  if (!originOk) throw new DomainError('AUTH_REQUIRED', 'Cross-site request blocked');
   if (!body._csrf || !safeEqual(String(body._csrf), s.csrf)) throw new DomainError('AUTH_REQUIRED', 'Invalid form token; reload the page');
 }
 

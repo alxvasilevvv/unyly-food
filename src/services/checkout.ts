@@ -48,6 +48,24 @@ export interface AttemptRow {
   finished_at: string | null;
 }
 
+/**
+ * A cart may reach the provider at most once while an earlier submission is pending or accepted.
+ * Different checkouts carry different idempotency keys, so this cart-level guard is what stops a
+ * second real order after an unknown outcome.
+ */
+async function cartSubmissionBlock(q: Queryable, cartId: string, exceptCheckoutId?: string): Promise<DomainError | null> {
+  const r = await q.query<{ status: string }>(
+    `SELECT a.status FROM submission_attempts a JOIN checkouts c ON c.id = a.checkout_id
+     WHERE c.cart_id = $1 AND a.status IN ('in_flight','unknown','accepted') AND ($2::uuid IS NULL OR c.id <> $2) LIMIT 1`,
+    [cartId, exceptCheckoutId ?? null],
+  );
+  const s = r.rows[0]?.status;
+  if (!s) return null;
+  if (s === 'accepted') return new DomainError('CART_NOT_OPEN', 'This cart has already been ordered. Create a new cart to order again.');
+  return new DomainError('SUBMISSION_UNKNOWN', 'An earlier order for this cart is still being confirmed with the provider. Do not order again until it resolves.', undefined,
+    'Call get_checkout_status on the earlier checkout, or list_orders, and wait.');
+}
+
 export const confirmUrl = (ctx: Ctx, id: string) => `${ctx.cfg.webOrigin}/confirm/${id}`;
 
 async function loadCheckout(q: Queryable, userId: string, id: string, lock = false): Promise<CheckoutRow> {
@@ -90,6 +108,8 @@ export async function prepareCheckout(ctx: Ctx, actor: Actor, args: { cart_id: s
   }
   return ctx.db.tx(async (q) => {
     const locked = await loadCart(q, actor.userId, args.cart_id, true);
+    const blocked = await cartSubmissionBlock(q, locked.id);
+    if (blocked) throw blocked;
     const qr = (await q.query<QuoteRow>('SELECT * FROM quotes WHERE id = $1 AND user_id = $2 AND cart_id = $3', [args.quote_id, actor.userId, args.cart_id])).rows[0];
     if (!qr) throw new DomainError('NOT_FOUND', 'Quote not found for this cart');
     if (locked.status !== 'open') throw new DomainError('CART_NOT_OPEN', `Cart is ${locked.status}`);
@@ -202,12 +222,16 @@ export function describeAttempt(a: AttemptRow) {
       'We could not confirm whether the provider received the order. Unyly is checking with the provider and will not resend it automatically. ' +
       'Do not order the same food elsewhere until the status is resolved.',
   };
+  const message =
+    a.status === 'rejected' && a.error_code === 'NOT_RECEIVED_BY_PROVIDER'
+      ? 'The provider has no record of this order, so it was most likely not placed. Unyly keeps checking for 24 hours and will show the order if it appears.'
+      : messages[a.status];
   return {
     submission_id: a.id,
     status: a.status,
     provider_order_ref: a.provider_order_ref,
     error_code: a.error_code,
-    message: messages[a.status],
+    message,
     started_at: new Date(a.started_at).toISOString(),
     finished_at: a.finished_at ? new Date(a.finished_at).toISOString() : null,
   };
@@ -222,9 +246,13 @@ export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string) {
   const pre = await loadCheckout(ctx.db, actor.userId, checkoutId);
   requireCapability(ctx, pre.mode, 'submit_order');
   const prepared = await ctx.db.tx(async (q) => {
+    // Lock order: cart, then checkout (same as prepareCheckout) to serialize all submissions of a cart.
+    await loadCart(q, actor.userId, pre.cart_id, true);
     const c = await loadCheckout(q, actor.userId, checkoutId, true);
     const existing = (await q.query<AttemptRow>('SELECT * FROM submission_attempts WHERE checkout_id = $1', [c.id])).rows[0];
     if (existing) return { replay: existing };
+    const blocked = await cartSubmissionBlock(q, c.cart_id, c.id);
+    if (blocked) return { invalid: blocked };
     if (c.status === 'awaiting_user') {
       throw new DomainError('CONFIRMATION_REQUIRED', 'The user must confirm this order on the Unyly confirmation page first.', { confirm_url: confirmUrl(ctx, c.id) },
         'Ask the user to open confirm_url, review the order and press Confirm. Then call get_checkout_status.');
@@ -241,9 +269,9 @@ export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string) {
     const now = ctx.clock.now();
     await q.query(`UPDATE checkouts SET status='consumed', consumed_at=$2 WHERE id=$1`, [c.id, now]);
     const a = await q.query<AttemptRow>(
-      `INSERT INTO submission_attempts (checkout_id, user_id, mode, idempotency_key, status, next_reconcile_at)
-       VALUES ($1,$2,$3,$4,'in_flight',$5) RETURNING *`,
-      [c.id, actor.userId, c.mode, `unyly-${c.id}`, new Date(now.getTime() + ctx.cfg.providerTimeoutMs + 5000)],
+      `INSERT INTO submission_attempts (checkout_id, user_id, mode, idempotency_key, status, next_reconcile_at, started_at)
+       VALUES ($1,$2,$3,$4,'in_flight',$5,$6) RETURNING *`,
+      [c.id, actor.userId, c.mode, `unyly-${c.id}`, new Date(now.getTime() + ctx.cfg.providerTimeoutMs + 5000), now],
     );
     const cart = await loadCart(q, actor.userId, c.cart_id);
     const addr = await getAddress(q, actor.userId, cart.address_id!);
@@ -320,6 +348,8 @@ async function markUnknown(ctx: Ctx, id: string, detail: string) {
 export async function recordAccepted(ctx: Ctx, attemptId: string, ref: string, status: string, paymentStatus: string, etaAt?: string) {
   await ctx.db.tx(async (q) => {
     const a = (await q.query<AttemptRow>('SELECT * FROM submission_attempts WHERE id = $1 FOR UPDATE', [attemptId])).rows[0];
+    // A provider-side rejection is final. Only "not received" may later turn out to be accepted.
+    if (a.status === 'rejected' && a.error_code !== 'NOT_RECEIVED_BY_PROVIDER') return;
     await q.query(
       `UPDATE submission_attempts SET status='accepted', provider_order_ref=$2, finished_at=COALESCE(finished_at,$3), next_reconcile_at=NULL, error_code=NULL WHERE id=$1`,
       [attemptId, ref, ctx.clock.now()],
@@ -344,38 +374,65 @@ export async function recordAccepted(ctx: Ctx, attemptId: string, ref: string, s
 }
 
 const MAX_NOT_FOUND = 3;
+const LATE_CHECK_WINDOW_MS = 24 * 3600_000;
+const LATE_CHECK_EVERY_MS = 10 * 60_000;
 
 /**
- * Reconcile one in-flight/unknown attempt by asking the provider (by idempotency key).
- * Never resubmits. After several consistent "not found" answers the attempt is closed as not received.
+ * Reconcile one attempt by asking the provider (by idempotency key). Never resubmits.
+ * - in_flight/unknown: found → accepted; "not found" counts only once the original call can no longer
+ *   be running (3× the provider timeout, min 60 s); after 3 such answers → rejected NOT_RECEIVED_BY_PROVIDER.
+ * - rejected NOT_RECEIVED_BY_PROVIDER: re-checked every 10 min for 24 h in case the provider created it late.
+ * All state changes are guarded by the expected current status, so concurrent runs cannot regress a result.
  */
 export async function reconcileAttempt(ctx: Ctx, attemptId: string) {
   const a = (await ctx.db.query<AttemptRow>('SELECT * FROM submission_attempts WHERE id = $1', [attemptId])).rows[0];
-  if (!a || (a.status !== 'unknown' && a.status !== 'in_flight')) return a?.status;
+  if (!a) return undefined;
+  const lateCheck = a.status === 'rejected' && a.error_code === 'NOT_RECEIVED_BY_PROVIDER';
+  if (a.status !== 'unknown' && a.status !== 'in_flight' && !lateCheck) return a.status;
+  const now = ctx.clock.now().getTime();
   const provider = ctx.provider(a.mode as any);
-  const backoff = (n: number) => new Date(ctx.clock.now().getTime() + Math.min(30_000 * 2 ** n, 30 * 60_000));
+  let r;
   try {
-    const r = await withTimeout(provider.lookupByIdempotencyKey(a.idempotency_key), ctx.cfg.providerTimeoutMs, () => new ProviderOutcomeUnknownError('lookup timeout'));
-    if (r.found) {
-      await recordAccepted(ctx, a.id, r.provider_order_ref, r.status, r.payment_status);
-      return 'accepted';
-    }
-    const n = a.reconcile_attempts + 1;
-    if (n >= MAX_NOT_FOUND) {
-      await finishAttempt(ctx, a.id, 'rejected', { code: 'NOT_RECEIVED_BY_PROVIDER', detail: `Provider reported no order for this key ${n} times` });
-      await audit(ctx.db, { userId: a.user_id, actor: 'system', action: 'submission.rejected', mode: a.mode, entity: 'submission', entityId: a.id, details: { code: 'NOT_RECEIVED_BY_PROVIDER' } });
+    r = await withTimeout(provider.lookupByIdempotencyKey(a.idempotency_key), ctx.cfg.providerTimeoutMs, () => new ProviderOutcomeUnknownError('lookup timeout'));
+  } catch {
+    if (lateCheck) {
+      await ctx.db.query(`UPDATE submission_attempts SET next_reconcile_at=$2 WHERE id=$1 AND status='rejected'`, [a.id, new Date(now + LATE_CHECK_EVERY_MS)]);
       return 'rejected';
     }
-    await ctx.db.query(`UPDATE submission_attempts SET status='unknown', reconcile_attempts=$2, next_reconcile_at=$3 WHERE id=$1`, [a.id, n, backoff(n)]);
-    return 'unknown';
-  } catch {
-    // Lookup failures do not count towards "not found". Back off proportionally to how long this has been open.
-    const elapsed = ctx.clock.now().getTime() - new Date(a.started_at).getTime();
-    const delay = Math.min(Math.max(elapsed, 30_000), 30 * 60_000);
+    // Lookup failures do not count as "not found". Back off proportionally to how long this has been open.
+    const delay = Math.min(Math.max(now - new Date(a.started_at).getTime(), 30_000), 30 * 60_000);
     await ctx.db.query(
-      `UPDATE submission_attempts SET status='unknown', error_code='SUBMISSION_UNKNOWN', next_reconcile_at=$2 WHERE id=$1`,
-      [a.id, new Date(ctx.clock.now().getTime() + delay)],
+      `UPDATE submission_attempts SET status='unknown', error_code='SUBMISSION_UNKNOWN', next_reconcile_at=$2 WHERE id=$1 AND status IN ('in_flight','unknown')`,
+      [a.id, new Date(now + delay)],
     );
     return 'unknown';
   }
+  if (r.found) {
+    await recordAccepted(ctx, a.id, r.provider_order_ref, r.status, r.payment_status);
+    if (lateCheck) await audit(ctx.db, { userId: a.user_id, actor: 'system', action: 'submission.found_late', mode: a.mode, entity: 'submission', entityId: a.id });
+    return 'accepted';
+  }
+  if (lateCheck) {
+    const expired = now - new Date(a.finished_at ?? a.started_at).getTime() > LATE_CHECK_WINDOW_MS;
+    await ctx.db.query(`UPDATE submission_attempts SET next_reconcile_at=$2 WHERE id=$1 AND status='rejected'`, [a.id, expired ? null : new Date(now + LATE_CHECK_EVERY_MS)]);
+    return 'rejected';
+  }
+  const settleMs = Math.max(3 * ctx.cfg.providerTimeoutMs, 60_000);
+  const counts = now - new Date(a.started_at).getTime() >= settleMs;
+  const n = a.reconcile_attempts + (counts ? 1 : 0);
+  if (n >= MAX_NOT_FOUND) {
+    const u = await ctx.db.query(
+      `UPDATE submission_attempts SET status='rejected', error_code='NOT_RECEIVED_BY_PROVIDER', error_detail=$2, finished_at=$3, reconcile_attempts=$4, next_reconcile_at=$5
+       WHERE id=$1 AND status IN ('in_flight','unknown')`,
+      [a.id, `Provider reported no order for this key ${n} times`, new Date(now), n, new Date(now + LATE_CHECK_EVERY_MS)],
+    );
+    if (u.rowCount) await audit(ctx.db, { userId: a.user_id, actor: 'system', action: 'submission.rejected', mode: a.mode, entity: 'submission', entityId: a.id, details: { code: 'NOT_RECEIVED_BY_PROVIDER' } });
+    return 'rejected';
+  }
+  const next = counts ? Math.min(30_000 * 2 ** n, 30 * 60_000) : settleMs - (now - new Date(a.started_at).getTime()) + 1000;
+  await ctx.db.query(
+    `UPDATE submission_attempts SET status='unknown', reconcile_attempts=$2, next_reconcile_at=$3 WHERE id=$1 AND status IN ('in_flight','unknown')`,
+    [a.id, n, new Date(now + next)],
+  );
+  return 'unknown';
 }

@@ -529,7 +529,7 @@ ${!o.is_final ? html`<form method="post" action="/app/orders/${o.order_id}/cance
     let clientName = r.l === 'ru' ? 'ваш ассистент' : 'your assistant';
     if (c.created_by.startsWith('mcp:')) {
       const g = await ctx.db.query('SELECT client_name FROM oauth_clients WHERE client_id=$1', [c.created_by.slice(4)]);
-      if (g.rows[0]) clientName = g.rows[0].client_name;
+      if (g.rows[0]) clientName = `${g.rows[0].client_name}; ${r.l === 'ru' ? 'имя указал сам клиент' : 'name set by the client itself'}`;
     }
     const state = (() => {
       if (v.attempt) {

@@ -235,10 +235,13 @@ export class DemoProvider implements Provider {
     return { allowed: false, fee_minor: 0, currency: 'THB', terms: `Cannot cancel: order is ${row.status}.` };
   }
 
-  async cancelOrder(ref: string, _key: string): Promise<CancelResult> {
+  async cancelOrder(ref: string, _key: string, maxFeeMinor: number): Promise<CancelResult> {
     this.guard();
+    const already = (await this.deps.db.query('SELECT status FROM demo_sim_orders WHERE ref=$1', [ref])).rows[0];
+    if (already?.status === 'cancelled') return { outcome: 'cancelled', fee_minor: 0 }; // idempotent repeat
     const terms = await this.getCancellationTerms(ref);
     if (!terms.allowed) return { outcome: 'rejected', message: terms.terms };
+    if (terms.fee_minor > maxFeeMinor) return { outcome: 'rejected', message: `FEE_CHANGED: cancellation fee is now ${terms.fee_minor}` };
     const u = await this.deps.db.query(
       `UPDATE demo_sim_orders SET status='cancelled', sequence = sequence + 1, cancelled_at = $2 WHERE ref = $1 AND status IN ('accepted','preparing') RETURNING ref`,
       [ref, this.deps.now()],
