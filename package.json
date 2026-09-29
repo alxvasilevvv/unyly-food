@@ -1,0 +1,41 @@
+{
+  "name": "unyly",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Unyly: order food through AI assistants via a remote MCP server (Demo / Handoff / Live modes)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "migrate": "tsx src/db/migrate-cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e:mcp": "tsx scripts/mcp-e2e.ts",
+    "backup:verify": "bash scripts/backup-verify.sh",
+    "kill-switch": "tsx scripts/kill-switch.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/formbody": "^9.0.0",
+    "@fastify/helmet": "^13.1.1",
+    "@fastify/rate-limit": "^11.2.0",
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "fastify": "^5.12.5",
+    "nodemailer": "^10.0.12",
+    "pg": "^8.23.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/nodemailer": "*",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

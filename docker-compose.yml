@@ -1,0 +1,42 @@
+# Local / single-host deployment: Postgres + Unyly + Caddy (automatic HTTPS).
+# Local dev without TLS:  docker compose up db app   (then open http://localhost:3000)
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: unyly
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-unyly-local-only}
+      POSTGRES_DB: unyly
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U unyly"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://unyly:${POSTGRES_PASSWORD:-unyly-local-only}@db:5432/unyly
+    depends_on:
+      db: { condition: service_healthy }
+    ports: ["127.0.0.1:3000:3000"]
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    profiles: ["tls"]
+    ports: ["80:80", "443:443"]
+    environment:
+      WEB_HOST: ${WEB_HOST:-food.unyly.org}
+      ACME_EMAIL: ${ACME_EMAIL:-ops@unyly.org}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on: [app]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  caddy_data:

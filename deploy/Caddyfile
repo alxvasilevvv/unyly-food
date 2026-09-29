@@ -1,0 +1,34 @@
+# Reverse proxy with automatic HTTPS. Hosts come from env.
+# NOTE: unyly.org currently serves another product (see docs/operations.md) - do not point it here blindly.
+#   WEB_HOST: website + OAuth + MCP (/mcp). One host is enough (recommended: food.unyly.org).
+#   For a separate MCP host, uncomment the second site block and set MCP_RESOURCE_URL accordingly.
+{
+	email {$ACME_EMAIL:ops@unyly.org}
+}
+
+(common) {
+	encode zstd gzip
+	header -Server
+	reverse_proxy app:3000 {
+		# MCP responses are JSON (stateless server); flush immediately anyway so a future SSE mode works.
+		flush_interval -1
+		transport http {
+			response_header_timeout 35s
+			read_timeout 60s
+		}
+	}
+}
+
+{$WEB_HOST:food.unyly.org} {
+	import common
+}
+
+# {$MCP_HOST} {
+# 	@allowed path /mcp /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/mcp /healthz
+# 	handle @allowed {
+# 		import common
+# 	}
+# 	handle {
+# 		respond "Not found" 404
+# 	}
+# }
