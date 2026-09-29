@@ -1,4 +1,8 @@
 // Central configuration. Every value comes from the environment; see .env.example.
+import { existsSync } from 'node:fs';
+
+// Local convenience: load ./.env if present. Variables already set in the environment win.
+if (process.env.NODE_ENV !== 'test' && !process.env.VITEST && existsSync('.env')) process.loadEnvFile('.env');
 export interface Config {
   env: 'development' | 'test' | 'production';
   port: number;
