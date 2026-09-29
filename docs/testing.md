@@ -50,6 +50,7 @@
 - `scripts/mcp-e2e.ts` на запущенном сервере: discovery через `WWW-Authenticate` → PRM → AS metadata → DCR → PKCE → 14 инструментов → заказ → статус. **Пройдено.**
 - **MCP Inspector 2.8.0 (CLI):** `tools/list` и `tools/call get_capabilities` с Bearer-токеном. **Пройдено.**
 - **Мобильный экран (Playwright + Chromium, 390×844, touch):** главная, вход, кабинет, режим, адреса, предпочтения, подключение, подтверждение, заказ, английская версия, тёмная тема. Горизонтальной прокрутки нет, ошибок в консоли нет, первый Tab попадает на «К содержанию». **Пройдено.** Проверка нашла реальный баг: `Referrer-Policy: no-referrer` заставлял браузер слать `Origin: null`, и CSRF-проверка блокировала формы. Исправлено.
+- Скриншоты мобильной версии: `docs/screenshots/`.
 - Production-сборка (`npm run build`, `node dist/main.js` с `NODE_ENV=production`): `/readyz`, PRM, HSTS и CSP. Защита от запуска с dev-настройками срабатывает. **Пройдено.**
 - `deploy/Caddyfile`: `caddy validate` (Caddy 2.10.2) - **Valid configuration.**
 - Бэкап и восстановление: `scripts/backup-verify.sh` - **пройдено.**
