@@ -1,3 +1,4 @@
+import { INTL_LOCALE, type Locale } from './locales.js';
 // Money is always an integer amount in the currency's minor unit.
 // Exponents must follow the provider's rules. THB exponent 2 is taken from the
 // GrabFood POS API docs ("Thailand TH THB ฿ 2"), developer.grab.com, checked 2026-09-30.
@@ -17,10 +18,10 @@ export function exponentOf(currency: string): number {
   return e;
 }
 
-export function formatMinor(amountMinor: number, currency: string, locale: 'ru' | 'en' | 'th' = 'en'): string {
+export function formatMinor(amountMinor: number, currency: string, locale: Locale = 'en'): string {
   const exp = exponentOf(currency);
   const major = amountMinor / 10 ** exp;
-  return new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : locale === 'th' ? 'th-TH' : 'en-US', {
+  return new Intl.NumberFormat(locale === 'en' ? 'en-US' : INTL_LOCALE[locale] ?? 'en-US', {
     style: 'currency',
     currency,
     currencyDisplay: 'narrowSymbol',
@@ -29,7 +30,7 @@ export function formatMinor(amountMinor: number, currency: string, locale: 'ru' 
   }).format(major);
 }
 
-export function money(amountMinor: number, currency: string, locale: 'ru' | 'en' | 'th' = 'en'): Money {
+export function money(amountMinor: number, currency: string, locale: Locale = 'en'): Money {
   if (!Number.isSafeInteger(amountMinor)) throw new Error('amount must be an integer in minor units');
   return { amount_minor: amountMinor, currency, formatted: formatMinor(amountMinor, currency, locale) };
 }

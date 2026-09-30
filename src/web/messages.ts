@@ -1,4 +1,8 @@
-// UI strings. To add a language, add an object typed as Messages and register it in LOCALES.
+// UI strings. Russian, English and Thai are written here; the other Grab-market languages come from
+// src/i18n/locales/<lang>.json (English text -> translation), compiled by scripts/i18n-build.ts.
+import { INTL_LOCALE, LOCALE_CODES, type Locale } from '../domain/locales.js';
+import { lookup } from '../i18n/index.js';
+export type { Locale } from '../domain/locales.js';
 const ru = {
   lang: 'ru',
   brandTagline: 'Grab через вашего ИИ-ассистента: еда, продукты, цветы, аптека, такси, посылки',
@@ -691,19 +695,28 @@ const th: Messages = {
   privacyTitle: 'ข้อมูลและการจัดเก็บ',
 };
 
-export const LOCALES = { ru, en, th } as const;
-export type Locale = keyof typeof LOCALES;
-
-export function msg(locale: Locale): Messages {
-  return LOCALES[locale] ?? ru;
+/** Messages for a catalog language: every English value mapped through the catalog, English as fallback. */
+function fromCatalog(l: Locale): Messages {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(en)) out[k] = typeof v === 'string' && k !== 'lang' ? lookup(l, v) ?? v : v;
+  out.lang = l;
+  return out as Messages;
 }
 
-/** Inline copy for page-specific text: tr(l, { ru, en, th }). */
+export const LOCALES: Record<Locale, Messages> = Object.fromEntries(
+  LOCALE_CODES.map((l) => [l, l === 'ru' ? ru : l === 'en' ? en : l === 'th' ? th : fromCatalog(l)]),
+) as Record<Locale, Messages>;
+
+export function msg(locale: Locale): Messages {
+  return LOCALES[locale] ?? en;
+}
+
+/** Inline copy for page-specific text: tr(l, { ru, en, th }). Other languages are looked up by the English text. */
 export type Tri = { ru: string; en: string; th: string };
-export const tr = (l: Locale, t: Tri) => t[l] ?? t.en;
+export const tr = (l: Locale, t: Tri): string => (t as Record<string, string>)[l] ?? lookup(l, t.en) ?? t.en;
 
 /** Locale tag for Intl formatting. Thai uses the Buddhist calendar, as Thai users expect. */
-export const intlLocale = (l: Locale) => (l === 'ru' ? 'ru-RU' : l === 'th' ? 'th-TH' : 'en-GB');
+export const intlLocale = (l: Locale) => INTL_LOCALE[l] ?? 'en-GB';
 
 export function fmt(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));

@@ -1,4 +1,5 @@
-import type { Locale, Tri } from './messages.js';
+import { lookup } from '../i18n/index.js';
+import { tr, type Locale, type Tri } from './messages.js';
 
 /** Display translations for demo dishes. Provider data stays in English; this is presentation only. */
 const DISHES: Record<string, { ru: string; th: string }> = {
@@ -29,7 +30,8 @@ const DISHES: Record<string, { ru: string; th: string }> = {
   'r6-prawns': { ru: 'Креветки с чесноком', th: 'กุ้งกระเทียม' },
   'r6-morningglory': { ru: 'Водяной шпинат вок', th: 'ผัดผักบุ้ง' },
 };
-export const dishName = (itemId: string, fallback: string, l: Locale) => (l === 'en' ? fallback : DISHES[itemId]?.[l] ?? fallback);
+export const dishName = (itemId: string, fallback: string, l: Locale) =>
+  l === 'en' ? fallback : (DISHES[itemId] as Record<string, string> | undefined)?.[l] ?? lookup(l, fallback) ?? fallback;
 
 export const ALLERGEN_NAMES: Record<string, Tri> = {
   peanut: { ru: 'арахис', en: 'peanut', th: 'ถั่วลิสง' },
@@ -58,4 +60,4 @@ export const CUISINE_NAMES: Record<string, Tri> = {
   grill: { ru: 'гриль', en: 'grill', th: 'ปิ้งย่าง' },
   seafood: { ru: 'морепродукты', en: 'seafood', th: 'อาหารทะเล' },
 };
-export const t3 = (map: Record<string, Tri>, key: string, l: Locale) => map[key]?.[l] ?? key;
+export const t3 = (map: Record<string, Tri>, key: string, l: Locale) => (map[key] ? tr(l, map[key]) : key);

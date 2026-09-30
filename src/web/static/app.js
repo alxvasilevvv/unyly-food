@@ -175,3 +175,11 @@ document.addEventListener('keydown', (e) => {
   };
   setTimeout(tick, delay);
 })();
+
+// ---------------- Language menu: close on outside click or Escape ----------------
+document.addEventListener('click', (e) => {
+  for (const d of document.querySelectorAll('details.lang-menu[open]')) if (!d.contains(e.target)) d.removeAttribute('open');
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') for (const d of document.querySelectorAll('details.lang-menu[open]')) d.removeAttribute('open');
+});

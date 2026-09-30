@@ -1,3 +1,4 @@
+import type { Locale } from '../domain/locales.js';
 import type { Actor, Ctx } from '../context.js';
 import { actorLabel, audit } from '../context.js';
 import type { Queryable } from '../db/db.js';
@@ -39,7 +40,7 @@ export async function loadOrder(q: Queryable, userId: string, id: string): Promi
   return r.rows[0];
 }
 
-export function describeOrder(o: OrderRow, locale: 'ru' | 'en' | 'th' = 'en') {
+export function describeOrder(o: OrderRow, locale: Locale = 'en') {
   return {
     order_id: o.id,
     mode: o.mode,

@@ -1,0 +1,441 @@
+{
+  "examples": [
+    "Makan malam untuk dua orang bawah 600 baht, tanpa kacang",
+    "Teksi dari Siam Paragon ke lapangan terbang Suvarnabhumi",
+    "Barang runcit: beras, telur dan air",
+    "Bunga ros merah dengan kotak hadiah",
+    "Parasetamol dan plaster",
+    "Kek coklat untuk hari jadi",
+    "Hantar bungkusan 3 kg ke ICONSIAM"
+  ],
+  "service_words": {
+    "ride": [
+      "teksi",
+      "taksi",
+      "kereta",
+      "motosikal",
+      "grabcar",
+      "e-hailing",
+      "ehailing",
+      "tumpangan",
+      "perjalanan",
+      "ambil saya",
+      "hantar saya",
+      "van"
+    ],
+    "express": [
+      "bungkusan",
+      "parsel",
+      "kiriman",
+      "hantar barang",
+      "hantar dokumen",
+      "dokumen",
+      "kurier",
+      "courier"
+    ],
+    "flowers": [
+      "bunga",
+      "jambak",
+      "mawar",
+      "orkid",
+      "kalungan",
+      "kedai bunga",
+      "florist"
+    ],
+    "pharmacy": [
+      "farmasi",
+      "ubat",
+      "plaster",
+      "parasetamol",
+      "panadol",
+      "kedai ubat"
+    ],
+    "cakes": [
+      "kek coklat",
+      "kek hari jadi",
+      "kek harijadi",
+      "kek pandan",
+      "kek keju",
+      "kek mangga",
+      "kek ulang tahun",
+      "kek untuk",
+      "kek dengan",
+      "sebiji kek",
+      "bakeri"
+    ],
+    "groceries": [
+      "barang runcit",
+      "barangan runcit",
+      "runcit",
+      "pasar raya",
+      "pasaraya",
+      "kedai serbaneka",
+      "barang dapur",
+      "barang basah"
+    ]
+  },
+  "route": {
+    "from": [
+      "dari",
+      "daripada"
+    ],
+    "to": [
+      "ke",
+      "menuju",
+      "hingga",
+      "sampai"
+    ]
+  },
+  "party": {
+    "cue": [
+      "untuk",
+      "bagi"
+    ],
+    "people": [
+      "orang",
+      "org",
+      "pax"
+    ]
+  },
+  "number_words": {
+    "satu": 1,
+    "seorang": 1,
+    "dua": 2,
+    "berdua": 2,
+    "tiga": 3,
+    "bertiga": 3,
+    "empat": 4,
+    "berempat": 4,
+    "lima": 5,
+    "berlima": 5,
+    "enam": 6,
+    "berenam": 6
+  },
+  "budget_cues": [
+    "bawah",
+    "di bawah",
+    "tak lebih",
+    "tidak lebih",
+    "tak melebihi",
+    "tidak melebihi",
+    "kurang dari",
+    "kurang daripada",
+    "maksimum",
+    "maks",
+    "bajet",
+    "budget"
+  ],
+  "currency_words": [
+    "baht",
+    "thb",
+    "฿"
+  ],
+  "negation": [
+    "tanpa",
+    "tak nak",
+    "tidak mahu",
+    "tak mahu",
+    "taknak",
+    "xnak",
+    "jangan",
+    "tiada",
+    "takde",
+    "tak ada",
+    "tak boleh",
+    "elak",
+    "bukan"
+  ],
+  "allergy_cue": [
+    "alahan",
+    "alergi",
+    "alah kepada",
+    "alah pada",
+    "allergic"
+  ],
+  "allergens": {
+    "peanut": [
+      "kacang tanah",
+      "kacang"
+    ],
+    "shellfish": [
+      "udang",
+      "ketam",
+      "kerang",
+      "kupang",
+      "lala",
+      "siput",
+      "lobster",
+      "makanan laut"
+    ],
+    "milk": [
+      "susu",
+      "tenusu",
+      "laktosa",
+      "keju",
+      "mentega"
+    ],
+    "egg": [
+      "telur"
+    ],
+    "wheat": [
+      "gandum",
+      "gluten",
+      "tepung"
+    ],
+    "soy": [
+      "soya",
+      "kicap",
+      "tauhu",
+      "taugeh soya"
+    ],
+    "fish": [
+      "ikan"
+    ],
+    "sesame": [
+      "bijan"
+    ]
+  },
+  "diet": {
+    "vegan": [
+      "vegan"
+    ],
+    "vegetarian": [
+      "vegetarian",
+      "tanpa daging",
+      "tak makan daging",
+      "tidak makan daging",
+      "sayur sahaja",
+      "sayuran sahaja"
+    ],
+    "halal": [
+      "halal"
+    ],
+    "no_pork": [
+      "tanpa babi",
+      "tak makan babi",
+      "tidak makan babi",
+      "tiada babi",
+      "bukan babi",
+      "no pork"
+    ]
+  },
+  "meal_words": [
+    "makan malam",
+    "makan tengah hari",
+    "makan tengahari",
+    "sarapan",
+    "makan",
+    "makanan",
+    "hidangan",
+    "minum petang",
+    "supper",
+    "moreh"
+  ],
+  "place_aliases": {
+    "bkk": [
+      "suvarnabumi",
+      "suwannaphum",
+      "lapangan terbang suvarnabhumi"
+    ],
+    "dmk": [
+      "don muang",
+      "lapangan terbang don mueang"
+    ],
+    "paragon": [],
+    "iconsiam": [
+      "icon siam"
+    ],
+    "chatuchak": [
+      "pasar chatuchak",
+      "jatujak",
+      "pasar jatujak",
+      "pasar hujung minggu chatuchak"
+    ],
+    "palace": [
+      "istana besar",
+      "istana agung",
+      "istana diraja bangkok"
+    ],
+    "khaosan": [
+      "jalan khao san",
+      "jalan khaosan"
+    ],
+    "asok": [
+      "asoke"
+    ],
+    "lumphini": [
+      "taman lumphini",
+      "taman lumpini",
+      "lumpini"
+    ],
+    "saladaeng": [
+      "sala deng"
+    ],
+    "thonglo": [
+      "thonglor",
+      "thong lor"
+    ],
+    "bangsue": [
+      "stesen bang sue",
+      "bang sue"
+    ],
+    "yaowarat": [
+      "pekan cina",
+      "kampung cina",
+      "chinatown bangkok"
+    ],
+    "ekkamai": [
+      "ekamai"
+    ]
+  },
+  "airport_words": [
+    "lapangan terbang",
+    "lapang terbang",
+    "airport",
+    "lapter"
+  ],
+  "weight_units": [
+    "kg",
+    "kilo",
+    "kilogram",
+    "gram"
+  ],
+  "shop_items": {
+    "m1-rice": [
+      "beras",
+      "beras wangi"
+    ],
+    "m1-eggs": [
+      "telur"
+    ],
+    "m1-water": [
+      "air mineral",
+      "air minuman",
+      "air botol",
+      "air kosong",
+      "air"
+    ],
+    "m1-milk": [
+      "susu segar",
+      "susu"
+    ],
+    "m1-banana": [
+      "pisang"
+    ],
+    "m1-mango": [
+      "mangga",
+      "buah mangga"
+    ],
+    "m1-chicken": [
+      "dada ayam",
+      "ayam"
+    ],
+    "m1-noodles": [
+      "mi segera",
+      "mee segera",
+      "maggi",
+      "megi",
+      "mi maggi"
+    ],
+    "m1-coffee": [
+      "biji kopi",
+      "kopi"
+    ],
+    "m1-veg": [
+      "kangkung",
+      "sayur"
+    ],
+    "m3-seasonal": [
+      "jambak bunga",
+      "bunga campur",
+      "bunga bermusim",
+      "buket"
+    ],
+    "m3-roses": [
+      "mawar",
+      "bunga ros",
+      "ros merah"
+    ],
+    "m3-lilies": [
+      "bunga lili",
+      "lili"
+    ],
+    "m3-orchid": [
+      "orkid",
+      "anggerik"
+    ],
+    "m3-malai": [
+      "kalungan",
+      "kalung bunga",
+      "bunga melur",
+      "malai"
+    ],
+    "m4-paracetamol": [
+      "parasetamol",
+      "panadol",
+      "ubat demam",
+      "ubat sakit kepala"
+    ],
+    "m4-plasters": [
+      "plaster",
+      "pembalut luka"
+    ],
+    "m4-ors": [
+      "garam rehidrasi",
+      "rehidrasi",
+      "garam oral"
+    ],
+    "m4-lozenges": [
+      "gula-gula tekak",
+      "gula gula tekak",
+      "ubat tekak",
+      "lozenj"
+    ],
+    "m4-antiseptic": [
+      "antiseptik",
+      "cecair antiseptik"
+    ],
+    "m4-thermometer": [
+      "termometer",
+      "jangka suhu"
+    ],
+    "m4-masks": [
+      "pelitup muka",
+      "pelitup",
+      "topeng muka"
+    ],
+    "m4-repellent": [
+      "penghalau nyamuk",
+      "ubat nyamuk",
+      "losyen nyamuk",
+      "semburan nyamuk"
+    ],
+    "m4-sunscreen": [
+      "pelindung matahari",
+      "pelindung cahaya matahari",
+      "krim pelindung",
+      "sunblock",
+      "losyen matahari"
+    ],
+    "m5-choc": [
+      "kek coklat",
+      "coklat"
+    ],
+    "m5-birthday": [
+      "kek hari jadi",
+      "kek harijadi",
+      "hari jadi",
+      "harijadi",
+      "ulang tahun"
+    ],
+    "m5-mango": [
+      "kek keju mangga",
+      "cheesecake mangga",
+      "kek mangga"
+    ],
+    "m5-pandan": [
+      "kek pandan",
+      "pandan"
+    ]
+  }
+}

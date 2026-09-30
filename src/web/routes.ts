@@ -18,6 +18,7 @@ import { DEMO_DISTRICTS, findRestaurant } from '../providers/demo/catalog.js';
 import type { Mode } from '../providers/types.js';
 import { car, checkBurst, icon, restaurantArt, scooter } from './art.js';
 import { SERVICE_NAME, statusLabel } from '../domain/labels.js';
+import { isLocaleCode, localeFromTag, LOCALE_NATIVE } from '../domain/locales.js';
 import { isTripService, REGION_CODES, REGIONS, Service } from '../domain/regions.js';
 import { ALLERGEN_NAMES, DIET_NAMES, dishName, t3 } from './copy.js';
 import { html, SafeHtml } from './html.js';
@@ -89,7 +90,7 @@ const ASSISTANTS: { name: string; where: T3; kind: keyof typeof KIND; steps: T3[
 
 
 /** Own-property check: `in` would also accept inherited names such as "constructor". */
-export const isLocale = (v: unknown): v is Locale => typeof v === 'string' && Object.hasOwn(LOCALES, v);
+export const isLocale = (v: unknown): v is Locale => isLocaleCode(v);
 
 export function detectLocale(req: FastifyRequest, s: WebSession | null): Locale {
   const q = (req.query as any)?.lang;
@@ -106,7 +107,7 @@ export function acceptLanguage(h: string): Locale {
     .split(',')
     .map((part) => {
       const [tag, qv] = part.trim().split(';q=');
-      return { tag: tag.toLowerCase().slice(0, 2), q: qv === undefined ? 1 : Number(qv) || 0 };
+      return { tag: localeFromTag(tag) ?? '', q: qv === undefined ? 1 : Number(qv) || 0 };
     })
     .filter((x) => x.tag)
     .sort((a, b) => b.q - a.q);

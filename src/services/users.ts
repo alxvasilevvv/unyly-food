@@ -1,3 +1,4 @@
+import type { Locale } from '../domain/locales.js';
 import type { Ctx } from '../context.js';
 import { audit } from '../context.js';
 import type { Queryable } from '../db/db.js';
@@ -9,7 +10,7 @@ import type { DeliveryAddress, Mode } from '../providers/types.js';
 export interface UserRow {
   id: string;
   email: string;
-  locale: 'ru' | 'en' | 'th';
+  locale: Locale;
   is_guest?: boolean;
   region: string;
   mode: Mode;
@@ -27,7 +28,7 @@ export async function getUser(q: Queryable, id: string): Promise<UserRow> {
   return r.rows[0];
 }
 
-export async function findOrCreateUserByEmail(q: Queryable, email: string, locale: 'ru' | 'en' | 'th'): Promise<UserRow> {
+export async function findOrCreateUserByEmail(q: Queryable, email: string, locale: Locale): Promise<UserRow> {
   const e = email.trim().toLowerCase();
   const found = await q.query<UserRow>('SELECT * FROM users WHERE lower(email) = $1 AND deleted_at IS NULL', [e]);
   if (found.rows[0]) return found.rows[0];
@@ -56,7 +57,7 @@ export async function setRegionAndMode(ctx: Ctx, userId: string, region: string,
   });
 }
 
-export async function setLocale(q: Queryable, userId: string, locale: 'ru' | 'en' | 'th') {
+export async function setLocale(q: Queryable, userId: string, locale: Locale) {
   await q.query('UPDATE users SET locale = $2 WHERE id = $1', [userId, locale]);
 }
 

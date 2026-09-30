@@ -1,3 +1,4 @@
+import type { Locale } from '../domain/locales.js';
 import type { Actor, Ctx } from '../context.js';
 import { actorLabel, audit } from '../context.js';
 import type { Queryable } from '../db/db.js';
@@ -136,7 +137,7 @@ export async function prepareCheckout(ctx: Ctx, actor: Actor, args: { cart_id: s
 }
 
 /** Full, human-readable view of what is being approved. Used by the confirmation page and get_checkout_status. */
-export async function checkoutView(ctx: Ctx, userId: string, id: string, locale: 'ru' | 'en' | 'th' = 'en') {
+export async function checkoutView(ctx: Ctx, userId: string, id: string, locale: Locale = 'en') {
   let c = await loadCheckout(ctx.db, userId, id);
   if ((c.status === 'awaiting_user' || c.status === 'approved') && new Date(c.expires_at).getTime() <= ctx.clock.now().getTime()) {
     await markInvalid(ctx.db, c.id, 'EXPIRED');

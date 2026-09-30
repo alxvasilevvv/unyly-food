@@ -1,3 +1,4 @@
+import type { Locale } from '../domain/locales.js';
 import type { Actor, Ctx } from '../context.js';
 import { actorLabel, audit } from '../context.js';
 import type { Queryable } from '../db/db.js';
@@ -389,7 +390,7 @@ export async function quoteCart(ctx: Ctx, actor: Actor, cartId: string) {
   return { quote: row, cart, address: addr };
 }
 
-export function describeQuote(qr: QuoteRow, locale: 'ru' | 'en' | 'th' = 'en', cart?: Pick<CartState, 'service' | 'trip'>) {
+export function describeQuote(qr: QuoteRow, locale: Locale = 'en', cart?: Pick<CartState, 'service' | 'trip'>) {
   const m = (n: number) => money(n, qr.currency, locale);
   return {
     quote_id: qr.id,

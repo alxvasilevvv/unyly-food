@@ -2,8 +2,11 @@
 import type { FulfillmentStatus } from '../providers/types.js';
 import type { Service } from './regions.js';
 
-type L = 'ru' | 'en' | 'th';
-type Tri = Record<L, string>;
+import { lookup } from '../i18n/index.js';
+import type { Locale } from './locales.js';
+
+type L = Locale;
+type Tri = { ru: string; en: string; th: string };
 
 const COMMON: Partial<Record<FulfillmentStatus, Tri>> = {
   submitted: { en: 'Sent', ru: 'Отправлен', th: 'ส่งแล้ว' },
@@ -39,7 +42,9 @@ const BY_SERVICE: Record<Service, Partial<Record<FulfillmentStatus, Tri>>> = {
 };
 
 export function statusLabel(service: Service, status: FulfillmentStatus, l: L = 'en'): string {
-  return (BY_SERVICE[service]?.[status] ?? COMMON[status])?.[l] ?? status;
+  const t = BY_SERVICE[service]?.[status] ?? COMMON[status];
+  if (!t) return status;
+  return (t as Record<string, string>)[l] ?? lookup(l, t.en) ?? t.en;
 }
 
 export const SERVICE_NAME: Record<Service, Tri> = {

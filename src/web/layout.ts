@@ -1,4 +1,5 @@
-import { FAVICON, logoMark } from './art.js';
+import { FAVICON, icon, logoMark } from './art.js';
+import { LOCALE_CODES, LOCALE_NATIVE } from '../domain/locales.js';
 import { ASSET_VERSION } from './assets.js';
 import { html, SafeHtml } from './html.js';
 import { Locale, msg, tr } from './messages.js';
@@ -61,9 +62,12 @@ export function page(o: PageOpts): string {
     <a href="/connect" class="hide-md" ${cur('/connect')}>${m.navConnect}</a>
     ${o.loggedIn && !o.guest ? html`<a href="/app" class="hide-sm" ${cur('/app')}>${m.navApp}</a>` : html`<a href="/login" class="hide-sm" ${cur('/login')}>${m.navLogin}</a>`}
     <a href="/try" class="cta" ${cur('/try')}>${tr(l, { ru: 'Попробовать', en: 'Try the demo', th: 'ลองเดโม' })}</a>
-    <span class="lang" role="group" aria-label="Language">
-      ${(['en', 'th', 'ru'] as Locale[]).map((x) => html`<a href="${langHref(x)}" aria-current="${l === x}" lang="${x}" hreflang="${x}">${x.toUpperCase()}</a>`)}
-    </span>
+    <details class="lang-menu">
+      <summary aria-label="Language: ${LOCALE_NATIVE[l]}">${icon('globe')}<span>${l.toUpperCase()}</span></summary>
+      <ul role="list">
+        ${LOCALE_CODES.map((x) => html`<li><a href="${langHref(x)}" ${l === x ? html`aria-current="true"` : ''} lang="${x}" hreflang="${x}"><span class="code">${x.toUpperCase()}</span>${LOCALE_NATIVE[x]}</a></li>`)}
+      </ul>
+    </details>
   </nav>
 </div></header>
 ${!o.noBanner && o.mode === 'demo' ? html`<div class="banner demo" role="status"><div class="wrap"><span class="pill warn">DEMO</span><span>${m.demoBanner}${o.guest ? html` <span class="guest-note">${tr(l, { ru: 'Гостевой сеанс удаляется через 24 часа.', en: 'Guest sessions are deleted after 24 hours.', th: 'เซสชันผู้เยี่ยมชมจะถูกลบหลัง 24 ชั่วโมง' })}</span>` : ''}</span></div></div>` : ''}

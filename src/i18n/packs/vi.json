@@ -1,0 +1,513 @@
+{
+  "examples": [
+    "Bữa tối cho hai người dưới 600 baht, không có đậu phộng",
+    "Taxi từ Siam Paragon đến sân bay Suvarnabhumi",
+    "Tạp hóa: gạo, trứng và nước",
+    "Hoa hồng đỏ kèm hộp quà",
+    "Paracetamol và băng dán cá nhân",
+    "Bánh sô cô la cho sinh nhật",
+    "Gửi bưu kiện 3 kg đến ICONSIAM"
+  ],
+  "service_words": {
+    "ride": [
+      "taxi",
+      "tắc xi",
+      "tắc-xi",
+      "xe ôm",
+      "xe om",
+      "gọi xe",
+      "goi xe",
+      "đặt xe",
+      "dat xe",
+      "đón tôi",
+      "chở tôi",
+      "xe máy",
+      "ô tô",
+      "oto"
+    ],
+    "express": [
+      "gửi hàng",
+      "gui hang",
+      "gửi bưu kiện",
+      "bưu kiện",
+      "buu kien",
+      "bưu phẩm",
+      "buu pham",
+      "kiện hàng",
+      "gói hàng",
+      "chuyển phát",
+      "chuyen phat",
+      "gửi đồ",
+      "gui do"
+    ],
+    "flowers": [
+      "bó hoa",
+      "bo hoa",
+      "hoa hồng",
+      "hoa hong",
+      "hoa tươi",
+      "hoa tuoi",
+      "điện hoa",
+      "hoa ly",
+      "hoa lan",
+      "lan hồ điệp",
+      "vòng hoa",
+      "vong hoa"
+    ],
+    "pharmacy": [
+      "nhà thuốc",
+      "nha thuoc",
+      "hiệu thuốc",
+      "hieu thuoc",
+      "tiệm thuốc",
+      "quầy thuốc",
+      "thuốc",
+      "thuoc"
+    ],
+    "cakes": [
+      "bánh kem",
+      "banh kem",
+      "bánh sinh nhật",
+      "banh sinh nhat",
+      "bánh gato",
+      "gato",
+      "gateau",
+      "bánh ngọt",
+      "banh ngot",
+      "bánh bông lan",
+      "cheesecake"
+    ],
+    "groceries": [
+      "tạp hóa",
+      "tạp hoá",
+      "tap hoa",
+      "đi chợ",
+      "di cho",
+      "siêu thị",
+      "sieu thi",
+      "thực phẩm",
+      "thuc pham",
+      "cửa hàng tiện lợi",
+      "đồ khô"
+    ]
+  },
+  "route": {
+    "from": [
+      "từ"
+    ],
+    "to": [
+      "đến",
+      "tới",
+      "den"
+    ]
+  },
+  "party": {
+    "cue": [
+      "cho"
+    ],
+    "people": [
+      "người",
+      "nguoi",
+      "suất",
+      "suat",
+      "phần ăn"
+    ]
+  },
+  "number_words": {
+    "một": 1,
+    "mot": 1,
+    "hai": 2,
+    "ba": 3,
+    "bốn": 4,
+    "bon": 4,
+    "tư": 4,
+    "năm": 5,
+    "sáu": 6
+  },
+  "budget_cues": [
+    "dưới",
+    "duoi",
+    "không quá",
+    "khong qua",
+    "tối đa",
+    "toi da",
+    "ngân sách",
+    "ngan sach",
+    "trong vòng"
+  ],
+  "currency_words": [
+    "baht",
+    "bạt",
+    "thb",
+    "฿"
+  ],
+  "negation": [
+    "không",
+    "khong",
+    "đừng",
+    "dung",
+    "tránh",
+    "tranh",
+    "trừ",
+    "bỏ"
+  ],
+  "allergy_cue": [
+    "dị ứng",
+    "di ung"
+  ],
+  "allergens": {
+    "peanut": [
+      "đậu phộng",
+      "đậu phụng",
+      "dau phong",
+      "dau phung",
+      "hạt lạc",
+      "lạc rang",
+      "các loại hạt",
+      "cac loai hat"
+    ],
+    "shellfish": [
+      "tôm",
+      "cua",
+      "ghẹ",
+      "ghe",
+      "sò",
+      "nghêu",
+      "hàu",
+      "hến",
+      "động vật có vỏ",
+      "hải sản có vỏ",
+      "giáp xác"
+    ],
+    "milk": [
+      "sữa",
+      "sua",
+      "lactose",
+      "phô mai",
+      "pho mai"
+    ],
+    "egg": [
+      "trứng",
+      "hột gà",
+      "hột vịt",
+      "trung ga"
+    ],
+    "wheat": [
+      "lúa mì",
+      "lua mi",
+      "bột mì",
+      "bot mi",
+      "gluten"
+    ],
+    "soy": [
+      "đậu nành",
+      "dau nanh",
+      "nước tương",
+      "nuoc tuong",
+      "xì dầu",
+      "xi dau"
+    ],
+    "fish": [
+      "cá hồi",
+      "cá ngừ",
+      "nước mắm",
+      "nuoc mam",
+      "ca hoi",
+      "ca ngu"
+    ],
+    "sesame": [
+      "mè",
+      "vừng",
+      "hạt mè",
+      "hat me",
+      "dầu mè"
+    ]
+  },
+  "diet": {
+    "vegan": [
+      "thuần chay",
+      "thuan chay",
+      "chay trường",
+      "chay truong"
+    ],
+    "vegetarian": [
+      "ăn chay",
+      "an chay",
+      "đồ chay",
+      "do chay",
+      "món chay",
+      "mon chay",
+      "chay"
+    ],
+    "halal": [
+      "halal"
+    ],
+    "no_pork": [
+      "không thịt heo",
+      "khong thit heo",
+      "không thịt lợn",
+      "khong thit lon",
+      "không heo",
+      "khong heo",
+      "không lợn",
+      "khong lon"
+    ]
+  },
+  "meal_words": [
+    "bữa tối",
+    "bua toi",
+    "bữa trưa",
+    "bua trua",
+    "bữa sáng",
+    "bua sang",
+    "bữa ăn",
+    "ăn tối",
+    "an toi",
+    "ăn trưa",
+    "an trua",
+    "ăn khuya",
+    "đồ ăn",
+    "do an",
+    "món ăn",
+    "mon an",
+    "cơm"
+  ],
+  "place_aliases": {
+    "bkk": [
+      "suvanabhumi",
+      "suvarnabumi"
+    ],
+    "dmk": [
+      "đôn mương",
+      "don muang"
+    ],
+    "paragon": [],
+    "iconsiam": [
+      "icon siam"
+    ],
+    "chatuchak": [
+      "chợ cuối tuần",
+      "cho cuoi tuan",
+      "jatujak"
+    ],
+    "palace": [
+      "cung điện hoàng gia",
+      "cung dien hoang gia",
+      "hoàng cung",
+      "hoang cung",
+      "đại hoàng cung"
+    ],
+    "khaosan": [
+      "phố tây",
+      "pho tay"
+    ],
+    "asok": [
+      "asoke"
+    ],
+    "lumphini": [
+      "lumpini"
+    ],
+    "saladaeng": [
+      "silom"
+    ],
+    "thonglo": [
+      "thong lor",
+      "thonglor"
+    ],
+    "bangsue": [
+      "bang sue"
+    ],
+    "yaowarat": [
+      "phố tàu",
+      "pho tau",
+      "khu người hoa",
+      "phố người hoa",
+      "pho nguoi hoa",
+      "khu phố tàu"
+    ],
+    "ekkamai": [
+      "ekamai"
+    ]
+  },
+  "airport_words": [
+    "sân bay",
+    "san bay",
+    "phi trường",
+    "phi truong"
+  ],
+  "weight_units": [
+    "kg",
+    "kilo",
+    "ký",
+    "kí",
+    "cân"
+  ],
+  "shop_items": {
+    "m1-rice": [
+      "gạo",
+      "gao"
+    ],
+    "m1-eggs": [
+      "trứng",
+      "trung ga"
+    ],
+    "m1-water": [
+      "nước uống",
+      "nuoc uong",
+      "nước suối",
+      "nuoc suoi",
+      "nước lọc",
+      "nuoc loc",
+      "nước",
+      "nuoc"
+    ],
+    "m1-milk": [
+      "sữa tươi",
+      "sua tuoi",
+      "sữa"
+    ],
+    "m1-banana": [
+      "chuối",
+      "chuoi"
+    ],
+    "m1-mango": [
+      "xoài",
+      "xoai"
+    ],
+    "m1-chicken": [
+      "ức gà",
+      "uc ga",
+      "thịt gà",
+      "thit ga"
+    ],
+    "m1-noodles": [
+      "mì gói",
+      "mi goi",
+      "mì tôm",
+      "mi tom",
+      "mỳ tôm",
+      "mì ăn liền",
+      "mi an lien"
+    ],
+    "m1-coffee": [
+      "cà phê",
+      "ca phe",
+      "cafe",
+      "hạt cà phê"
+    ],
+    "m1-veg": [
+      "rau muống",
+      "rau muong",
+      "rau"
+    ],
+    "m3-seasonal": [
+      "hoa theo mùa",
+      "hoa mix",
+      "bó hoa mix",
+      "hoa tươi"
+    ],
+    "m3-roses": [
+      "hoa hồng",
+      "hoa hong",
+      "hồng đỏ",
+      "hong do"
+    ],
+    "m3-lilies": [
+      "hoa ly",
+      "loa kèn",
+      "loa ken",
+      "huệ tây"
+    ],
+    "m3-orchid": [
+      "hoa lan",
+      "lan hồ điệp",
+      "lan ho diep"
+    ],
+    "m3-malai": [
+      "vòng hoa",
+      "vong hoa",
+      "hoa nhài",
+      "hoa lài",
+      "malai"
+    ],
+    "m4-paracetamol": [
+      "paracetamol",
+      "panadol",
+      "hapacol",
+      "efferalgan",
+      "hạ sốt",
+      "ha sot",
+      "giảm đau",
+      "giam dau"
+    ],
+    "m4-plasters": [
+      "băng dán",
+      "bang dan",
+      "băng cá nhân",
+      "bang ca nhan",
+      "urgo"
+    ],
+    "m4-ors": [
+      "oresol",
+      "muối bù nước",
+      "bù nước",
+      "bu nuoc"
+    ],
+    "m4-lozenges": [
+      "kẹo ngậm",
+      "keo ngam",
+      "viên ngậm",
+      "vien ngam",
+      "ngậm ho",
+      "strepsils"
+    ],
+    "m4-antiseptic": [
+      "sát khuẩn",
+      "sat khuan",
+      "sát trùng",
+      "sat trung",
+      "betadine",
+      "povidine"
+    ],
+    "m4-thermometer": [
+      "nhiệt kế",
+      "nhiet ke",
+      "cặp nhiệt"
+    ],
+    "m4-masks": [
+      "khẩu trang",
+      "khau trang"
+    ],
+    "m4-repellent": [
+      "chống muỗi",
+      "chong muoi",
+      "xịt muỗi",
+      "xit muoi"
+    ],
+    "m4-sunscreen": [
+      "kem chống nắng",
+      "chống nắng",
+      "chong nang"
+    ],
+    "m5-choc": [
+      "sô cô la",
+      "so co la",
+      "socola",
+      "sôcôla",
+      "chocolate"
+    ],
+    "m5-birthday": [
+      "sinh nhật",
+      "sinh nhat"
+    ],
+    "m5-mango": [
+      "cheesecake",
+      "bánh phô mai xoài"
+    ],
+    "m5-pandan": [
+      "lá dứa",
+      "la dua",
+      "chiffon"
+    ]
+  }
+}

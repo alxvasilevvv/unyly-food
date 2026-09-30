@@ -16,14 +16,23 @@ import { html, SafeHtml } from './html.js';
 import { detectService, parseIntent } from './intent.js';
 import { SHOP_STORE, shopPlan, ShopPlan, tripPlan, TripPlan } from './try-services.js';
 import { REPO_URL } from './layout.js';
-import { Locale, tr } from './messages.js';
+import { fmt, Locale, tr } from './messages.js';
+import { pack } from '../i18n/index.js';
 import type { Kit, R } from './routes.js';
 
-const EXAMPLES: Record<Locale, string[]> = {
+const BASE_EXAMPLES: Record<'en' | 'th' | 'ru', string[]> = {
   en: ['Dinner for two under 600 baht, no nuts', 'Taxi from Siam Paragon to Suvarnabhumi airport', 'Groceries: rice, eggs and water', 'Red roses with a gift box', 'Paracetamol and plasters', 'Chocolate cake for a birthday', 'Send a 3 kg parcel to ICONSIAM'],
   th: ['ข้าวเย็นสำหรับ 2 คน ไม่เกิน 600 บาท ไม่ใส่ถั่ว', 'เรียกแท็กซี่จากสยามพารากอนไปสนามบินสุวรรณภูมิ', 'ของชำ ข้าวสาร ไข่ไก่ น้ำดื่ม', 'ช่อดอกกุหลาบให้แฟน', 'พาราเซตามอลกับพลาสเตอร์', 'เค้กช็อกโกแลตวันเกิด', 'ส่งพัสดุ 3 กก ไปไอคอนสยาม'],
   ru: ['Ужин на двоих до 600 бат, без орехов', 'Такси от Сиам Парагона до аэропорта Суварнабхуми', 'Продукты: рис, яйца и вода', 'Букет роз для жены', 'Парацетамол и пластыри', 'Шоколадный торт на день рождения', 'Отправить посылку 3 кг в Айконсиам'],
 };
+/** Example requests per language: ru/en/th here, the others from the language packs. */
+const exFor = (l: Locale): string[] => {
+  const base = (BASE_EXAMPLES as Record<string, string[]>)[l];
+  if (base) return base;
+  const p = pack(l)?.examples;
+  return p && p.length === 7 ? p : BASE_EXAMPLES.en;
+};
+const EXAMPLES = new Proxy({} as Record<Locale, string[]>, { get: (_t, k) => exFor(k as Locale) });
 /** Service chip for each example, same order as EXAMPLES. */
 const EXAMPLE_KIND: { ic: string; name: { ru: string; en: string; th: string } }[] = [
   { ic: 'bowl', name: { ru: 'Еда', en: 'Food', th: 'อาหาร' } },
@@ -521,7 +530,7 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
         })
         .slice(0, 3);
       const chip = (ic: string, t: string) => html`<span class="fchip">${icon(ic)}${t}</span>`;
-      const people = tr(l, { ru: 'чел.', en: f.party_size === 1 ? 'person' : 'people', th: 'คน' });
+      const people = f.party_size === 1 ? tr(l, { ru: 'чел.', en: 'person', th: 'คน' }) : tr(l, { ru: 'чел.', en: 'people', th: 'คน' });
       const understood = html`<div class="fchips">
         ${chip('users', `${f.party_size} ${people}${intent.party_size ? '' : tr(l, { ru: ' (по умолчанию)', en: ' (default)', th: ' (ค่าเริ่มต้น)' })}`)}
         ${f.budget_total_major ? chip('tag', `${tr(l, { ru: 'до', en: 'up to', th: 'ไม่เกิน' })} ฿${f.budget_total_major}`) : ''}
@@ -564,7 +573,7 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
   ${understood}
   ${res.allergen_disclaimer ? html`<p class="notice warn small">${icon('alert')} ${tr(l, { ru: 'Данные об аллергенах приходят от ресторанов и могут быть неполными. Unyly никогда не называет блюдо безопасным. Уточняйте у ресторана.', en: 'Allergen data comes from restaurants and may be incomplete. Unyly never calls a dish safe. Check with the restaurant.', th: 'ข้อมูลสารก่อภูมิแพ้มาจากร้านอาหารและอาจไม่ครบถ้วน Unyly ไม่เคยเรียกเมนูใดว่าปลอดภัย โปรดสอบถามร้าน' })}</p>` : ''}
   ${picks.length
-    ? html`<p class="said">${tr(l, { ru: `Вот ${picks.length} варианта. Цены уже со всеми сборами:`, en: `Here are ${picks.length} options. Prices already include all fees:`, th: `นี่คือ ${picks.length} ตัวเลือก ราคารวมค่าธรรมเนียมแล้ว:` })}</p>
+    ? html`<p class="said">${fmt(tr(l, { ru: 'Вот {n} варианта. Цены уже со всеми сборами:', en: 'Here are {n} options. Prices already include all fees:', th: 'นี่คือ {n} ตัวเลือก ราคารวมค่าธรรมเนียมแล้ว:' }), { n: picks.length })}</p>
       <div class="options">${picks.map(card)}</div>`
     : html`<p class="notice">${tr(l, { ru: 'Под эти условия ничего не нашлось. Попробуйте увеличить бюджет или убрать ограничения.', en: 'Nothing fits these filters. Try a higher budget or fewer restrictions.', th: 'ไม่พบตัวเลือกที่ตรงเงื่อนไข ลองเพิ่มงบหรือลดข้อจำกัด' })}</p>`}
   ${hidden.length ? html`<p class="small muted">${tr(l, { ru: 'Не показаны:', en: 'Not shown:', th: 'ไม่แสดง:' })} ${hidden.map((x: any) => `${x.restaurant.name} (${reason(x)})`).join(', ')}</p>` : ''}

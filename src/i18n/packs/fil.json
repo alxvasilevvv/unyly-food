@@ -1,0 +1,363 @@
+{
+  "examples": [
+    "Hapunan para sa dalawa, hanggang 600 baht, walang mani",
+    "Taxi mula sa Siam Paragon papunta sa Suvarnabhumi airport",
+    "Groceries: bigas, itlog at tubig",
+    "Pulang rosas na may gift box",
+    "Paracetamol at plaster",
+    "Chocolate cake para sa birthday",
+    "Magpadala ng 3 kg na parcel papunta sa ICONSIAM"
+  ],
+  "service_words": {
+    "ride": [
+      "taxi",
+      "sakay",
+      "pasakay",
+      "biyahe",
+      "kotse",
+      "motor",
+      "grabcar",
+      "grabbike",
+      "justgrab",
+      "van"
+    ],
+    "express": [
+      "padala",
+      "parcel",
+      "pakete",
+      "package",
+      "courier",
+      "dokumento",
+      "ipahatid"
+    ],
+    "flowers": [
+      "bulaklak",
+      "rosas",
+      "bouquet",
+      "liryo",
+      "orkidyas",
+      "garland",
+      "sampaguita"
+    ],
+    "pharmacy": [
+      "gamot",
+      "botika",
+      "parmasya",
+      "pharmacy",
+      "paracetamol",
+      "plaster",
+      "band-aid",
+      "bandaid",
+      "sunblock",
+      "thermometer"
+    ],
+    "cakes": [
+      "cake",
+      "keyk",
+      "birthday",
+      "kaarawan",
+      "cheesecake"
+    ],
+    "groceries": [
+      "grocery",
+      "groceries",
+      "bigas",
+      "itlog",
+      "tubig",
+      "gatas",
+      "saging",
+      "mangga",
+      "pamilihan",
+      "palengke"
+    ]
+  },
+  "route": {
+    "from": [
+      "mula sa",
+      "galing sa",
+      "mula"
+    ],
+    "to": [
+      "papunta sa",
+      "papuntang",
+      "patungo sa",
+      "hanggang sa"
+    ]
+  },
+  "party": {
+    "cue": [
+      "para sa",
+      "kaming",
+      "para sa amin"
+    ],
+    "people": [
+      "katao",
+      "tao",
+      "pax"
+    ]
+  },
+  "number_words": {
+    "isa": 1,
+    "dalawa": 2,
+    "tatlo": 3,
+    "apat": 4,
+    "lima": 5,
+    "anim": 6
+  },
+  "budget_cues": [
+    "hanggang",
+    "wala pang",
+    "hindi lalagpas sa",
+    "hindi hihigit sa",
+    "hindi lalampas sa",
+    "budget",
+    "badyet",
+    "pasok sa",
+    "max"
+  ],
+  "currency_words": [
+    "baht",
+    "thb",
+    "฿"
+  ],
+  "negation": [
+    "walang",
+    "wala",
+    "bawal",
+    "huwag",
+    "ayaw",
+    "iwas",
+    "hindi puwede"
+  ],
+  "allergy_cue": [
+    "allergic",
+    "allergy",
+    "allergies",
+    "allerdyi",
+    "may allergy"
+  ],
+  "allergens": {
+    "peanut": [
+      "mani",
+      "peanut"
+    ],
+    "shellfish": [
+      "hipon",
+      "sugpo",
+      "alimango",
+      "alimasag",
+      "talaba",
+      "tahong",
+      "lamang-dagat"
+    ],
+    "milk": [
+      "gatas",
+      "dairy",
+      "keso"
+    ],
+    "egg": [
+      "itlog"
+    ],
+    "wheat": [
+      "trigo",
+      "harina",
+      "gluten"
+    ],
+    "soy": [
+      "toyo",
+      "soya",
+      "tokwa"
+    ],
+    "fish": [
+      "isda"
+    ],
+    "sesame": [
+      "linga"
+    ]
+  },
+  "diet": {
+    "vegan": [
+      "vegan"
+    ],
+    "vegetarian": [
+      "vegetarian",
+      "gulay lang",
+      "walang karne"
+    ],
+    "halal": [
+      "halal"
+    ],
+    "no_pork": [
+      "walang baboy",
+      "bawal ang baboy",
+      "hindi kumakain ng baboy",
+      "no pork"
+    ]
+  },
+  "meal_words": [
+    "hapunan",
+    "tanghalian",
+    "almusal",
+    "agahan",
+    "meryenda",
+    "merienda",
+    "pagkain",
+    "ulam"
+  ],
+  "place_aliases": {
+    "bkk": [
+      "paliparan ng suvarnabhumi"
+    ],
+    "dmk": [
+      "paliparan ng don mueang"
+    ],
+    "paragon": [],
+    "iconsiam": [],
+    "chatuchak": [
+      "palengke ng chatuchak"
+    ],
+    "palace": [
+      "grand palasyo",
+      "palasyo"
+    ],
+    "khaosan": [],
+    "asok": [],
+    "lumphini": [
+      "parke ng lumphini"
+    ],
+    "saladaeng": [],
+    "thonglo": [],
+    "bangsue": [
+      "istasyon ng bang sue"
+    ],
+    "yaowarat": [
+      "tsinatown"
+    ],
+    "ekkamai": []
+  },
+  "airport_words": [
+    "airport",
+    "paliparan",
+    "erport"
+  ],
+  "weight_units": [
+    "kg",
+    "kilo",
+    "kilogram"
+  ],
+  "shop_items": {
+    "m1-rice": [
+      "bigas",
+      "kanin"
+    ],
+    "m1-eggs": [
+      "itlog"
+    ],
+    "m1-water": [
+      "tubig",
+      "mineral water"
+    ],
+    "m1-milk": [
+      "gatas"
+    ],
+    "m1-banana": [
+      "saging"
+    ],
+    "m1-mango": [
+      "mangga"
+    ],
+    "m1-chicken": [
+      "manok",
+      "dibdib ng manok"
+    ],
+    "m1-noodles": [
+      "pansit",
+      "instant noodles",
+      "noodles"
+    ],
+    "m1-coffee": [
+      "kape"
+    ],
+    "m1-veg": [
+      "kangkong",
+      "gulay"
+    ],
+    "m3-seasonal": [
+      "bouquet",
+      "halo-halong bulaklak"
+    ],
+    "m3-roses": [
+      "rosas"
+    ],
+    "m3-lilies": [
+      "liryo",
+      "lily"
+    ],
+    "m3-orchid": [
+      "orkidyas",
+      "orchid"
+    ],
+    "m3-malai": [
+      "garland",
+      "kuwintas na bulaklak",
+      "sampaguita"
+    ],
+    "m4-paracetamol": [
+      "paracetamol",
+      "gamot sa lagnat",
+      "gamot sa sakit ng ulo"
+    ],
+    "m4-plasters": [
+      "plaster",
+      "band-aid",
+      "bandaid"
+    ],
+    "m4-ors": [
+      "oresol",
+      "rehydration"
+    ],
+    "m4-lozenges": [
+      "lozenges",
+      "pang-lalamunan",
+      "sakit ng lalamunan"
+    ],
+    "m4-antiseptic": [
+      "antiseptic",
+      "agua oxigenada"
+    ],
+    "m4-thermometer": [
+      "thermometer",
+      "termometro"
+    ],
+    "m4-masks": [
+      "face mask",
+      "mask"
+    ],
+    "m4-repellent": [
+      "panlaban sa lamok",
+      "pang-lamok",
+      "repellent",
+      "lamok"
+    ],
+    "m4-sunscreen": [
+      "sunscreen",
+      "sunblock"
+    ],
+    "m5-choc": [
+      "chocolate cake",
+      "tsokolate"
+    ],
+    "m5-birthday": [
+      "birthday cake",
+      "cake pang-birthday",
+      "kaarawan"
+    ],
+    "m5-mango": [
+      "mango cheesecake",
+      "cheesecake"
+    ],
+    "m5-pandan": [
+      "pandan"
+    ]
+  }
+}
