@@ -727,5 +727,19 @@
  "Trips, item notes, parcel descriptions": "行程、商品备注、包裹描述",
  "used only for filtering, until you change them": "仅用于筛选，直到您修改",
  "We store only what the service needs: email, passkeys, addresses, preferences, carts, trips and orders, assistant connections and an audit log. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area. You can download or delete everything under Data.": "我们只保存服务所需的数据：邮箱、通行密钥、地址、偏好、购物车、行程和订单、助手连接以及操作日志。我们从不保存 Grab 密码、短信验证码或支付信息。助手只会收到地址名称和区域。您可以在“数据”页面下载或删除全部数据。",
- "You:": "您："
+ "You:": "您：",
+ "All contacts": "全部联系方式",
+ "Community channels and a direct line for bugs and ideas.": "社区频道，以及反馈问题和想法的直接联系人。",
+ "Company": "公司",
+ "Contacts": "联系我们",
+ "General questions and press": "一般咨询与媒体",
+ "General questions:": "一般咨询：",
+ "Grab partnership": "与 Grab 合作",
+ "Meetings, the pilot and API access.": "会议、试点和 API 访问。",
+ "Partnership contact": "合作联系人",
+ "Partnerships, press and security reports (answered within 24 hours).": "合作、媒体和安全漏洞报告（24 小时内回复）。",
+ "Reach us about partnerships, questions or bugs. We reply in English, Russian and Thai.": "合作、咨询或问题反馈都可以联系我们。我们使用英语、俄语和泰语回复。",
+ "Telegram": "Telegram",
+ "Unyly contacts: partnerships, support, Telegram.": "Unyly 联系方式：合作、支持、Telegram。",
+ "Unyly is not affiliated with or endorsed by Grab. For questions about orders placed in Grab, contact Grab support.": "Unyly 与 Grab 无隶属关系，也未获 Grab 认可。关于在 Grab 中下的订单，请联系 Grab 客服。"
 }

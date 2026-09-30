@@ -727,5 +727,19 @@
  "Trips, item notes, parcel descriptions": "ခရီးစဉ်များ၊ ပစ္စည်းမှတ်စုများ၊ ပါဆယ်ဖော်ပြချက်များ",
  "used only for filtering, until you change them": "စစ်ထုတ်ရန်အတွက်သာ၊ သင်ပြောင်းလဲသည်အထိ",
  "We store only what the service needs: email, passkeys, addresses, preferences, carts, trips and orders, assistant connections and an audit log. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area. You can download or delete everything under Data.": "ဝန်ဆောင်မှုအတွက် လိုအပ်သည်များကိုသာ သိမ်းဆည်းပါသည်- အီးမေးလ်၊ passkey၊ လိပ်စာများ၊ ရွေးချယ်မှုများ၊ ခြင်းတောင်းများ၊ ခရီးစဉ်နှင့် အော်ဒါများ၊ အကူအညီပေးသူ ချိတ်ဆက်မှုများနှင့် လုပ်ဆောင်ချက်မှတ်တမ်း။ Grab စကားဝှက်၊ SMS ကုဒ် သို့မဟုတ် ငွေပေးချေမှုအချက်အလက်များကို ဘယ်တော့မှ မသိမ်းပါ။ အကူအညီပေးသူသည် လိပ်စာအမည်နှင့် ဧရိယာကိုသာ ရရှိသည်။ ဒေတာ ကဏ္ဍတွင် အားလုံးကို ဒေါင်းလုဒ် သို့မဟုတ် ဖျက်နိုင်သည်။",
- "You:": "သင်:"
+ "You:": "သင်:",
+ "All contacts": "ဆက်သွယ်ရန် အားလုံး",
+ "Community channels and a direct line for bugs and ideas.": "အသိုင်းအဝိုင်းချန်နယ်များနှင့် ချို့ယွင်းချက်၊ အကြံဉာဏ်များအတွက် တိုက်ရိုက်လိုင်း။",
+ "Company": "ကုမ္ပဏီ",
+ "Contacts": "ဆက်သွယ်ရန်",
+ "General questions and press": "အထွေထွေမေးခွန်းများနှင့် သတင်းမီဒီယာ",
+ "General questions:": "အထွေထွေမေးခွန်းများ:",
+ "Grab partnership": "Grab နှင့် မိတ်ဖက်ဆောင်ရွက်မှု",
+ "Meetings, the pilot and API access.": "အစည်းအဝေးများ၊ စမ်းသပ်အစီအစဉ်နှင့် API အသုံးပြုခွင့်။",
+ "Partnership contact": "မိတ်ဖက်ဆောင်ရွက်မှု ဆက်သွယ်ရန်",
+ "Partnerships, press and security reports (answered within 24 hours).": "မိတ်ဖက်ဆောင်ရွက်မှု၊ သတင်းမီဒီယာနှင့် လုံခြုံရေးအစီရင်ခံစာများ (24 နာရီအတွင်း ပြန်ကြားသည်)။",
+ "Reach us about partnerships, questions or bugs. We reply in English, Russian and Thai.": "မိတ်ဖက်ဆောင်ရွက်မှု၊ မေးခွန်းများ သို့မဟုတ် ချို့ယွင်းချက်များအတွက် ဆက်သွယ်ပါ။ အင်္ဂလိပ်၊ ရုရှားနှင့် ထိုင်းဘာသာဖြင့် ပြန်ကြားပါသည်။",
+ "Telegram": "Telegram",
+ "Unyly contacts: partnerships, support, Telegram.": "Unyly ဆက်သွယ်ရန်: မိတ်ဖက်၊ အကူအညီ၊ Telegram။",
+ "Unyly is not affiliated with or endorsed by Grab. For questions about orders placed in Grab, contact Grab support.": "Unyly သည် Grab နှင့် ဆက်စပ်မှုမရှိပါ၊ Grab ၏ ထောက်ခံချက်လည်း မရှိပါ။ Grab တွင် မှာယူထားသော အော်ဒါများအကြောင်း မေးမြန်းလိုပါက Grab အကူအညီဌာနကို ဆက်သွယ်ပါ။"
 }

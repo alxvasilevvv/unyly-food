@@ -25,6 +25,7 @@ import { html, SafeHtml } from './html.js';
 import { page } from './layout.js';
 import { fmt, intlLocale, Locale, LOCALES, Messages, msg, tr } from './messages.js';
 import { registerShowcase } from './showcase.js';
+import { CONTACT } from './contacts.js';
 
 const LANG_COOKIE = 'unyly_lang';
 const STATUS_FLOW = ['accepted', 'preparing', 'picked_up', 'delivered'] as const;
@@ -141,7 +142,7 @@ interface SendExtra {
 }
 
 export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
-  const supportEmail = process.env.SUPPORT_EMAIL || 'support@unyly.org';
+  const supportEmail = process.env.SUPPORT_EMAIL || CONTACT.email;
 
   async function base(req: FastifyRequest, reply: FastifyReply): Promise<R> {
     const s = await loadSession(ctx, req);
@@ -236,6 +237,42 @@ export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
   </aside>
 </div>`);
   });
+
+  // ---------------- Contacts ----------------
+  app.get('/contact', async (req, reply) => {
+    const r = await base(req, reply);
+    const l = r.l;
+    const card = (ic: string, title: string, lead: string, body: SafeHtml, dark = false) =>
+      html`<article class="contact-card ${dark ? 'dark' : ''}"><span class="ico">${icon(ic)}</span><h2>${title}</h2><p>${lead}</p>${body}</article>`;
+    return send(reply, r, tr(l, { ru: 'Контакты', en: 'Contacts', th: 'ติดต่อ' }), html`
+<div class="page-head contact-hero">
+  <span class="unicorn" aria-hidden="true"><img src="/static/brand/unicorn.png" width="64" height="64" alt=""></span>
+  <div><span class="eyebrow">${icon('chat')} Unyly</span><h1>${tr(l, { ru: 'Контакты', en: 'Contacts', th: 'ติดต่อ' })}</h1>
+  <p class="lead">${tr(l, { ru: 'Пишите по партнёрству, вопросам и ошибкам. Отвечаем на английском, русском и тайском.', en: 'Reach us about partnerships, questions or bugs. We reply in English, Russian and Thai.', th: 'ติดต่อเราเรื่องความร่วมมือ คำถาม หรือข้อผิดพลาด เราตอบเป็นภาษาอังกฤษ รัสเซีย และไทย' })}</p></div>
+</div>
+<div class="contact-grid">
+  ${card('handshake', tr(l, { ru: 'Партнёрство с Grab', en: 'Grab partnership', th: 'ความร่วมมือกับ Grab' }), tr(l, { ru: 'Встречи, пилот и доступ к API.', en: 'Meetings, the pilot and API access.', th: 'การประชุม โครงการนำร่อง และสิทธิ์เข้าถึง API' }),
+    html`<div class="big">${CONTACT.partnership.name}</div><div class="links"><a href="mailto:${CONTACT.partnership.email}">${icon('mail')} ${CONTACT.partnership.email}</a><a href="/for-grab">${icon('arrow')} ${tr(l, { ru: 'Предложение для Grab', en: 'Proposal for Grab', th: 'ข้อเสนอสำหรับ Grab' })}</a></div>`, true)}
+  ${card('mail', tr(l, { ru: 'Общие вопросы и пресса', en: 'General questions and press', th: 'คำถามทั่วไปและสื่อมวลชน' }), tr(l, { ru: 'Партнёрства, пресса, сообщения об уязвимостях (ответ в течение 24 часов).', en: 'Partnerships, press and security reports (answered within 24 hours).', th: 'ความร่วมมือ สื่อมวลชน และการแจ้งช่องโหว่ (ตอบภายใน 24 ชั่วโมง)' }),
+    html`<div class="big"><a href="mailto:${CONTACT.email}">${CONTACT.email}</a></div>`)}
+  ${card('send', tr(l, { ru: 'Telegram', en: 'Telegram', th: 'Telegram' }), tr(l, { ru: 'Сообщество и прямая связь по ошибкам и идеям.', en: 'Community channels and a direct line for bugs and ideas.', th: 'ชุมชนและช่องทางติดต่อโดยตรงเรื่องข้อผิดพลาดและไอเดีย' }),
+    html`<div class="links"><a href="${CONTACT.telegramGlobal}" rel="noopener">${icon('globe')} Unyly Global (EN)</a><a href="${CONTACT.telegramCis}" rel="noopener">${icon('globe')} Unyly CIS (RU)</a><a href="${CONTACT.telegramDirect}" rel="noopener">${icon('send')} ${CONTACT.telegramDirectHandle}</a></div>`)}
+  ${card('store', tr(l, { ru: 'Компания', en: 'Company', th: 'บริษัท' }), CONTACT.company,
+    html`<p>${CONTACT.address}</p><div class="links"><a href="${CONTACT.site}" rel="noopener">${icon('globe')} unyly.org</a><a href="${CONTACT.github}" rel="noopener">${icon('code')} GitHub</a><a href="${CONTACT.x}" rel="noopener">X</a></div>`)}
+</div>
+<p class="small muted" style="margin-top:18px">${tr(l, { ru: 'Unyly не связан с Grab и не одобрен Grab. По вопросам заказов в Grab обращайтесь в поддержку Grab.', en: 'Unyly is not affiliated with or endorsed by Grab. For questions about orders placed in Grab, contact Grab support.', th: 'Unyly ไม่ได้เกี่ยวข้องหรือได้รับการรับรองจาก Grab หากมีคำถามเกี่ยวกับคำสั่งซื้อใน Grab โปรดติดต่อฝ่ายสนับสนุนของ Grab' })}</p>`, { description: tr(l, { ru: 'Контакты Unyly: партнёрство, поддержка, Telegram.', en: 'Unyly contacts: partnerships, support, Telegram.', th: 'ช่องทางติดต่อ Unyly: ความร่วมมือ ฝ่ายสนับสนุน Telegram' }) });
+  });
+
+  app.get('/manifest.webmanifest', async (_req, reply) =>
+    reply.type('application/manifest+json').header('cache-control', 'public, max-age=86400').send({
+      name: 'Unyly for Grab', short_name: 'Unyly', start_url: '/', display: 'standalone', background_color: '#0a0a0f', theme_color: '#077a49',
+      icons: [
+        { src: '/static/brand/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/static/brand/icon-512.png', sizes: '512x512', type: 'image/png' },
+        { src: '/static/brand/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      ],
+    }));
+  app.get('/favicon.ico', async (_req, reply) => reply.redirect('/static/brand/favicon-32.png', 301));
 
   app.get('/help', async (req, reply) => {
     const r = await base(req, reply);

@@ -727,5 +727,19 @@
  "Trips, item notes, parcel descriptions": "Perjalanan, catatan item, deskripsi paket",
  "used only for filtering, until you change them": "hanya untuk penyaringan, sampai kamu mengubahnya",
  "We store only what the service needs: email, passkeys, addresses, preferences, carts, trips and orders, assistant connections and an audit log. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area. You can download or delete everything under Data.": "Kami hanya menyimpan yang dibutuhkan layanan: email, passkey, alamat, preferensi, keranjang, perjalanan dan pesanan, koneksi asisten, dan log aktivitas. Kami tidak pernah menyimpan kata sandi Grab, kode SMS, atau detail pembayaran. Asisten hanya menerima nama alamat dan area. Kamu bisa mengunduh atau menghapus semuanya di bagian Data.",
- "You:": "Kamu:"
+ "You:": "Kamu:",
+ "All contacts": "Semua kontak",
+ "Community channels and a direct line for bugs and ideas.": "Kanal komunitas dan kontak langsung untuk bug dan ide.",
+ "Company": "Perusahaan",
+ "Contacts": "Kontak",
+ "General questions and press": "Pertanyaan umum dan media",
+ "General questions:": "Pertanyaan umum:",
+ "Grab partnership": "Kemitraan dengan Grab",
+ "Meetings, the pilot and API access.": "Pertemuan, pilot, dan akses API.",
+ "Partnership contact": "Kontak kemitraan",
+ "Partnerships, press and security reports (answered within 24 hours).": "Kemitraan, media, dan laporan keamanan (dijawab dalam 24 jam).",
+ "Reach us about partnerships, questions or bugs. We reply in English, Russian and Thai.": "Hubungi kami soal kemitraan, pertanyaan, atau bug. Kami membalas dalam bahasa Inggris, Rusia, dan Thai.",
+ "Telegram": "Telegram",
+ "Unyly contacts: partnerships, support, Telegram.": "Kontak Unyly: kemitraan, dukungan, Telegram.",
+ "Unyly is not affiliated with or endorsed by Grab. For questions about orders placed in Grab, contact Grab support.": "Unyly tidak berafiliasi dengan atau didukung oleh Grab. Untuk pertanyaan tentang pesanan di Grab, hubungi dukungan Grab."
 }

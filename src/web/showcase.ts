@@ -16,6 +16,7 @@ import { html, SafeHtml } from './html.js';
 import { detectService, parseIntent } from './intent.js';
 import { SHOP_STORE, shopPlan, ShopPlan, tripPlan, TripPlan } from './try-services.js';
 import { REPO_URL } from './layout.js';
+import { CONTACT } from './contacts.js';
 import { fmt, Locale, tr } from './messages.js';
 import { pack } from '../i18n/index.js';
 import type { Kit, R } from './routes.js';
@@ -46,7 +47,7 @@ const EXAMPLE_KIND: { ic: string; name: { ru: string; en: string; th: string } }
 
 export function registerShowcase(app: FastifyInstance, kit: Kit) {
   const { ctx, base, send, csrfField, errorBox } = kit;
-  const supportEmail = process.env.SUPPORT_EMAIL || 'support@unyly.org';
+  const supportEmail = process.env.SUPPORT_EMAIL || CONTACT.partnership.email;
   const baht = (minor: number, l: Locale) => formatMinor(minor, 'THB', l).replace(/\.00(?=\D*$)/, '').replace(/,00(?=\D*$)/, '');
 
   // ---------------- Landing ----------------
@@ -290,7 +291,12 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
       en: 'Unyly is an independent concept. It is not affiliated with, endorsed by or sponsored by Grab. The names of Grab and its services belong to their owners and are used only to describe the proposed integration. No Grab logos are used. Demo stores, drivers and fares are fictional; no real orders or rides are created.',
       th: 'Unyly เป็นแนวคิดอิสระ ไม่ได้เกี่ยวข้อง ไม่ได้รับการรับรอง และไม่ได้รับการสนับสนุนจาก Grab ชื่อ Grab และชื่อบริการต่างๆ เป็นของเจ้าของสิทธิ์ และใช้เพื่ออธิบายการเชื่อมต่อที่เสนอเท่านั้น ไม่มีการใช้โลโก้ของ Grab ร้านค้า คนขับ และค่าโดยสารในเดโมเป็นข้อมูลสมมติ ไม่มีการสั่งซื้อหรือเดินทางจริง',
     })}</p>
-    <p class="small muted">${tr(l, { ru: 'Контакт:', en: 'Contact:', th: 'ติดต่อ:' })} <a href="mailto:${supportEmail}">${supportEmail}</a></p>
+  </div>
+  <div class="card stack pitch-contact" style="margin-top:16px">
+    <div><span class="eyebrow">${icon('handshake')} ${tr(l, { ru: 'Контакт по партнёрству', en: 'Partnership contact', th: 'ผู้ติดต่อด้านความร่วมมือ' })}</span>
+      <div class="who">${CONTACT.partnership.name}</div>
+      <p class="small muted">${tr(l, { ru: 'Общие вопросы:', en: 'General questions:', th: 'คำถามทั่วไป:' })} <a href="mailto:${CONTACT.email}">${CONTACT.email}</a> · <a href="/contact">${tr(l, { ru: 'Все контакты', en: 'All contacts', th: 'ช่องทางติดต่อทั้งหมด' })}</a></p></div>
+    <a class="btn" href="mailto:${CONTACT.partnership.email}">${icon('mail')} ${CONTACT.partnership.email}</a>
   </div>
 </section>`, { noBanner: true, description: tr(l, { ru: 'Предложение о партнёрстве: все сервисы Grab через ИИ-ассистентов.', en: 'Partnership proposal: every Grab service through AI assistants.', th: 'ข้อเสนอความร่วมมือ: ทุกบริการของ Grab ผ่านผู้ช่วย AI' }) });
   });

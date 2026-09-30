@@ -727,5 +727,19 @@
  "Trips, item notes, parcel descriptions": "Mga ruta, tala sa item, paglalarawan ng parcel",
  "used only for filtering, until you change them": "para sa pag-filter lang, hanggang baguhin mo",
  "We store only what the service needs: email, passkeys, addresses, preferences, carts, trips and orders, assistant connections and an audit log. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area. You can download or delete everything under Data.": "Iniimbak lang namin ang kailangan ng serbisyo: email, passkey, mga address, preference, cart, ruta at order, koneksyon ng assistant at audit log. Hindi kami kailanman nag-iimbak ng Grab password, SMS code o detalye ng bayad. Pangalan ng address at lugar lang ang natatanggap ng assistant. Maaari mong i-download o burahin ang lahat sa Data.",
- "You:": "Ikaw:"
+ "You:": "Ikaw:",
+ "All contacts": "Lahat ng contact",
+ "Community channels and a direct line for bugs and ideas.": "Mga community channel at direktang linya para sa bug at ideya.",
+ "Company": "Kumpanya",
+ "Contacts": "Mga contact",
+ "General questions and press": "Mga pangkalahatang tanong at press",
+ "General questions:": "Mga pangkalahatang tanong:",
+ "Grab partnership": "Partnership sa Grab",
+ "Meetings, the pilot and API access.": "Mga meeting, pilot at access sa API.",
+ "Partnership contact": "Contact para sa partnership",
+ "Partnerships, press and security reports (answered within 24 hours).": "Partnership, press at security report (sinasagot sa loob ng 24 oras).",
+ "Reach us about partnerships, questions or bugs. We reply in English, Russian and Thai.": "Kontakin kami tungkol sa partnership, tanong o bug. Sumasagot kami sa English, Russian at Thai.",
+ "Telegram": "Telegram",
+ "Unyly contacts: partnerships, support, Telegram.": "Mga contact ng Unyly: partnership, suporta, Telegram.",
+ "Unyly is not affiliated with or endorsed by Grab. For questions about orders placed in Grab, contact Grab support.": "Hindi kaakibat o ineendorso ng Grab ang Unyly. Para sa mga tanong tungkol sa order sa Grab, kontakin ang suporta ng Grab."
 }

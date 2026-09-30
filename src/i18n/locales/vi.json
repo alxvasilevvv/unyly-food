@@ -727,5 +727,19 @@
  "Trips, item notes, parcel descriptions": "Lộ trình, ghi chú món, mô tả bưu kiện",
  "used only for filtering, until you change them": "chỉ dùng để lọc, cho đến khi bạn thay đổi",
  "We store only what the service needs: email, passkeys, addresses, preferences, carts, trips and orders, assistant connections and an audit log. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area. You can download or delete everything under Data.": "Chúng tôi chỉ lưu những gì dịch vụ cần: email, passkey, địa chỉ, tùy chọn, giỏ hàng, lộ trình và đơn hàng, kết nối trợ lý và nhật ký hoạt động. Chúng tôi không bao giờ lưu mật khẩu Grab, mã SMS hay thông tin thanh toán. Trợ lý chỉ nhận tên địa chỉ và khu vực. Bạn có thể tải xuống hoặc xóa mọi thứ trong mục Dữ liệu.",
- "You:": "Bạn:"
+ "You:": "Bạn:",
+ "All contacts": "Tất cả liên hệ",
+ "Community channels and a direct line for bugs and ideas.": "Kênh cộng đồng và liên hệ trực tiếp về lỗi và ý tưởng.",
+ "Company": "Công ty",
+ "Contacts": "Liên hệ",
+ "General questions and press": "Câu hỏi chung và báo chí",
+ "General questions:": "Câu hỏi chung:",
+ "Grab partnership": "Hợp tác với Grab",
+ "Meetings, the pilot and API access.": "Gặp gỡ, chương trình thí điểm và quyền truy cập API.",
+ "Partnership contact": "Liên hệ hợp tác",
+ "Partnerships, press and security reports (answered within 24 hours).": "Hợp tác, báo chí và báo cáo bảo mật (phản hồi trong vòng 24 giờ).",
+ "Reach us about partnerships, questions or bugs. We reply in English, Russian and Thai.": "Liên hệ với chúng tôi về hợp tác, câu hỏi hoặc lỗi. Chúng tôi trả lời bằng tiếng Anh, tiếng Nga và tiếng Thái.",
+ "Telegram": "Telegram",
+ "Unyly contacts: partnerships, support, Telegram.": "Liên hệ Unyly: hợp tác, hỗ trợ, Telegram.",
+ "Unyly is not affiliated with or endorsed by Grab. For questions about orders placed in Grab, contact Grab support.": "Unyly không liên kết và không được Grab chứng thực. Với câu hỏi về đơn hàng đặt trong Grab, hãy liên hệ bộ phận hỗ trợ của Grab."
 }

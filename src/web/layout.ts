@@ -1,7 +1,8 @@
-import { FAVICON, icon, logoMark } from './art.js';
+import { icon } from './art.js';
+import { CONTACT } from './contacts.js';
 import { LOCALE_CODES, LOCALE_NATIVE } from '../domain/locales.js';
 import { ASSET_VERSION } from './assets.js';
-import { html, SafeHtml } from './html.js';
+import { html, raw, SafeHtml } from './html.js';
 import { Locale, msg, tr } from './messages.js';
 
 export interface PageOpts {
@@ -28,6 +29,11 @@ const LOCALE_FONT: Partial<Record<Locale, string>> = {
   ru: 'inter-cyrillic-wght-normal.woff2',
 };
 
+const ORG_LD = JSON.stringify({
+  '@context': 'https://schema.org', '@type': 'Organization', name: 'Unyly', url: CONTACT.site, logo: `${CONTACT.site}/pixel/unicorn/rotations/south.png`,
+  email: CONTACT.email, legalName: CONTACT.company, sameAs: [CONTACT.telegramGlobal, CONTACT.telegramCis, CONTACT.github, CONTACT.x],
+}).replace(/</g, '\\u003c');
+
 export const REPO_URL = 'https://github.com/alxvasilevvv/unyly-food';
 
 export function page(o: PageOpts): string {
@@ -51,7 +57,11 @@ export function page(o: PageOpts): string {
 <link rel="preload" href="/static/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 ${LOCALE_FONT[l] ? html`<link rel="preload" href="/static/fonts/${LOCALE_FONT[l]}" as="font" type="font/woff2" crossorigin>` : ''}
 <link rel="stylesheet" href="/static/app.css?v=${ASSET_VERSION}">
-<link rel="icon" href="${FAVICON}">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/brand/favicon-32.png">
+<link rel="apple-touch-icon" href="/static/brand/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<script type="application/ld+json">${raw(ORG_LD)}</script>
+<meta property="og:image" content="/static/brand/icon-512.png">
 <script src="/static/app.js?v=${ASSET_VERSION}" defer></script>
 </head>
 <body>
@@ -65,7 +75,7 @@ ${LOCALE_FONT[l] ? html`<link rel="preload" href="/static/fonts/${LOCALE_FONT[l]
   })} <a href="/for-grab#disclaimer">${tr(l, { ru: 'Подробнее', en: 'Details', th: 'รายละเอียด' })}</a></span>
 </div></div>
 <header class="site"><div class="wrap">
-  <a class="logo" href="/" aria-label="Unyly">${logoMark()}<span class="logo-text"><span class="logo-word">unyly</span><span class="logo-sub">${tr(l, { ru: 'для Grab · концепт', en: 'for Grab · concept', th: 'สำหรับ Grab · แนวคิด' })}</span></span></a>
+  <a class="logo" href="/" aria-label="Unyly"><span class="logo-mark" aria-hidden="true"><img src="/static/brand/unicorn.png" width="64" height="64" alt=""></span><span class="logo-text"><span class="logo-word">unyly</span><span class="logo-sub">${tr(l, { ru: 'для Grab · концепт', en: 'for Grab · concept', th: 'สำหรับ Grab · แนวคิด' })}</span></span></a>
   <nav class="main" aria-label="${tr(l, { ru: 'Основная навигация', en: 'Main', th: 'เมนูหลัก' })}">
     <a href="/#how" class="hide-md">${m.navHow}</a>
     <a href="/for-grab" class="hide-md" ${cur('/for-grab')}>${tr(l, { ru: 'Для Grab', en: 'For Grab', th: 'สำหรับ Grab' })}</a>
@@ -86,7 +96,7 @@ ${!o.noBanner && o.mode === 'handoff' ? html`<div class="banner handoff" role="s
 <footer class="site"><div class="wrap">
   <div class="cols">
     <div class="foot-brand">
-      <a class="logo" href="/" aria-label="Unyly">${logoMark()}<span class="logo-text"><span class="logo-word">unyly</span></span></a>
+      <a class="logo" href="/" aria-label="Unyly"><span class="logo-mark" aria-hidden="true"><img src="/static/brand/unicorn.png" width="64" height="64" alt=""></span><span class="logo-text"><span class="logo-word">unyly</span></span></a>
       <p>${m.footerDisclaimer}</p>
     </div>
     <div class="foot-col"><p class="foot-h">${tr(l, { ru: 'Продукт', en: 'Product', th: 'ผลิตภัณฑ์' })}</p>
@@ -101,9 +111,15 @@ ${!o.noBanner && o.mode === 'handoff' ? html`<div class="banner handoff" role="s
       <a href="/help">${m.navHelp}</a>
       <a href="/privacy">${m.footerPrivacy}</a>
     </div>
+    <div class="foot-col"><p class="foot-h">${tr(l, { ru: 'Контакты', en: 'Contacts', th: 'ติดต่อ' })}</p>
+      <a href="mailto:${CONTACT.email}">${icon('mail')} ${CONTACT.email}</a>
+      <a href="${CONTACT.telegramGlobal}" rel="noopener">${icon('send')} Telegram (EN)</a>
+      <a href="${CONTACT.telegramCis}" rel="noopener">${icon('send')} Telegram (RU)</a>
+      <a href="/contact">${tr(l, { ru: 'Все контакты', en: 'All contacts', th: 'ช่องทางติดต่อทั้งหมด' })} ${icon('arrow')}</a>
+    </div>
   </div>
   <div class="foot-bottom">
-    <span>© 2026 Unyly</span>
+    <span>© 2026 Unyly · <a href="${CONTACT.site}" rel="noopener">unyly.org</a> · ${CONTACT.company}</span>
     ${o.loggedIn && o.csrf ? html`<form method="post" action="/logout" class="inline"><input type="hidden" name="_csrf" value="${o.csrf}"><button class="linkbtn">${m.navLogout}</button></form>` : ''}
   </div>
 </div></footer>

@@ -727,5 +727,19 @@
  "Trips, item notes, parcel descriptions": "ដំណើរ កំណត់ចំណាំទំនិញ ការពិពណ៌នាកញ្ចប់",
  "used only for filtering, until you change them": "ប្រើសម្រាប់ចម្រោះតែប៉ុណ្ណោះ រហូតដល់អ្នកផ្លាស់ប្តូរ",
  "We store only what the service needs: email, passkeys, addresses, preferences, carts, trips and orders, assistant connections and an audit log. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area. You can download or delete everything under Data.": "យើងរក្សាទុកតែអ្វីដែលសេវាត្រូវការ៖ អ៊ីមែល passkey អាសយដ្ឋាន ចំណូលចិត្ត រទេះ ដំណើរ និងការបញ្ជាទិញ ការភ្ជាប់ជំនួយការ និងកំណត់ហេតុសកម្មភាព។ យើងមិនដែលរក្សាទុកពាក្យសម្ងាត់ Grab លេខកូដ SMS ឬព័ត៌មានទូទាត់ទេ។ ជំនួយការទទួលបានតែឈ្មោះអាសយដ្ឋាន និងតំបន់ប៉ុណ្ណោះ។ អ្នកអាចទាញយក ឬលុបអ្វីៗទាំងអស់នៅក្នុងផ្នែកទិន្នន័យ។",
- "You:": "អ្នក៖"
+ "You:": "អ្នក៖",
+ "All contacts": "ទំនាក់ទំនងទាំងអស់",
+ "Community channels and a direct line for bugs and ideas.": "បណ្តាញសហគមន៍ និងខ្សែផ្ទាល់សម្រាប់កំហុស និងគំនិត។",
+ "Company": "ក្រុមហ៊ុន",
+ "Contacts": "ទំនាក់ទំនង",
+ "General questions and press": "សំណួរទូទៅ និងសារព័ត៌មាន",
+ "General questions:": "សំណួរទូទៅ៖",
+ "Grab partnership": "ភាពជាដៃគូជាមួយ Grab",
+ "Meetings, the pilot and API access.": "កិច្ចប្រជុំ គម្រោងសាកល្បង និងការចូលប្រើ API។",
+ "Partnership contact": "ទំនាក់ទំនងភាពជាដៃគូ",
+ "Partnerships, press and security reports (answered within 24 hours).": "ភាពជាដៃគូ សារព័ត៌មាន និងរបាយការណ៍សុវត្ថិភាព (ឆ្លើយតបក្នុងរយៈពេល 24 ម៉ោង)។",
+ "Reach us about partnerships, questions or bugs. We reply in English, Russian and Thai.": "ទាក់ទងមកយើងអំពីភាពជាដៃគូ សំណួរ ឬកំហុស។ យើងឆ្លើយតបជាភាសាអង់គ្លេស រុស្ស៊ី និងថៃ។",
+ "Telegram": "Telegram",
+ "Unyly contacts: partnerships, support, Telegram.": "ទំនាក់ទំនង Unyly៖ ភាពជាដៃគូ ជំនួយ Telegram។",
+ "Unyly is not affiliated with or endorsed by Grab. For questions about orders placed in Grab, contact Grab support.": "Unyly មិនមានទំនាក់ទំនង ឬទទួលការគាំទ្រពី Grab ទេ។ សម្រាប់សំណួរអំពីការបញ្ជាទិញក្នុង Grab សូមទាក់ទងផ្នែកជំនួយរបស់ Grab។"
 }
