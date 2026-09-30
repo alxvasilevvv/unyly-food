@@ -1,54 +1,96 @@
+import { FAVICON, logoMark } from './art.js';
+import { ASSET_VERSION } from './assets.js';
 import { html, SafeHtml } from './html.js';
-import { Locale, msg } from './messages.js';
+import { Locale, msg, tr } from './messages.js';
 
 export interface PageOpts {
   title: string;
   locale: Locale;
   body: SafeHtml;
   loggedIn: boolean;
+  guest?: boolean;
   mode?: 'demo' | 'handoff' | 'live' | null;
   csrf?: string;
   path?: string;
   narrow?: boolean;
   description?: string;
+  /** Hide the demo/handoff banner (pages that explain the mode themselves). */
+  noBanner?: boolean;
 }
+
+export const REPO_URL = 'https://github.com/alxvasilevvv/unyly-food';
 
 export function page(o: PageOpts): string {
   const m = msg(o.locale);
-  const other = (l: Locale) => `?lang=${l}`;
+  const l = o.locale;
+  const path = o.path ?? '';
+  const langHref = (x: Locale) => `?lang=${x}`;
+  const cur = (p: string) => (path === p ? html`aria-current="page"` : '');
   return (
     '<!doctype html>' +
-    html`<html lang="${o.locale}">
+    html`<html lang="${l}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${o.title} · Unyly</title>
 <meta name="description" content="${o.description ?? m.brandTagline}">
-<link rel="stylesheet" href="/static/app.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%234b3fd1'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='700' font-size='18' text-anchor='middle' fill='white'%3Eu%3C/text%3E%3C/svg%3E">
-<script src="/static/app.js" defer></script>
+<meta name="theme-color" content="#0a8a53">
+<meta property="og:title" content="${o.title} · Unyly">
+<meta property="og:description" content="${o.description ?? m.brandTagline}">
+<link rel="preload" href="/static/fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/app.css?v=${ASSET_VERSION}">
+<link rel="icon" href="${FAVICON}">
+<script src="/static/app.js?v=${ASSET_VERSION}" defer></script>
 </head>
 <body>
-<a class="skip" href="#main">${o.locale === 'ru' ? 'К содержанию' : 'Skip to content'}</a>
+<a class="skip" href="#main">${tr(l, { ru: 'К содержанию', en: 'Skip to content', th: 'ข้ามไปยังเนื้อหา' })}</a>
+<div class="concept-bar" role="note"><div class="wrap">
+  <span class="dot" aria-hidden="true"></span>
+  <span>${tr(l, {
+    ru: 'Концепт-демо для партнёрства с GrabFood. Не связан с Grab и не одобрен Grab.',
+    en: 'Concept demo built for a GrabFood partnership. Not affiliated with or endorsed by Grab.',
+    th: 'เดโมแนวคิดสำหรับความร่วมมือกับ GrabFood ไม่ได้เกี่ยวข้องหรือได้รับการรับรองจาก Grab',
+  })} <a href="/for-grab#disclaimer">${tr(l, { ru: 'Подробнее', en: 'Details', th: 'รายละเอียด' })}</a></span>
+</div></div>
 <header class="site"><div class="wrap">
-  <a class="logo" href="/"><span class="logo-mark" aria-hidden="true">u</span>unyly</a>
-  <nav class="main" aria-label="${o.locale === 'ru' ? 'Основная навигация' : 'Main'}">
-    <a href="/#how" class="hide-sm">${m.navHow}</a>
-    <a href="/connect">${m.navConnect}</a>
-    <a href="/help">${m.navHelp}</a>
-    ${o.loggedIn ? html`<a href="/app">${m.navApp}</a>` : html`<a href="/login">${m.navLogin}</a>`}
+  <a class="logo" href="/" aria-label="Unyly">${logoMark()}<span class="logo-text"><span class="logo-word">unyly</span><span class="logo-sub">${tr(l, { ru: 'для GrabFood · концепт', en: 'for GrabFood · concept', th: 'สำหรับ GrabFood · แนวคิด' })}</span></span></a>
+  <nav class="main" aria-label="${tr(l, { ru: 'Основная навигация', en: 'Main', th: 'เมนูหลัก' })}">
+    <a href="/#how" class="hide-md">${m.navHow}</a>
+    <a href="/for-grab" class="hide-md" ${cur('/for-grab')}>${tr(l, { ru: 'Для Grab', en: 'For Grab', th: 'สำหรับ Grab' })}</a>
+    <a href="/connect" class="hide-md" ${cur('/connect')}>${m.navConnect}</a>
+    ${o.loggedIn && !o.guest ? html`<a href="/app" class="hide-sm" ${cur('/app')}>${m.navApp}</a>` : html`<a href="/login" class="hide-sm" ${cur('/login')}>${m.navLogin}</a>`}
+    <a href="/try" class="cta" ${cur('/try')}>${tr(l, { ru: 'Попробовать', en: 'Try the demo', th: 'ลองเดโม' })}</a>
     <span class="lang" role="group" aria-label="Language">
-      <a href="${other('ru')}" aria-current="${o.locale === 'ru'}" lang="ru">RU</a><a href="${other('en')}" aria-current="${o.locale === 'en'}" lang="en">EN</a>
+      ${(['en', 'th', 'ru'] as Locale[]).map((x) => html`<a href="${langHref(x)}" aria-current="${l === x}" lang="${x}" hreflang="${x}">${x.toUpperCase()}</a>`)}
     </span>
   </nav>
 </div></header>
-${o.mode === 'demo' ? html`<div class="banner demo" role="status"><div class="wrap">${m.demoBanner}</div></div>` : ''}
-${o.mode === 'handoff' ? html`<div class="banner handoff" role="status"><div class="wrap">${m.handoffBanner}</div></div>` : ''}
+${!o.noBanner && o.mode === 'demo' ? html`<div class="banner demo" role="status"><div class="wrap"><span class="pill warn">DEMO</span><span>${m.demoBanner}${o.guest ? html` ${tr(l, { ru: 'Гостевой сеанс удаляется через 24 часа.', en: 'Guest sessions are deleted after 24 hours.', th: 'เซสชันผู้เยี่ยมชมจะถูกลบหลัง 24 ชั่วโมง' })}` : ''}</span></div></div>` : ''}
+${!o.noBanner && o.mode === 'handoff' ? html`<div class="banner handoff" role="status"><div class="wrap">${m.handoffBanner}</div></div>` : ''}
 <main id="main"><div class="wrap ${o.narrow ? 'narrow' : ''}">${o.body}</div></main>
-<footer class="site"><div class="wrap stack">
-  <p>${m.footerDisclaimer}</p>
-  <p><a href="/privacy">${m.footerPrivacy}</a> · <a href="/help">${m.navHelp}</a>
-  ${o.loggedIn && o.csrf ? html` · <form method="post" action="/logout" class="inline"><input type="hidden" name="_csrf" value="${o.csrf}"><button class="linkbtn">${m.navLogout}</button></form>` : ''}</p>
+<footer class="site"><div class="wrap">
+  <div class="cols">
+    <div class="foot-brand">
+      <a class="logo" href="/" aria-label="Unyly">${logoMark()}<span class="logo-text"><span class="logo-word">unyly</span></span></a>
+      <p>${m.footerDisclaimer}</p>
+    </div>
+    <div class="foot-col"><h4>${tr(l, { ru: 'Продукт', en: 'Product', th: 'ผลิตภัณฑ์' })}</h4>
+      <a href="/try">${tr(l, { ru: 'Демо', en: 'Live demo', th: 'เดโม' })}</a>
+      <a href="/#how">${m.navHow}</a>
+      <a href="/connect">${m.connectTitle}</a>
+    </div>
+    <div class="foot-col"><h4>${tr(l, { ru: 'О проекте', en: 'Project', th: 'โครงการ' })}</h4>
+      <a href="/for-grab">${tr(l, { ru: 'Предложение для Grab', en: 'Proposal for Grab', th: 'ข้อเสนอสำหรับ Grab' })}</a>
+      <a href="${REPO_URL}" rel="noopener">${tr(l, { ru: 'Исходный код', en: 'Source code', th: 'ซอร์สโค้ด' })}</a>
+      <a href="/help">${m.navHelp}</a>
+      <a href="/privacy">${m.footerPrivacy}</a>
+    </div>
+  </div>
+  <div class="foot-bottom">
+    <span>© 2026 Unyly</span>
+    ${o.loggedIn && o.csrf ? html`<form method="post" action="/logout" class="inline"><input type="hidden" name="_csrf" value="${o.csrf}"><button class="linkbtn">${m.navLogout}</button></form>` : ''}
+  </div>
 </div></footer>
 </body></html>`.value
   );

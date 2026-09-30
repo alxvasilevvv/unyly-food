@@ -1,5 +1,6 @@
 import type { Ctx } from '../context.js';
 import { reconcileAttempt } from '../services/checkout.js';
+import { deleteAccount } from '../services/users.js';
 import { ingestWebhook, processPendingEvents, reconcileCancellations } from '../services/orders.js';
 
 /**
@@ -38,6 +39,9 @@ export async function runJobsOnce(ctx: Ctx) {
   await ctx.db.query(`DELETE FROM web_sessions WHERE expires_at < now()`);
   await ctx.db.query(`DELETE FROM oauth_codes WHERE expires_at < now() - interval '1 hour'`);
   await ctx.db.query(`DELETE FROM oauth_tokens WHERE expires_at < now() - interval '1 day'`);
+  // 7) Guest demo accounts from /try live for 24 hours.
+  const guests = await ctx.db.query(`SELECT id FROM users WHERE is_guest AND created_at < now() - interval '24 hours' ORDER BY created_at LIMIT 25`);
+  for (const { id } of guests.rows) await deleteAccount(ctx, id);
   return out;
 }
 

@@ -203,7 +203,7 @@ export class DemoProvider implements Provider {
     const row = r.rows[0];
     if (!row) return undefined;
     if (row.status === 'cancelled' || row.status === 'delivered') return row;
-    const elapsedMin = ((this.deps.now().getTime() - new Date(row.accepted_at).getTime()) / 60000) * this.deps.timeScale;
+    const elapsedMin = ((this.deps.now().getTime() - new Date(row.accepted_at).getTime()) / 60000) * this.deps.timeScale * Number(row.speed ?? 1);
     let target: FulfillmentStatus = 'accepted';
     for (const t of TIMELINE) if (elapsedMin >= t.atMinute) target = t.status;
     if (SEQ[target] > row.sequence) {

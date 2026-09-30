@@ -15,7 +15,7 @@ const MAX_ATTEMPTS = 5;
 
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 
-export async function requestLoginCode(ctx: Ctx, emailRaw: string, locale: 'ru' | 'en'): Promise<{ devCode?: string }> {
+export async function requestLoginCode(ctx: Ctx, emailRaw: string, locale: 'ru' | 'en' | 'th'): Promise<{ devCode?: string }> {
   const email = emailRaw.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) throw new DomainError('VALIDATION_FAILED', 'Invalid email');
   if (ctx.cfg.mail.mode === 'disabled') throw new DomainError('CAPABILITY_UNAVAILABLE', 'Email codes are not enabled on this server. Use a passkey.');
@@ -32,7 +32,7 @@ export async function requestLoginCode(ctx: Ctx, emailRaw: string, locale: 'ru' 
   return ctx.cfg.devEchoLoginCode ? { devCode: code } : {};
 }
 
-export async function verifyLoginCode(ctx: Ctx, emailRaw: string, code: string, locale: 'ru' | 'en') {
+export async function verifyLoginCode(ctx: Ctx, emailRaw: string, code: string, locale: 'ru' | 'en' | 'th') {
   const email = emailRaw.trim().toLowerCase();
   const out = await ctx.db.tx(async (q) => {
     const r = await q.query(

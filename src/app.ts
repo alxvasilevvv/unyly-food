@@ -4,7 +4,6 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Ctx } from './context.js';
@@ -17,10 +16,11 @@ import {
 import { checkCsrf, loadSession } from './auth/session.js';
 import { buildMcpServer } from './mcp/tools.js';
 import { ingestWebhook } from './services/orders.js';
+import { ASSET_VERSION, loadStaticAssets } from './web/assets.js';
 import { html } from './web/html.js';
 import { page } from './web/layout.js';
 import { fmt, Locale, msg } from './web/messages.js';
-import { registerWebRoutes } from './web/routes.js';
+import { detectLocale, registerWebRoutes } from './web/routes.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -67,7 +67,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   app.setErrorHandler((err: any, req, reply) => {
     if (isDomainError(err)) {
       if (req.headers.accept?.includes('text/html')) {
-        return reply.code(err.httpStatus).type('text/html').send(page({ title: 'Error', locale: 'ru', loggedIn: false, body: html`<h1>${err.message}</h1><p><a href="/app">←</a></p>` }));
+        return reply.code(err.httpStatus).type('text/html').send(page({ title: 'Error', locale: detectLocale(req, null), loggedIn: false, body: html`<h1>${err.message}</h1><p><a href="/app">←</a></p>` }));
       }
       return reply.code(err.httpStatus).send({ error: err.code, message: err.message });
     }
@@ -78,12 +78,17 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   });
 
   // ---------------- Static ----------------
-  const assets: Record<string, [string, string]> = { 'app.css': ['text/css; charset=utf-8', ''], 'app.js': ['text/javascript; charset=utf-8', ''] };
-  for (const f of Object.keys(assets)) assets[f][1] = await readFile(join(here, 'web', 'static', f), 'utf8');
-  app.get('/static/:file', async (req, reply) => {
-    const a = assets[(req.params as any).file];
+  const assets = await loadStaticAssets(join(here, 'web', 'static'));
+  app.get('/static/*', async (req, reply) => {
+    const key = String((req.params as any)['*'] ?? '');
+    const a = /^[a-z0-9._/-]+$/i.test(key) && !key.includes('..') ? assets.get(key) : undefined;
     if (!a) return reply.code(404).send();
-    return reply.header('content-type', a[0]).header('cache-control', 'public, max-age=3600').send(a[1]);
+    const versioned = a.immutable || (req.query as any)?.v === ASSET_VERSION;
+    return reply
+      .header('content-type', a.type)
+      .header('cache-control', versioned ? 'public, max-age=31536000, immutable' : 'public, max-age=300')
+      .header('x-content-type-options', 'nosniff')
+      .send(a.body);
   });
 
   // ---------------- Health ----------------
@@ -133,8 +138,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     return reply.code(200).send({});
   });
 
-  const authorizeLocale = (req: FastifyRequest, s: Awaited<ReturnType<typeof loadSession>>): Locale =>
-    s?.user.locale ?? (/^en/i.test(String(req.headers['accept-language'] ?? '')) ? 'en' : 'ru');
+  const authorizeLocale = (req: FastifyRequest, s: Awaited<ReturnType<typeof loadSession>>): Locale => detectLocale(req, s);
 
   app.get('/oauth/authorize', async (req, reply) => {
     const p = req.query as Record<string, string>;
@@ -149,7 +153,8 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
       const desc = e instanceof OAuthError ? `${e.error}: ${e.description}` : 'invalid_request';
       return reply.code(400).type('text/html').send(page({ title: m.errorTitle, locale: l, loggedIn: !!s, narrow: true, body: html`<h1>${m.errorTitle}</h1><p class="notice bad">${desc}</p>` }));
     }
-    if (!s) return reply.redirect(`/login?next=${encodeURIComponent(req.url)}`);
+    // Guest demo sessions cannot grant assistant access: a real account is required.
+    if (!s || s.user.is_guest) return reply.redirect(`/login?next=${encodeURIComponent(req.url)}`);
     const scopeName = (sc: string) => (m as any)[`scope_${sc.replace(':', '_')}`] ?? sc;
     const redirectOrigin = new URL(areq.redirect_uri).origin;
     // Allow the consent form's redirect target explicitly (form-action applies to redirects in some browsers).
@@ -176,7 +181,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   app.post('/oauth/authorize', async (req, reply) => {
     const b = (req.body ?? {}) as Record<string, any>;
     const s = await loadSession(ctx, req);
-    if (!s) return reply.code(401).send({ error: 'login_required' });
+    if (!s || s.user.is_guest) return reply.code(401).send({ error: 'login_required' });
     checkCsrf(ctx, req, s);
     let areq;
     try {

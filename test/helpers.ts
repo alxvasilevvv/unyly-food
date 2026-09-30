@@ -40,6 +40,7 @@ export async function startHarness(opts: { fresh?: boolean; cfg?: Partial<Config
     devEchoLoginCode: true,
     providerTimeoutMs: 1500,
     demoTimeScale: 1,
+    demoGuestSpeed: 12,
     runJobs: false,
     ...opts.cfg,
   });

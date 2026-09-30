@@ -16,26 +16,62 @@ import {
 } from '../services/users.js';
 import { DEMO_DISTRICTS } from '../providers/demo/catalog.js';
 import type { Mode } from '../providers/types.js';
+import { checkBurst, icon, restaurantArt, scooter } from './art.js';
+import { ALLERGEN_NAMES, DIET_NAMES, dishName, t3 } from './copy.js';
 import { html, SafeHtml } from './html.js';
 import { page } from './layout.js';
-import { fmt, Locale, LOCALES, Messages, msg } from './messages.js';
+import { fmt, intlLocale, Locale, LOCALES, Messages, msg, tr } from './messages.js';
+import { registerShowcase } from './showcase.js';
 
 const LANG_COOKIE = 'unyly_lang';
 const STATUS_FLOW = ['accepted', 'preparing', 'picked_up', 'delivered'] as const;
 
-function detectLocale(req: FastifyRequest, s: WebSession | null): Locale {
+export function detectLocale(req: FastifyRequest, s: WebSession | null): Locale {
   const q = (req.query as any)?.lang;
   if (q && q in LOCALES) return q;
   const c = req.cookies?.[LANG_COOKIE];
   if (c && c in LOCALES) return c as Locale;
-  if (s) return s.user.locale;
-  return /(^|,)\s*en/i.test(String(req.headers['accept-language'] ?? '')) && !/(^|,)\s*ru/i.test(String(req.headers['accept-language'] ?? '')) ? 'en' : 'ru';
+  if (s && s.user.locale in LOCALES) return s.user.locale;
+  return acceptLanguage(String(req.headers['accept-language'] ?? ''));
 }
 
-interface R {
+/** First supported language in the Accept-Language list; English otherwise. */
+export function acceptLanguage(h: string): Locale {
+  const langs = h
+    .split(',')
+    .map((part) => {
+      const [tag, qv] = part.trim().split(';q=');
+      return { tag: tag.toLowerCase().slice(0, 2), q: qv === undefined ? 1 : Number(qv) || 0 };
+    })
+    .filter((x) => x.tag)
+    .sort((a, b) => b.q - a.q);
+  for (const x of langs) if (x.tag in LOCALES) return x.tag as Locale;
+  return 'en';
+}
+
+export interface R {
   s: WebSession | null;
   l: Locale;
   m: Messages;
+  path: string;
+}
+
+export interface Kit {
+  ctx: Ctx;
+  base(req: FastifyRequest, reply: FastifyReply): Promise<R>;
+  authed(req: FastifyRequest, reply: FastifyReply): Promise<(R & { s: WebSession }) | null>;
+  send(reply: FastifyReply, r: R, title: string, body: SafeHtml, extra?: SendExtra): FastifyReply;
+  csrfField(s: WebSession): SafeHtml;
+  dt(d: string | Date, l: Locale): string;
+  errorBox(e: unknown): SafeHtml;
+  notFound(reply: FastifyReply, r: R): FastifyReply;
+  sameOrigin(req: FastifyRequest): boolean;
+}
+interface SendExtra {
+  narrow?: boolean;
+  status?: number;
+  noBanner?: boolean;
+  description?: string;
 }
 
 export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
@@ -49,15 +85,20 @@ export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
       reply.setCookie(LANG_COOKIE, q, { path: '/', sameSite: 'lax', secure: ctx.cfg.cookieSecure, maxAge: 365 * 86400 });
       if (s && s.user.locale !== q) await setLocale(ctx.db, s.user.id, q);
     }
-    return { s, l, m: msg(l) };
+    return { s, l, m: msg(l), path: req.url.split('?')[0] };
   }
 
-  const send = (reply: FastifyReply, r: R, title: string, body: SafeHtml, extra: { narrow?: boolean; status?: number } = {}) =>
+  const send = (reply: FastifyReply, r: R, title: string, body: SafeHtml, extra: SendExtra = {}) =>
     reply
       .code(extra.status ?? 200)
       .header('content-type', 'text/html; charset=utf-8')
       .header('cache-control', 'no-store')
-      .send(page({ title, locale: r.l, body, loggedIn: !!r.s, mode: r.s?.user.mode ?? null, csrf: r.s?.csrf, narrow: extra.narrow }));
+      .send(
+        page({
+          title, locale: r.l, body, loggedIn: !!r.s, guest: !!r.s?.user.is_guest, mode: r.s?.user.mode ?? null, csrf: r.s?.csrf,
+          narrow: extra.narrow, path: r.path, noBanner: extra.noBanner, description: extra.description,
+        }),
+      );
 
   async function authed(req: FastifyRequest, reply: FastifyReply): Promise<(R & { s: WebSession }) | null> {
     const r = await base(req, reply);
@@ -70,149 +111,126 @@ export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
 
   const csrfField = (s: WebSession) => html`<input type="hidden" name="_csrf" value="${s.csrf}">`;
   const dt = (d: string | Date, l: Locale) =>
-    new Intl.DateTimeFormat(l === 'ru' ? 'ru-RU' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(new Date(d)) + ' (ICT)';
+    new Intl.DateTimeFormat(intlLocale(l), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(new Date(d)) + ' (ICT)';
   const fsLabel = (m: Messages, s: string) => (m as any)[`fs_${s}`] ?? s;
   const psLabel = (m: Messages, s: string) => (m as any)[`ps_${s}`] ?? s;
   const errorBox = (e: unknown) => html`<div class="notice bad" role="alert">${isDomainError(e) ? e.message : 'Unexpected error'}</div>`;
 
   // ---------------- Public ----------------
-  app.get('/', async (req, reply) => {
-    const r = await base(req, reply);
-    const m = r.m;
-    const cap = (ok: boolean) => html`<span class="pill ${ok ? 'ok' : 'bad'}">${ok ? m.available : m.unavailable}</span>`;
-    return send(reply, r, m.brandTagline, html`
-<section class="hero">
-  <h1>${m.heroTitle}</h1>
-  <p class="lead">${m.heroLead}</p>
-  <div class="actions">
-    <a class="btn" href="/connect">${m.heroCta}</a>
-    <a class="btn secondary" href="#how">${m.heroSecondary}</a>
-  </div>
-  <p class="small muted">${m.heroCtaDemoNote}</p>
-</section>
-<section aria-labelledby="st">
-  <h2 id="st">${m.statusTitle}</h2>
-  <div class="card"><ul class="list">
-    <li><span>${m.statusDemo}</span>${cap(true)}</li>
-    <li><span>${m.statusHandoff}</span>${cap(true)}</li>
-    <li><span>${m.statusLive}</span>${cap(false)}</li>
-  </ul></div>
-</section>
-<section id="how" aria-labelledby="how-h">
-  <h2 id="how-h">${m.howTitle}</h2>
-  <div class="grid four">
-    ${[[m.how1t, m.how1d], [m.how2t, m.how2d], [m.how3t, m.how3d], [m.how4t, m.how4d]].map(([t, d], i) => html`<div class="card"><span class="pill accent">${i + 1}</span><h3 style="margin-top:10px">${t}</h3><p class="muted small">${d}</p></div>`)}
-  </div>
-</section>
-<section aria-labelledby="sf">
-  <h2 id="sf">${m.safetyTitle}</h2>
-  <div class="card"><ul class="list">${[m.safety1, m.safety2, m.safety3, m.safety4, m.safety5].map((x) => html`<li>${x}</li>`)}</ul></div>
-</section>
-<section aria-labelledby="ex">
-  <h2 id="ex">${m.examplePrompt}</h2>
-  <p class="prompt">${m.trialPromptDemo}</p>
-</section>`);
-  });
-
   app.get('/connect', async (req, reply) => {
     const r = await base(req, reply);
     const m = r.m;
+    const l = r.l;
     let connected = 0;
-    if (r.s) connected = (await ctx.db.query('SELECT count(*)::int n FROM oauth_grants WHERE user_id=$1 AND revoked_at IS NULL', [r.s.user.id])).rows[0].n;
+    const realUser = r.s && !r.s.user.is_guest;
+    if (realUser) connected = (await ctx.db.query('SELECT count(*)::int n FROM oauth_grants WHERE user_id=$1 AND revoked_at IS NULL', [r.s!.user.id])).rows[0].n;
     const url = ctx.cfg.mcpResourceUrl;
-    const ru = r.l === 'ru';
+    const prm = `${new URL(url).origin}/.well-known/oauth-protected-resource${new URL(url).pathname}`;
+    const client = (name: string, sub: string, body: SafeHtml, open = false) =>
+      html`<details class="client" ${open ? html`open` : ''}><summary><span class="c-name">${name}</span><span class="c-sub">${sub}</span></summary><div class="stack small">${body}</div></details>`;
     return send(reply, r, m.connectTitle, html`
-<h1>${m.connectTitle}</h1>
-<p class="lead">${m.connectLead}</p>
-<div class="card stack">
-  <label for="mcpurl">${m.mcpUrl}</label>
-  <div class="copyrow"><p class="code" id="mcpurl">${url}</p><button class="btn secondary" type="button" data-copy="mcpurl" data-copied="${m.copied}">${m.copy}</button></div>
-  ${r.s ? html`<p class="small">${fmt(m.connectedClients, { n: connected })} · <a href="/app/connections">${m.connectionsTitle}</a></p>` : html`<p class="notice warn">${m.connectNotLoggedIn} <a href="/login?next=/connect">${m.navLogin}</a></p>`}
+<div class="page-head">
+  <span class="eyebrow">${icon('plug')} MCP · OAuth 2.1</span>
+  <h1>${m.connectTitle}</h1>
+  <p class="lead">${m.connectLead}</p>
 </div>
-<h2>${ru ? 'Инструкции по клиентам' : 'Client instructions'}</h2>
-<details open><summary>Claude (claude.ai, Desktop, mobile)</summary><div class="stack small">
-  <p>${ru ? 'Нужен тариф Pro, Max, Team или Enterprise. На Team/Enterprise коннектор добавляет владелец организации, затем каждый пользователь подключается сам.' : 'Requires a Pro, Max, Team or Enterprise plan. On Team/Enterprise an owner adds the connector, then each user connects individually.'}</p>
-  <p>${ru ? 'Настройки → Коннекторы → Добавить свой коннектор → вставьте адрес выше → Подключить. Откроется окно входа Unyly.' : 'Settings → Connectors → Add custom connector → paste the URL above → Connect. The Unyly sign-in window opens.'}</p>
-  <p class="muted">${ru ? 'Названия пунктов меню могут отличаться; источник: support.claude.com, статья о custom connectors (проверено 30.09.2026).' : 'Menu labels may differ; source: support.claude.com custom connectors article (checked 2026-09-30).'}</p>
-</div></details>
-<details><summary>Claude Code</summary><div class="stack small">
-  <p class="code" id="cc">claude mcp add --transport http unyly ${url}</p>
-  <p>${ru ? 'Затем в Claude Code выполните /mcp и выберите unyly, чтобы пройти вход в браузере.' : 'Then run /mcp in Claude Code and select unyly to sign in via the browser.'}</p>
-</div></details>
-<details><summary>ChatGPT</summary><div class="stack small">
-  <p>${ru ? 'Нужен режим разработчика (Developer mode), доступный на тарифах Plus, Pro, Business, Enterprise и Education в веб-версии; доступность зависит от политики аккаунта и рабочего пространства.' : 'Requires Developer mode, available on Plus, Pro, Business, Enterprise and Education plans on the web; availability depends on account and workspace policy.'}</p>
-  <p>${ru ? 'Включите Developer mode в настройках, создайте приложение/коннектор и укажите адрес выше, аутентификация OAuth. Действия записи ChatGPT по умолчанию просит подтвердить.' : 'Enable Developer mode in settings, create an app/connector with the URL above and OAuth authentication. ChatGPT asks for confirmation on write actions by default.'}</p>
-  <p class="muted">${ru ? 'Не проверено вручную в этом релизе. Источник: developers.openai.com (developer mode, apps SDK), 30.09.2026.' : 'Not manually verified in this release. Source: developers.openai.com (developer mode, apps SDK), 2026-09-30.'}</p>
-</div></details>
-<details><summary>OpenAI API (Responses)</summary><div class="stack small">
-  <p>${ru ? 'Получите токен Unyly через OAuth в своём приложении и передайте его в поле authorization инструмента mcp:' : 'Obtain an Unyly token via OAuth in your app and pass it in the mcp tool authorization field:'}</p>
-  <pre class="code">{"type":"mcp","server_label":"unyly","server_url":"${url}","authorization":"&lt;token&gt;","require_approval":{"always":{"tool_names":["submit_order","cancel_order"]}}}</pre>
-</div></details>
-<details><summary>${ru ? 'Другой MCP-клиент' : 'Other MCP client'}</summary><div class="stack small">
-  <p>${ru ? 'Транспорт Streamable HTTP, OAuth 2.1 с PKCE (S256). Метаданные ресурса: ' : 'Streamable HTTP transport, OAuth 2.1 with PKCE (S256). Resource metadata: '}<span class="code">${new URL(url).origin}/.well-known/oauth-protected-resource${new URL(url).pathname}</span></p>
-  <p>${ru ? 'Поддерживаются динамическая регистрация клиентов и Client ID Metadata Documents.' : 'Dynamic client registration and Client ID Metadata Documents are supported.'}</p>
-</div></details>
-<h2>${m.trialTitle}</h2>
-<p>${m.trialLead}</p>
-<p class="prompt">${r.s?.user.mode === 'handoff' ? m.trialPromptHandoff : m.trialPromptDemo}</p>`);
+<div class="grid two-1">
+  <div class="stack">
+    <div class="card stack">
+      <label for="mcpurl">${m.mcpUrl}</label>
+      <div class="copyrow"><p class="code" id="mcpurl">${url}</p><button class="btn secondary" type="button" data-copy="mcpurl" data-copied="${m.copied}">${m.copy}</button></div>
+      ${realUser
+        ? html`<p class="small">${fmt(m.connectedClients, { n: connected })} · <a href="/app/connections">${m.connectionsTitle}</a></p>`
+        : html`<p class="notice warn small">${m.connectNotLoggedIn} <a href="/login?next=/connect">${m.navLogin}</a></p>`}
+    </div>
+    ${client('Claude', tr(l, { ru: 'claude.ai, Desktop, мобильное приложение', en: 'claude.ai, Desktop, mobile', th: 'claude.ai, เดสก์ท็อป, มือถือ' }), html`
+      <p>${tr(l, {
+        ru: 'Нужен тариф Pro, Max, Team или Enterprise. На Team и Enterprise коннектор добавляет владелец организации, затем каждый пользователь подключается сам.',
+        en: 'Requires a Pro, Max, Team or Enterprise plan. On Team and Enterprise an owner adds the connector, then each user connects individually.',
+        th: 'ต้องใช้แพ็กเกจ Pro, Max, Team หรือ Enterprise สำหรับ Team และ Enterprise เจ้าขององค์กรเพิ่มคอนเนกเตอร์ก่อน แล้วผู้ใช้แต่ละคนจึงเชื่อมต่อเอง',
+      })}</p>
+      <ol class="mini-steps"><li>${tr(l, { ru: 'Настройки → Коннекторы → Добавить свой коннектор', en: 'Settings → Connectors → Add custom connector', th: 'Settings → Connectors → Add custom connector' })}</li>
+      <li>${tr(l, { ru: 'Вставьте адрес выше и нажмите «Подключить»', en: 'Paste the URL above and press Connect', th: 'วางที่อยู่ด้านบนแล้วกด Connect' })}</li>
+      <li>${tr(l, { ru: 'Войдите в Unyly и разрешите доступ', en: 'Sign in to Unyly and allow access', th: 'เข้าสู่ระบบ Unyly แล้วกดอนุญาต' })}</li></ol>
+      <p class="muted">${tr(l, { ru: 'Названия пунктов меню могут отличаться. Источник: support.claude.com, проверено 30.09.2026.', en: 'Menu labels may differ. Source: support.claude.com, checked 2026-09-30.', th: 'ชื่อเมนูอาจแตกต่างกัน แหล่งที่มา: support.claude.com ตรวจสอบเมื่อ 30.09.2026' })}</p>`, true)}
+    ${client('ChatGPT', tr(l, { ru: 'Developer mode', en: 'Developer mode', th: 'Developer mode' }), html`
+      <p>${tr(l, {
+        ru: 'Режим разработчика доступен на тарифах Plus, Pro, Business, Enterprise и Education в веб-версии; доступность зависит от политики аккаунта.',
+        en: 'Developer mode is available on Plus, Pro, Business, Enterprise and Education plans on the web; availability depends on account policy.',
+        th: 'Developer mode ใช้ได้กับแพ็กเกจ Plus, Pro, Business, Enterprise และ Education บนเว็บ ขึ้นอยู่กับนโยบายของบัญชี',
+      })}</p>
+      <ol class="mini-steps"><li>${tr(l, { ru: 'Включите Developer mode в настройках', en: 'Enable Developer mode in settings', th: 'เปิด Developer mode ในการตั้งค่า' })}</li>
+      <li>${tr(l, { ru: 'Создайте приложение с адресом выше, авторизация OAuth', en: 'Create an app with the URL above, OAuth authentication', th: 'สร้างแอปด้วยที่อยู่ด้านบน ใช้ OAuth' })}</li>
+      <li>${tr(l, { ru: 'ChatGPT спросит подтверждение перед действиями записи', en: 'ChatGPT asks before write actions by default', th: 'ChatGPT จะถามก่อนทำการเปลี่ยนแปลงข้อมูล' })}</li></ol>`)}
+    ${client('Claude Code', 'CLI', html`<p class="code" id="cc">claude mcp add --transport http unyly ${url}</p>
+      <p>${tr(l, { ru: 'Затем выполните /mcp и выберите unyly, чтобы войти через браузер.', en: 'Then run /mcp and select unyly to sign in via the browser.', th: 'จากนั้นพิมพ์ /mcp แล้วเลือก unyly เพื่อเข้าสู่ระบบผ่านเบราว์เซอร์' })}</p>`)}
+    ${client('OpenAI Responses API', 'API', html`<p>${tr(l, { ru: 'Получите токен Unyly через OAuth и передайте его в поле authorization:', en: 'Obtain an Unyly token via OAuth and pass it in the authorization field:', th: 'รับโทเคน Unyly ผ่าน OAuth แล้วใส่ในช่อง authorization:' })}</p>
+      <pre class="code">{"type":"mcp","server_label":"unyly","server_url":"${url}","authorization":"&lt;token&gt;","require_approval":{"always":{"tool_names":["submit_order","cancel_order"]}}}</pre>`)}
+    ${client(tr(l, { ru: 'Любой MCP-клиент', en: 'Any MCP client', th: 'ไคลเอนต์ MCP อื่นๆ' }), 'Streamable HTTP', html`<p>${tr(l, { ru: 'Streamable HTTP, OAuth 2.1 с PKCE (S256), динамическая регистрация клиентов и Client ID Metadata Documents. Метаданные ресурса:', en: 'Streamable HTTP, OAuth 2.1 with PKCE (S256), dynamic client registration and Client ID Metadata Documents. Resource metadata:', th: 'Streamable HTTP, OAuth 2.1 พร้อม PKCE (S256) รองรับการลงทะเบียนไคลเอนต์แบบไดนามิกและ Client ID Metadata Documents ข้อมูลเมตาของทรัพยากร:' })}</p><p class="code">${prm}</p>`)}
+  </div>
+  <aside class="stack">
+    <div class="card tint stack">
+      <h3>${m.trialTitle}</h3><p class="small muted">${m.trialLead}</p>
+      <p class="prompt">${r.s?.user.mode === 'handoff' ? m.trialPromptHandoff : m.trialPromptDemo}</p>
+    </div>
+    <div class="card stack">
+      <h3>${tr(l, { ru: 'Нет ассистента под рукой?', en: 'No assistant at hand?', th: 'ยังไม่มีผู้ช่วย AI?' })}</h3>
+      <p class="small muted">${tr(l, { ru: 'Попробуйте тот же сценарий прямо в браузере: демо вызывает те же инструменты, что и ассистент.', en: 'Try the same flow in the browser: the demo calls the same tools an assistant would.', th: 'ลองขั้นตอนเดียวกันในเบราว์เซอร์ได้เลย เดโมเรียกใช้เครื่องมือเดียวกับที่ผู้ช่วยใช้' })}</p>
+      <a class="btn block" href="/try">${tr(l, { ru: 'Открыть демо', en: 'Open the demo', th: 'เปิดเดโม' })} ${icon('arrow')}</a>
+    </div>
+  </aside>
+</div>`);
   });
 
   app.get('/help', async (req, reply) => {
     const r = await base(req, reply);
-    const ru = r.l === 'ru';
-    const qa: [string, string][] = ru
-      ? [
-          ['Это официальный сервис Grab?', 'Нет. Unyly - независимый сервис. Реальные заказы Grab через Unyly пока недоступны: у Grab нет публичного API для заказа от имени покупателя.'],
-          ['Может ли ассистент заказать без меня?', 'Нет. Каждый заказ и каждая отмена подтверждаются вами на странице Unyly после входа. Ассистент не может нажать эту кнопку.'],
-          ['Что будет, если цена изменится?', 'Подтверждение перестанет действовать. Ассистент пересчитает заказ, и вы подтвердите новую сумму.'],
-          ['Что значит «результат неизвестен»?', 'Связь с провайдером оборвалась после отправки. Unyly сам сверяет статус и никогда не отправляет заказ повторно. Не заказывайте ту же еду в другом месте, пока статус не прояснится.'],
-          ['Насколько точны аллергены?', 'Мы показываем только то, что указал ресторан. Если данных нет, так и пишем. Unyly никогда не называет блюдо безопасным.'],
-          ['Как отключить ассистента?', 'Кабинет → Подключения → Отозвать доступ. Токен перестаёт работать сразу.'],
-        ]
-      : [
-          ['Is this an official Grab service?', 'No. Unyly is independent. Real Grab orders through Unyly are not available yet: Grab has no public API for ordering on behalf of a customer.'],
-          ['Can the assistant order without me?', 'No. You confirm every order and cancellation on an Unyly page after signing in. The assistant cannot press that button.'],
-          ['What if the price changes?', 'The confirmation stops being valid. The assistant re-quotes and you confirm the new total.'],
-          ['What does "outcome unknown" mean?', 'The connection to the provider dropped after sending. Unyly reconciles the status itself and never resends. Do not order the same food elsewhere until it resolves.'],
-          ['How accurate are allergens?', 'We only show what the restaurant declared. If there is no data we say so. Unyly never calls a dish safe.'],
-          ['How do I disconnect an assistant?', 'Dashboard → Connections → Revoke access. The token stops working immediately.'],
-        ];
-    return send(reply, r, r.m.helpTitle, html`<h1>${r.m.helpTitle}</h1>
+    const l = r.l;
+    const qa: [string, string][] = [
+      [tr(l, { ru: 'Это официальный сервис Grab?', en: 'Is this an official Grab service?', th: 'นี่เป็นบริการอย่างเป็นทางการของ Grab หรือไม่' }),
+        tr(l, { ru: 'Нет. Unyly - независимый концепт, подготовленный как предложение о партнёрстве. Реальные заказы Grab через Unyly пока недоступны: у Grab нет публичного API для заказа от имени покупателя.', en: 'No. Unyly is an independent concept prepared as a partnership proposal. Real Grab orders through Unyly are not available yet: Grab has no public API for ordering on behalf of a customer.', th: 'ไม่ใช่ Unyly เป็นแนวคิดอิสระที่จัดทำเป็นข้อเสนอความร่วมมือ ยังสั่งอาหารจริงจาก Grab ผ่าน Unyly ไม่ได้ เพราะ Grab ไม่มี API สาธารณะสำหรับสั่งแทนลูกค้า' })],
+      [tr(l, { ru: 'Может ли ассистент заказать без меня?', en: 'Can the assistant order without me?', th: 'ผู้ช่วยสั่งอาหารโดยไม่มีฉันได้หรือไม่' }),
+        tr(l, { ru: 'Нет. Каждый заказ и каждая отмена подтверждаются вами на странице Unyly после входа. Ассистент не может нажать эту кнопку.', en: 'No. You confirm every order and cancellation on an Unyly page after signing in. The assistant cannot press that button.', th: 'ไม่ได้ ทุกคำสั่งซื้อและการยกเลิกต้องยืนยันโดยคุณในหน้า Unyly หลังเข้าสู่ระบบ ผู้ช่วยกดปุ่มนั้นแทนคุณไม่ได้' })],
+      [tr(l, { ru: 'Что будет, если цена изменится?', en: 'What if the price changes?', th: 'ถ้าราคาเปลี่ยนจะเป็นอย่างไร' }),
+        tr(l, { ru: 'Подтверждение перестанет действовать. Ассистент пересчитает заказ, и вы подтвердите новую сумму.', en: 'The confirmation stops being valid. The assistant re-quotes and you confirm the new total.', th: 'การยืนยันจะใช้ไม่ได้ ผู้ช่วยจะคำนวณราคาใหม่ และคุณยืนยันยอดใหม่อีกครั้ง' })],
+      [tr(l, { ru: 'Что значит «результат неизвестен»?', en: 'What does "outcome unknown" mean?', th: '"ไม่ทราบผลลัพธ์" หมายความว่าอะไร' }),
+        tr(l, { ru: 'Связь с провайдером оборвалась после отправки. Unyly сам сверяет статус и никогда не отправляет заказ повторно. Не заказывайте ту же еду в другом месте, пока статус не прояснится.', en: 'The connection to the provider dropped after sending. Unyly reconciles the status itself and never resends. Do not order the same food elsewhere until it resolves.', th: 'การเชื่อมต่อกับผู้ให้บริการขาดหลังส่งคำสั่งซื้อ Unyly จะตรวจสอบสถานะเองและไม่ส่งซ้ำ อย่าสั่งอาหารเดียวกันจากที่อื่นจนกว่าสถานะจะชัดเจน' })],
+      [tr(l, { ru: 'Насколько точны аллергены?', en: 'How accurate are allergens?', th: 'ข้อมูลสารก่อภูมิแพ้แม่นยำแค่ไหน' }),
+        tr(l, { ru: 'Мы показываем только то, что указал ресторан. Если данных нет, так и пишем. Unyly никогда не называет блюдо безопасным.', en: 'We only show what the restaurant declared. If there is no data we say so. Unyly never calls a dish safe.', th: 'เราแสดงเฉพาะสิ่งที่ร้านระบุไว้ ถ้าไม่มีข้อมูลเราจะบอกตรงๆ Unyly ไม่เคยเรียกเมนูใดว่าปลอดภัย' })],
+      [tr(l, { ru: 'Как отключить ассистента?', en: 'How do I disconnect an assistant?', th: 'ยกเลิกการเชื่อมต่อผู้ช่วยได้อย่างไร' }),
+        tr(l, { ru: 'Кабинет → Подключения → Отозвать доступ. Токен перестаёт работать сразу.', en: 'Dashboard → Connections → Revoke access. The token stops working immediately.', th: 'แดชบอร์ด → การเชื่อมต่อ → เพิกถอนสิทธิ์ โทเคนจะหยุดทำงานทันที' })],
+    ];
+    return send(reply, r, r.m.helpTitle, html`<div class="page-head"><h1>${r.m.helpTitle}</h1></div>
 ${qa.map(([q, a]) => html`<details><summary>${q}</summary><p>${a}</p></details>`)}
-<h2>${r.m.support}</h2><p>${fmt(r.m.supportLead, { email: supportEmail })}</p>`, { narrow: true });
+<div class="card tint stack" style="margin-top:28px"><h3>${r.m.support}</h3><p>${fmt(r.m.supportLead, { email: supportEmail })}</p></div>`, { narrow: true });
   });
 
   app.get('/privacy', async (req, reply) => {
     const r = await base(req, reply);
-    const ru = r.l === 'ru';
-    const rows: [string, string][] = ru
-      ? [
-          ['Коды входа', 'удаляются через 1 день'],
-          ['Сессии сайта', '14 дней, затем удаляются'],
-          ['Токены ассистентов', 'доступ 1 час, обновление 30 дней; удаляются при отзыве'],
-          ['Адреса', 'пока вы их не удалите; при удалении текст адреса стирается'],
-          ['Корзины, расчёты, заказы', 'пока существует аккаунт (история заказов)'],
-          ['Журнал действий', 'при удалении аккаунта отвязывается от вас и очищается'],
-        ]
-      : [
-          ['Sign-in codes', 'deleted after 1 day'],
-          ['Website sessions', '14 days, then deleted'],
-          ['Assistant tokens', 'access 1 hour, refresh 30 days; deleted on revocation'],
-          ['Addresses', 'until you delete them; deletion erases the address text'],
-          ['Carts, quotes, orders', 'while the account exists (order history)'],
-          ['Audit log', 'unlinked from you and scrubbed when you delete the account'],
-        ];
-    return send(reply, r, r.m.privacyTitle, html`<h1>${r.m.privacyTitle}</h1>
-<p>${ru ? 'Мы храним минимум: email, адреса доставки, предпочтения, корзины и заказы. Мы не храним пароли Grab, коды из SMS и платёжные реквизиты. Ассистенту передаются только название адреса и район.' : 'We store the minimum: email, delivery addresses, preferences, carts and orders. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area.'}</p>
+    const l = r.l;
+    const rows: [string, string][] = [
+      [tr(l, { ru: 'Коды входа', en: 'Sign-in codes', th: 'รหัสเข้าสู่ระบบ' }), tr(l, { ru: 'удаляются через 1 день', en: 'deleted after 1 day', th: 'ลบหลัง 1 วัน' })],
+      [tr(l, { ru: 'Сессии сайта', en: 'Website sessions', th: 'เซสชันเว็บไซต์' }), tr(l, { ru: '14 дней, затем удаляются', en: '14 days, then deleted', th: '14 วัน แล้วลบ' })],
+      [tr(l, { ru: 'Гостевые демо-аккаунты', en: 'Guest demo accounts', th: 'บัญชีเดโมผู้เยี่ยมชม' }), tr(l, { ru: 'удаляются через 24 часа со всеми данными', en: 'deleted with all data after 24 hours', th: 'ลบพร้อมข้อมูลทั้งหมดหลัง 24 ชั่วโมง' })],
+      [tr(l, { ru: 'Токены ассистентов', en: 'Assistant tokens', th: 'โทเคนของผู้ช่วย' }), tr(l, { ru: 'доступ 1 час, обновление 30 дней; удаляются при отзыве', en: 'access 1 hour, refresh 30 days; deleted on revocation', th: 'สิทธิ์เข้าถึง 1 ชั่วโมง รีเฟรช 30 วัน ลบเมื่อเพิกถอน' })],
+      [tr(l, { ru: 'Адреса', en: 'Addresses', th: 'ที่อยู่' }), tr(l, { ru: 'пока вы их не удалите; при удалении текст адреса стирается', en: 'until you delete them; deletion erases the address text', th: 'จนกว่าคุณจะลบ เมื่อลบข้อความที่อยู่จะถูกลบด้วย' })],
+      [tr(l, { ru: 'Корзины, расчёты, заказы', en: 'Carts, quotes, orders', th: 'ตะกร้า ใบเสนอราคา คำสั่งซื้อ' }), tr(l, { ru: 'пока существует аккаунт (история заказов)', en: 'while the account exists (order history)', th: 'ตลอดอายุบัญชี (ประวัติคำสั่งซื้อ)' })],
+      [tr(l, { ru: 'Журнал действий', en: 'Audit log', th: 'บันทึกการทำงาน' }), tr(l, { ru: 'при удалении аккаунта отвязывается от вас и очищается', en: 'unlinked from you and scrubbed when you delete the account', th: 'ถูกแยกออกจากตัวคุณและล้างข้อมูลเมื่อคุณลบบัญชี' })],
+    ];
+    return send(reply, r, r.m.privacyTitle, html`<div class="page-head"><h1>${r.m.privacyTitle}</h1>
+<p class="lead">${tr(l, {
+  ru: 'Мы храним минимум: email, адреса доставки, предпочтения, корзины и заказы. Мы не храним пароли Grab, коды из SMS и платёжные реквизиты. Ассистенту передаются только название адреса и район.',
+  en: 'We store the minimum: email, delivery addresses, preferences, carts and orders. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area.',
+  th: 'เราเก็บข้อมูลเท่าที่จำเป็น: อีเมล ที่อยู่จัดส่ง ความชอบ ตะกร้า และคำสั่งซื้อ เราไม่เก็บรหัสผ่าน Grab รหัส SMS หรือข้อมูลการชำระเงิน ผู้ช่วยได้รับเพียงชื่อที่อยู่และเขตเท่านั้น',
+})}</p></div>
 <div class="card"><ul class="list">${rows.map(([a, b]) => html`<li><strong>${a}</strong><span class="muted">${b}</span></li>`)}</ul></div>
-<p class="small muted">${ru ? 'Сроки для Таиланда (PDPA) должны быть согласованы с юристом до запуска Live.' : 'Retention for Thailand (PDPA) must be reviewed by counsel before any Live launch.'}</p>`, { narrow: true });
+<p class="small muted" style="margin-top:14px">${tr(l, { ru: 'Сроки для Таиланда (PDPA) должны быть согласованы с юристом до запуска Live.', en: 'Retention for Thailand (PDPA) must be reviewed by counsel before any Live launch.', th: 'ระยะเวลาจัดเก็บสำหรับประเทศไทย (PDPA) ต้องได้รับการตรวจสอบจากที่ปรึกษากฎหมายก่อนเปิดใช้งานจริง' })}</p>`, { narrow: true });
   });
 
   // ---------------- Auth ----------------
   app.get('/login', async (req, reply) => {
     const r = await base(req, reply);
     const next = safeNext((req.query as any)?.next);
-    if (r.s) return reply.redirect(next);
+    if (r.s && !r.s.user.is_guest) return reply.redirect(next);
     return send(reply, r, r.m.loginTitle, loginForm(r, next), { narrow: true });
   });
 
@@ -221,13 +239,14 @@ ${qa.map(([q, a]) => html`<details><summary>${q}</summary><p>${a}</p></details>`
 
   function loginForm(r: R, next: string, error?: unknown) {
     const mailOn = ctx.cfg.mail.mode !== 'disabled';
-    return html`<h1>${r.m.loginTitle}</h1><p class="lead">${r.m.passkeyLead}</p>${error ? errorBox(error) : ''}
+    return html`<div class="page-head center"><span class="auth-ico">${icon('lock')}</span><h1>${r.m.loginTitle}</h1><p class="lead">${r.m.passkeyLead}</p></div>${error ? errorBox(error) : ''}
+${r.s?.user.is_guest ? html`<p class="notice small">${tr(r.l, { ru: 'Сейчас вы в гостевом демо. Вход или новый аккаунт заменят гостевой сеанс.', en: 'You are in a guest demo. Signing in or creating an account replaces the guest session.', th: 'ตอนนี้คุณอยู่ในเดโมแบบผู้เยี่ยมชม การเข้าสู่ระบบหรือสร้างบัญชีจะแทนที่เซสชันนี้' })}</p>` : ''}
 <noscript><p class="notice warn">${r.m.jsNeeded}</p></noscript>
 <div class="card stack" id="pk-login-box" data-next="${next}" ${pkData(r)}>
   <button class="btn block" type="button" id="pk-login">${r.m.passkeyLogin}</button>
   <p class="small muted" id="pk-login-status" role="status" aria-live="polite"></p>
 </div>
-<h2>${r.m.newAccount}</h2>
+<div class="divider"><span>${r.m.newAccount}</span></div>
 <form class="card stack" id="pk-register" data-next="/app/mode" ${pkData(r)}>
   <div class="field"><label for="reg-email">${r.m.email}</label><input id="reg-email" name="email" type="email" autocomplete="email" required></div>
   <p class="small muted">${r.m.regNote}</p>
@@ -368,8 +387,9 @@ ${devCode ? html`<p class="notice warn">${fmt(r.m.devCode, { code: devCode })}</
       [m.step5, st(grants > 0), '/connect'],
       [m.step6, st(firstCart), '/connect'],
     ];
-    return send(reply, r, m.appTitle, html`<h1>${m.appTitle}</h1>
-<p class="muted">${u.email} · ${m.region}: TH · ${m.mode}: <strong>${modeName}</strong></p>
+    return send(reply, r, m.appTitle, html`<div class="page-head"><h1>${m.appTitle}</h1>
+<p class="muted">${u.is_guest ? tr(r.l, { ru: 'Гостевой демо-аккаунт', en: 'Guest demo account', th: 'บัญชีเดโมผู้เยี่ยมชม' }) : u.email} · ${m.region}: TH · ${m.mode}: <strong>${modeName}</strong></p></div>
+${u.is_guest ? html`<div class="notice stack small"><span>${tr(r.l, { ru: 'Это гостевой аккаунт из демо, он удалится через 24 часа. Чтобы подключить своего ИИ-ассистента, создайте аккаунт с passkey.', en: 'This is a guest account from the demo and it is deleted after 24 hours. To connect your own AI assistant, create an account with a passkey.', th: 'นี่คือบัญชีผู้เยี่ยมชมจากเดโม จะถูกลบหลัง 24 ชั่วโมง หากต้องการเชื่อมต่อผู้ช่วย AI ของคุณเอง ให้สร้างบัญชีด้วย passkey' })}</span><span><a class="btn secondary" href="/login">${m.createPasskey}</a></span></div>` : ''}
 <div class="grid two">
   <section class="card"><h2 style="margin-top:0">${m.setupTitle}</h2><ol class="steps">
     ${steps.map(([t, badge, href]) => html`<li><span class="num" aria-hidden="true"></span><span class="grow">${href ? html`<a href="${href}">${t}</a>` : t}</span>${badge}</li>`)}
@@ -473,7 +493,7 @@ ${r.s.user.mode === 'demo' ? html`<p class="notice small">${m.demoAddressHint}</
       await addAddress(ctx, r.s.user.id, { label: String(b.label ?? ''), line1: String(b.line1 ?? ''), district: String(b.district ?? ''), city: String(b.city ?? ''), country: String(b.country ?? 'TH'), instructions: b.instructions ? String(b.instructions) : undefined }, b.default === '1');
       return reply.redirect('/app/addresses');
     } catch (e) {
-      const extra = isDomainError(e) && e.code === 'ADDRESS_AMBIGUOUS' ? html`<div class="notice bad" role="alert">${r.l === 'ru' ? 'Адрес неполный или неоднозначный. Проверьте поля: ' : 'The address is incomplete or ambiguous. Check: '}${((e.details?.fields as string[]) ?? []).join(', ')}</div>` : errorBox(e);
+      const extra = isDomainError(e) && e.code === 'ADDRESS_AMBIGUOUS' ? html`<div class="notice bad" role="alert">${tr(r.l, { ru: 'Адрес неполный или неоднозначный. Проверьте поля: ', en: 'The address is incomplete or ambiguous. Check: ', th: 'ที่อยู่ไม่ครบหรือไม่ชัดเจน โปรดตรวจสอบ: ' })}${((e.details?.fields as string[]) ?? []).join(', ')}</div>` : errorBox(e);
       return send(reply, r, r.m.addressesTitle, await addressesPage(r, extra), { narrow: true, status: 400 });
     }
   });
@@ -503,10 +523,11 @@ ${r.s.user.mode === 'demo' ? html`<p class="notice small">${m.demoAddressHint}</
   async function prefsPage(r: R & { s: WebSession }, note?: SafeHtml) {
     const m = r.m;
     const p = await getPreferences(ctx.db, r.s.user.id);
-    const ru = r.l === 'ru';
-    const names: Record<string, string> = ru
-      ? { peanut: 'Арахис', tree_nut: 'Орехи (древесные)', milk: 'Молоко', egg: 'Яйца', wheat: 'Пшеница/глютен', soy: 'Соя', fish: 'Рыба', shellfish: 'Морепродукты', sesame: 'Кунжут', vegetarian: 'Вегетарианское', vegan: 'Веганское', halal: 'Халяль', no_pork: 'Без свинины', no_beef: 'Без говядины' }
-      : { peanut: 'Peanut', tree_nut: 'Tree nuts', milk: 'Milk', egg: 'Egg', wheat: 'Wheat/gluten', soy: 'Soy', fish: 'Fish', shellfish: 'Shellfish', sesame: 'Sesame', vegetarian: 'Vegetarian', vegan: 'Vegan', halal: 'Halal', no_pork: 'No pork', no_beef: 'No beef' };
+    const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
+    const names: Record<string, string> = Object.fromEntries([
+      ...Object.keys(ALLERGEN_NAMES).map((k) => [k, cap(t3(ALLERGEN_NAMES, k, r.l))]),
+      ...Object.keys(DIET_NAMES).map((k) => [k, cap(t3(DIET_NAMES, k, r.l))]),
+    ]);
     return html`<h1>${m.prefsTitle}</h1>${note ?? ''}
 <form method="post" action="/app/preferences" class="stack">${csrfField(r.s)}
   <fieldset class="card"><legend><strong>${m.dietary}</strong></legend><div class="checks">
@@ -540,38 +561,80 @@ ${orders.length ? html`<ul class="list card">${orders.map((o: any) => orderRow(r
 ${handoffs.length ? html`<h2>${m.handoffsTitle}</h2><p class="small muted">${m.handoffNote}</p><ul class="list card">${handoffs.map((h: any) => html`<li><span><strong>${h.restaurant_name}</strong><br><span class="small muted">${dt(h.created_at, r.l)}</span></span><span class="small">${(h.checklist as any[]).map((i) => `${i.quantity}× ${i.name}`).join(', ')}</span></li>`)}</ul>` : ''}`);
   });
 
+  async function loadOrderForWeb(r: R & { s: WebSession }, id: string) {
+    try {
+      return await getOrderStatus(ctx, { userId: r.s.user.id, via: 'web' }, id);
+    } catch (e) {
+      if (isDomainError(e) && e.code === 'NOT_FOUND') return null;
+      throw e;
+    }
+  }
+
+  app.get('/app/orders/:id/status.json', async (req, reply) => {
+    const r = await authed(req, reply);
+    if (!r) return;
+    const id = (req.params as any).id;
+    const data = UUID_RE.test(id) ? await loadOrderForWeb(r, id) : null;
+    if (!data) return reply.code(404).send({ error: 'NOT_FOUND' });
+    return reply.header('cache-control', 'no-store').send({ status: data.order.fulfillment_status, is_final: data.order.is_final, data_as_of: data.data_as_of });
+  });
+
   app.get('/app/orders/:id', async (req, reply) => {
     const r = await authed(req, reply);
     if (!r) return;
     const m = r.m;
+    const l = r.l;
     const id = (req.params as any).id;
     if (!UUID_RE.test(id)) return notFound(reply, r);
-    let data;
-    try {
-      data = await getOrderStatus(ctx, { userId: r.s.user.id, via: 'web' }, id);
-    } catch (e) {
-      if (isDomainError(e) && e.code === 'NOT_FOUND') return notFound(reply, r);
-      throw e;
-    }
+    const data = await loadOrderForWeb(r, id);
+    if (!data) return notFound(reply, r);
     const o = data.order;
+    const row = await loadOrder(ctx.db, r.s.user.id, id);
+    const restaurantId = (row as any).restaurant_id as string | null;
     const idx = STATUS_FLOW.indexOf(o.fulfillment_status as any);
-    return send(reply, r, m.orderTitle, html`<h1>${m.orderTitle}: ${o.restaurant}</h1>
+    const bad = o.fulfillment_status === 'cancelled' || o.fulfillment_status === 'failed';
+    const placed = (req.query as any)?.placed === '1';
+    const hero = o.fulfillment_status === 'delivered' ? checkBurst(fsLabel(m, o.fulfillment_status)) : bad ? html`<span class="hero-ico bad">${icon('alert')}</span>` : scooter(fsLabel(m, o.fulfillment_status));
+    const sub = o.is_final
+      ? dt(o.status_updated_at, l)
+      : o.eta_estimate_at
+        ? html`${m.eta}: <strong>${new Intl.DateTimeFormat(intlLocale(l), { timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(new Date(o.eta_estimate_at))}</strong> · ${m.etaNote}`
+        : '';
+    return send(reply, r, m.orderTitle, html`
+${placed ? html`<p class="notice ok" role="status">${icon('check')} ${m.submittedOk}</p>` : ''}
 ${data.notices.map((n) => html`<p class="notice warn" role="status">${n}</p>`)}
-<div class="card stack">
-  <ol class="timeline" aria-label="${m.status}">
-    ${o.fulfillment_status === 'cancelled' || o.fulfillment_status === 'failed'
-      ? html`<li class="current">${fsLabel(m, o.fulfillment_status)}</li>`
-      : STATUS_FLOW.map((s, i) => html`<li class="${i < idx ? 'done' : i === idx ? 'current' : ''}" ${i === idx ? html`aria-current="step"` : ''}>${fsLabel(m, s)}</li>`)}
-  </ol>
-  <p class="small muted">${fmt(m.statusAsOf, { time: dt(data.data_as_of, r.l) })} · <a href="/app/orders/${o.order_id}">${m.refresh}</a></p>
-  <table class="lines"><tbody>
-    ${o.items.map((i: any) => html`<tr><td>${i.quantity}× ${i.name}${i.modifiers?.length ? html`<br><span class="small muted">${i.modifiers.join(', ')}</span>` : ''}</td></tr>`)}
-  </tbody></table>
-  <p><strong>${m.total}:</strong> ${formatMinor(o.total.amount_minor, o.total.currency, r.l)} · <strong>${m.payment}:</strong> ${psLabel(m, o.payment_status)}</p>
-  <p class="small muted">${m.deliveryTo}: ${o.delivery_to} · ${m.providerRef}: ${o.provider_order_ref} · ${m.placed}: ${dt(o.placed_at, r.l)}</p>
-  ${o.eta_estimate_at && !o.is_final ? html`<p class="small">${m.eta}: ${dt(o.eta_estimate_at, r.l)}. ${m.etaNote}</p>` : ''}
-</div>
-${!o.is_final ? html`<form method="post" action="/app/orders/${o.order_id}/cancel" style="margin-top:16px">${csrfField(r.s)}<button class="btn secondary" type="submit">${m.cancelOrder}</button></form>` : ''}`, { narrow: true });
+<section class="status-card ${bad ? 'is-bad' : ''}" data-poll="/app/orders/${o.order_id}/status.json" data-status="${o.fulfillment_status}" data-final="${o.is_final ? '1' : ''}">
+  <div class="status-hero">
+    <div class="status-art">${hero}</div>
+    <div>
+      <span class="eyebrow">${m.orderTitle} · ${o.restaurant}</span>
+      <h1 class="status-title">${fsLabel(m, o.fulfillment_status)}</h1>
+      <p class="muted">${sub}</p>
+    </div>
+  </div>
+  ${bad ? '' : html`<ol class="timeline" aria-label="${m.status}">
+    ${STATUS_FLOW.map((s, i) => html`<li class="${i < idx ? 'done' : i === idx ? 'current' : ''}" ${i === idx ? html`aria-current="step"` : ''}><span class="t-dot" aria-hidden="true"></span>${fsLabel(m, s)}</li>`)}
+  </ol>`}
+  <p class="small muted live-line">${o.is_final ? '' : html`<span class="live-dot" aria-hidden="true"></span>`}${fmt(m.statusAsOf, { time: dt(data.data_as_of, l) })} · <a href="/app/orders/${o.order_id}">${m.refresh}</a></p>
+</section>
+<div class="grid two-1" style="margin-top:18px">
+  <div class="card stack">
+    <div class="receipt-head">${restaurantArt(restaurantId, o.restaurant)}<div><h2>${o.restaurant}</h2><p class="small muted">${m.placed}: ${dt(o.placed_at, l)}</p></div></div>
+    <table class="lines"><tbody>
+      ${row.items.map((i: any) => html`<tr><td>${i.quantity}× ${dishName(i.item_id ?? '', i.name, l)}${l !== 'en' && dishName(i.item_id ?? '', i.name, l) !== i.name ? html`<br><span class="small muted">${i.name}</span>` : ''}${i.modifiers?.length ? html`<br><span class="small muted">${i.modifiers.join(', ')}</span>` : ''}</td><td class="num">${i.line_total_minor !== undefined ? formatMinor(i.line_total_minor, row.currency, l) : ''}</td></tr>`)}
+      <tr class="total"><td>${m.total}</td><td class="num">${formatMinor(o.total.amount_minor, o.total.currency, l)}</td></tr>
+    </tbody></table>
+  </div>
+  <div class="card stack">
+    <dl class="facts">
+      <div><dt>${m.deliveryTo}</dt><dd>${o.delivery_to}</dd></div>
+      <div><dt>${m.payment}</dt><dd>${psLabel(m, o.payment_status)}</dd></div>
+      <div><dt>${m.providerRef}</dt><dd class="mono">${o.provider_order_ref}</dd></div>
+    </dl>
+    ${!o.is_final ? html`<form method="post" action="/app/orders/${o.order_id}/cancel">${csrfField(r.s)}<button class="btn secondary block" type="submit">${m.cancelOrder}</button></form>` : ''}
+    <a class="btn ghost block" href="/app/orders">${m.ordersTitle} ${icon('arrow')}</a>
+  </div>
+</div>`);
   });
 
   app.post('/app/orders/:id/cancel', async (req, reply) => {
@@ -608,15 +671,18 @@ ${!o.is_final ? html`<form method="post" action="/app/orders/${o.order_id}/cance
     }
     const c = v.checkout;
     const b = v.breakdown;
-    let clientName = r.l === 'ru' ? 'ваш ассистент' : 'your assistant';
+    const l = r.l;
+    let clientName = tr(l, { ru: 'ваш ассистент', en: 'your assistant', th: 'ผู้ช่วยของคุณ' });
+    const fromTry = c.created_by === 'web';
+    if (fromTry) clientName = tr(l, { ru: 'демо-ассистент Unyly', en: 'the Unyly demo assistant', th: 'ผู้ช่วยเดโมของ Unyly' });
     if (c.created_by.startsWith('mcp:')) {
       const g = await ctx.db.query('SELECT client_name FROM oauth_clients WHERE client_id=$1', [c.created_by.slice(4)]);
-      if (g.rows[0]) clientName = `${g.rows[0].client_name}; ${r.l === 'ru' ? 'имя указал сам клиент' : 'name set by the client itself'}`;
+      if (g.rows[0]) clientName = `${g.rows[0].client_name} (${tr(l, { ru: 'имя указал сам клиент', en: 'name set by the client itself', th: 'ชื่อที่ไคลเอนต์ตั้งเอง' })})`;
     }
     const state = (() => {
       if (v.attempt) {
         const a = v.attempt;
-        if (a.status === 'accepted') return html`<p class="notice ok" role="status">${m.submittedOk} ${v.order ? html`<a href="/app/orders/${v.order.id}">${m.viewOrder}</a>` : ''}</p>`;
+        if (a.status === 'accepted') return html`<div class="notice ok" role="status">${icon('check')} ${m.submittedOk} ${v.order ? html`<a class="btn" href="/app/orders/${v.order.id}">${m.viewOrder} ${icon('arrow')}</a>` : ''}</div>`;
         if (a.status === 'in_flight') return html`<p class="notice warn" role="status">${m.submissionInFlight}</p>`;
         if (a.status === 'unknown') return html`<p class="notice warn" role="alert">${m.submissionUnknown}</p>`;
         return html`<p class="notice bad" role="alert">${fmt(m.submissionRejected, { reason: a.error_code ?? '' })}</p>`;
@@ -627,30 +693,49 @@ ${!o.is_final ? html`<form method="post" action="/app/orders/${o.order_id}/cance
       return null;
     })();
     const actionable = c.status === 'awaiting_user' || (c.status === 'approved' && !v.attempt);
-    const line = (label: string, mm: { amount_minor: number; formatted: string }, always = false) => (always || mm.amount_minor !== 0 ? html`<tr><td>${label}</td><td class="num">${mm.formatted}</td></tr>` : '');
-    return send(reply, r, m.confirmTitle, html`<h1>${m.confirmTitle}</h1>
-<p class="lead">${m.confirmLead} <span class="small">(${clientName})</span></p>
-${c.mode === 'demo' ? html`<p class="notice warn">${m.confirmDemoNote}</p>` : ''}
-${flash ?? ''}${state ?? ''}
-<div class="card stack">
-  <h2 style="margin:0">${v.restaurant_name}</h2>
-  <table class="lines"><tbody>
-    ${v.lines.map((l: any) => html`<tr><td>${l.quantity}× ${l.name}${l.modifiers_desc?.length ? html`<br><span class="small muted">${l.modifiers_desc.join(', ')}</span>` : ''}</td><td class="num">${formatMinor(l.line_total_minor, c.currency, r.l)}</td></tr>`)}
-    ${line(m.subtotal, b.items_subtotal, true)}${line(m.deliveryFee, b.delivery_fee, true)}${line(m.serviceFee, b.service_fee)}${line(m.smallOrderFee, b.small_order_fee)}${line(m.discount, b.discount)}
-    <tr class="total"><td>${m.total}</td><td class="num">${b.total.formatted}</td></tr>
-  </tbody></table>
-  <p><strong>${m.deliveryTo}:</strong> ${v.address ? `${v.address.label}: ${v.address.line1}, ${v.address.district}, ${v.address.city}` : '-'}</p>
-  <p><strong>${m.paymentMethod}:</strong> ${c.payment_method_label}</p>
-  <p><strong>${m.cancelTerms}:</strong> ${c.cancellation_terms}</p>
-  <p class="small">${m.eta}: ${v.eta.min}–${v.eta.max} ${r.l === 'ru' ? 'мин' : 'min'}. ${m.etaNote}</p>
-  <p class="small muted">${fmt(m.priceSource, { src: v.price_source, time: dt(v.quote_fetched_at, r.l) })}</p>
-  ${actionable ? html`<p class="small"><strong>${fmt(m.validUntil, { time: dt(c.expires_at, r.l) })}</strong></p>` : ''}
+    const line = (label: string, mm: { amount_minor: number }, always = false) =>
+      always || mm.amount_minor !== 0 ? html`<tr class="sub"><td>${label}</td><td class="num">${formatMinor(mm.amount_minor, c.currency, l)}</td></tr>` : '';
+    const min = tr(l, { ru: 'мин', en: 'min', th: 'นาที' });
+    return send(reply, r, m.confirmTitle, html`
+<div class="page-head">
+  <span class="eyebrow">${icon('shield')} ${tr(l, { ru: 'Защищённое подтверждение', en: 'Secure confirmation', th: 'การยืนยันที่ปลอดภัย' })}</span>
+  <h1>${m.confirmTitle}</h1>
+  <p class="lead">${m.confirmLead} <span class="small">(${clientName})</span></p>
 </div>
-${actionable ? html`<div class="stack" style="margin-top:16px">
+${c.mode === 'demo' ? html`<p class="notice warn small">${m.confirmDemoNote}</p>` : ''}
+${flash ?? ''}${state ?? ''}
+<div class="card receipt stack">
+  <div class="receipt-head">${restaurantArt(v.restaurant_id, v.restaurant_name)}<div><h2>${v.restaurant_name}</h2><p class="small muted">${icon('clock')} ${m.eta}: ${v.eta.min}–${v.eta.max} ${min}. ${m.etaNote}</p></div></div>
+  <table class="lines"><tbody>
+    ${v.lines.map((ln: any) => {
+      const local = dishName(ln.item_id ?? '', ln.name, l);
+      return html`<tr><td><strong>${ln.quantity}×</strong> ${local}${local !== ln.name ? html`<br><span class="small muted">${ln.name}</span>` : ''}${ln.modifiers_desc?.length ? html`<br><span class="small muted">${ln.modifiers_desc.join(', ')}</span>` : ''}</td><td class="num">${formatMinor(ln.line_total_minor, c.currency, l)}</td></tr>`;
+    })}
+    ${line(m.subtotal, b.items_subtotal, true)}${line(m.deliveryFee, b.delivery_fee, true)}${line(m.serviceFee, b.service_fee)}${line(m.smallOrderFee, b.small_order_fee)}${line(m.discount, b.discount)}
+    <tr class="total"><td>${m.total}</td><td class="num">${formatMinor(b.total.amount_minor, c.currency, l)}</td></tr>
+  </tbody></table>
+  <dl class="facts">
+    <div><dt>${icon('map')} ${m.deliveryTo}</dt><dd>${v.address ? `${v.address.label}: ${v.address.line1}, ${v.address.district}, ${v.address.city}` : '-'}</dd></div>
+    <div><dt>${icon('receipt')} ${m.paymentMethod}</dt><dd>${c.payment_method_label}</dd></div>
+    <div><dt>${icon('repeat')} ${m.cancelTerms}</dt><dd>${c.cancellation_terms}</dd></div>
+  </dl>
+  <p class="small muted">${fmt(m.priceSource, { src: v.price_source, time: dt(v.quote_fetched_at, l) })}</p>
+</div>
+${actionable ? html`<div class="confirm-actions">
+  <p class="small valid">${icon('clock')} ${fmt(m.validUntil, { time: dt(c.expires_at, l) })}</p>
   <form method="post" action="/confirm/${c.id}">${csrfField(r.s)}<input type="hidden" name="total_minor" value="${c.total_minor}">
-    <button class="btn block" type="submit">${fmt(m.confirmBtn, { total: b.total.formatted })}</button></form>
-  <form method="post" action="/confirm/${c.id}/decline">${csrfField(r.s)}<button class="btn secondary block" type="submit">${m.declineBtn}</button></form>
-</div>` : ''}`, { narrow: true, status });
+    <button class="btn block lg" type="submit">${icon('lock')} ${fmt(m.confirmBtn, { total: formatMinor(b.total.amount_minor, c.currency, l) })}</button></form>
+  <form method="post" action="/confirm/${c.id}/decline">${csrfField(r.s)}<button class="btn ghost block" type="submit">${m.declineBtn}</button></form>
+  <p class="small muted center">${tr(l, { ru: 'Эту кнопку можете нажать только вы. Ассистент не может подтвердить заказ за вас.', en: 'Only you can press this button. Your assistant cannot confirm for you.', th: 'มีเพียงคุณที่กดปุ่มนี้ได้ ผู้ช่วยยืนยันแทนคุณไม่ได้' })}</p>
+</div>` : ''}
+${fromTry ? html`<details class="trace"><summary>${icon('code')} ${tr(l, { ru: 'Что сделал ассистент (вызовы MCP)', en: 'What the assistant did (MCP calls)', th: 'สิ่งที่ผู้ช่วยทำ (การเรียก MCP)' })}</summary>
+<ol class="tool-log">
+  <li><span class="fn">create_cart</span>(restaurant_id: "${v.restaurant_id}", items: ${v.lines.length})</li>
+  <li><span class="fn">quote_cart</span>(cart_id) → ${formatMinor(b.total.amount_minor, c.currency, 'en')}</li>
+  <li><span class="fn">prepare_checkout</span>(cart_id, quote_id) → confirmation_url</li>
+  <li class="you">${tr(l, { ru: 'Вы: подтверждение на этой странице', en: 'You: confirm on this page', th: 'คุณ: ยืนยันในหน้านี้' })}</li>
+  <li><span class="fn">submit_order</span>(checkout_id) → ${tr(l, { ru: 'только после вашего подтверждения', en: 'only after your confirmation', th: 'หลังจากคุณยืนยันเท่านั้น' })}</li>
+</ol></details>` : ''}`, { narrow: true, status });
   }
 
   app.post('/confirm/:id', async (req, reply) => {
@@ -666,7 +751,14 @@ ${actionable ? html`<div class="stack" style="margin-top:16px">
       if (!Number.isSafeInteger(seen) || seen !== Number(v.checkout.total_minor)) throw new DomainError('PRICE_CHANGED', 'The total changed; please review again.');
       await approveCheckout(ctx, r.s.user.id, id);
       await submitOrder(ctx, { userId: r.s.user.id, via: 'web' }, id);
-      return reply.redirect(`/confirm/${id}`);
+      const placed = (await ctx.db.query('SELECT id, provider_order_ref FROM orders WHERE checkout_id = $1 AND user_id = $2', [id, r.s.user.id])).rows[0];
+      if (!placed) return reply.redirect(`/confirm/${id}`);
+      if (r.s.user.is_guest && ctx.cfg.demoGuestSpeed > 1) {
+        // Guest demo orders move through the timeline faster so a walkthrough finishes in minutes.
+        await ctx.db.query('UPDATE demo_sim_orders SET speed = $2 WHERE ref = $1', [placed.provider_order_ref, ctx.cfg.demoGuestSpeed]);
+        await ctx.db.query(`UPDATE orders SET eta_at = created_at + make_interval(secs => $2) WHERE id = $1 AND mode = 'demo'`, [placed.id, Math.round((30 * 60) / ctx.cfg.demoGuestSpeed)]);
+      }
+      return reply.redirect(`/app/orders/${placed.id}?placed=1`);
     } catch (e) {
       if (isDomainError(e) && e.code === 'NOT_FOUND') return notFound(reply, r);
       if (isDomainError(e) && e.code === 'SUBMISSION_UNKNOWN') return reply.redirect(`/confirm/${id}`);
@@ -801,12 +893,14 @@ ${pks.length > 1 ? html`<form method="post" action="/app/passkeys/delete">${csrf
     if ((req.body as any)?.confirm !== 'DELETE') return reply.redirect('/app/data');
     await deleteAccount(ctx, r.s.user.id);
     await logout(ctx, reply, null);
-    return send(reply, { s: null, l: r.l, m: r.m }, r.m.deleted, html`<h1>${r.m.deleted}</h1><p><a href="/">unyly.org</a></p>`, { narrow: true });
+    return send(reply, { s: null, l: r.l, m: r.m, path: r.path }, r.m.deleted, html`<h1>${r.m.deleted}</h1><p><a href="/">unyly.org</a></p>`, { narrow: true });
   });
 
   function notFound(reply: FastifyReply, r: R) {
     return send(reply, r, r.m.notFound, html`<h1>${r.m.notFound}</h1><p><a href="/">${r.m.back}</a></p>`, { narrow: true, status: 404 });
   }
+
+  registerShowcase(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });
 
   app.setNotFoundHandler(async (req, reply) => {
     if (req.url.startsWith('/mcp') || req.url.startsWith('/oauth') || req.url.startsWith('/.well-known') || req.url.startsWith('/webhooks')) {

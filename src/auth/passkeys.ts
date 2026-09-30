@@ -91,7 +91,7 @@ export async function verifyRegistration(ctx: Ctx, body: any, sessionUserId?: st
     if (ch.purpose === 'register') {
       const taken = await q.query('SELECT 1 FROM users WHERE lower(email) = $1 AND deleted_at IS NULL', [ch.email]);
       if (taken.rowCount) throw new DomainError('VALIDATION_FAILED', 'An account with this email already exists');
-      userId = (await findOrCreateUserByEmail(q, ch.email, body?.locale === 'en' ? 'en' : 'ru')).id;
+      userId = (await findOrCreateUserByEmail(q, ch.email, (['en', 'th'].includes(body?.locale) ? body.locale : 'ru'))).id;
     }
     await q.query(
       `INSERT INTO webauthn_credentials (id, user_id, public_key, counter, transports, device_type, backed_up, label) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,

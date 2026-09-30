@@ -249,7 +249,7 @@ export async function quoteCart(ctx: Ctx, actor: Actor, cartId: string) {
   return { quote: row, cart, address: addr };
 }
 
-export function describeQuote(qr: QuoteRow, locale: 'ru' | 'en' = 'en') {
+export function describeQuote(qr: QuoteRow, locale: 'ru' | 'en' | 'th' = 'en') {
   const m = (n: number) => money(n, qr.currency, locale);
   return {
     quote_id: qr.id,

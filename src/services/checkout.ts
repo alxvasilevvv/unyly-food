@@ -136,7 +136,7 @@ export async function prepareCheckout(ctx: Ctx, actor: Actor, args: { cart_id: s
 }
 
 /** Full, human-readable view of what is being approved. Used by the confirmation page and get_checkout_status. */
-export async function checkoutView(ctx: Ctx, userId: string, id: string, locale: 'ru' | 'en' = 'en') {
+export async function checkoutView(ctx: Ctx, userId: string, id: string, locale: 'ru' | 'en' | 'th' = 'en') {
   let c = await loadCheckout(ctx.db, userId, id);
   if ((c.status === 'awaiting_user' || c.status === 'approved') && new Date(c.expires_at).getTime() <= ctx.clock.now().getTime()) {
     await markInvalid(ctx.db, c.id, 'EXPIRED');
@@ -152,6 +152,7 @@ export async function checkoutView(ctx: Ctx, userId: string, id: string, locale:
   return {
     checkout: c,
     restaurant_name: cart.restaurant_name,
+    restaurant_id: cart.restaurant_id,
     lines: qr.lines,
     address: addr,
     breakdown: {

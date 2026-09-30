@@ -17,18 +17,19 @@ export function exponentOf(currency: string): number {
   return e;
 }
 
-export function formatMinor(amountMinor: number, currency: string, locale: 'ru' | 'en' = 'en'): string {
+export function formatMinor(amountMinor: number, currency: string, locale: 'ru' | 'en' | 'th' = 'en'): string {
   const exp = exponentOf(currency);
   const major = amountMinor / 10 ** exp;
-  return new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : 'en-US', {
+  return new Intl.NumberFormat(locale === 'ru' ? 'ru-RU' : locale === 'th' ? 'th-TH' : 'en-US', {
     style: 'currency',
     currency,
+    currencyDisplay: 'narrowSymbol',
     minimumFractionDigits: exp,
     maximumFractionDigits: exp,
   }).format(major);
 }
 
-export function money(amountMinor: number, currency: string, locale: 'ru' | 'en' = 'en'): Money {
+export function money(amountMinor: number, currency: string, locale: 'ru' | 'en' | 'th' = 'en'): Money {
   if (!Number.isSafeInteger(amountMinor)) throw new Error('amount must be an integer in minor units');
   return { amount_minor: amountMinor, currency, formatted: formatMinor(amountMinor, currency, locale) };
 }

@@ -6,7 +6,7 @@
 
 ## Текущее размещение: Unyly Deploy (https://unyly-food.unyly.org)
 
-Проверено 30.09.2026: `unyly.org` — собственная платформа владельца. Unyly Deploy (deploy.unyly.org) собирает GitHub-репозиторий по его `Dockerfile` и публикует на `slug.unyly.org`, пуш в ветку пересобирает проект. Поэтому отдельный VPS, Caddy и DNS-записи не нужны: TLS и домен даёт платформа.
+Проверено 30.09.2026: `unyly.org` - собственная платформа владельца. Unyly Deploy (deploy.unyly.org) собирает GitHub-репозиторий по его `Dockerfile` и публикует на `slug.unyly.org`, пуш в ветку пересобирает проект. Поэтому отдельный VPS, Caddy и DNS-записи не нужны: TLS и домен даёт платформа.
 
 1. Репозиторий `alxvasilevvv/unyly-food` (публичный: секретов в коде нет, все секреты в Unyly Deploy), ветка `main`, пуш пересобирает проект.
 2. Проект `unyly-food` в Unyly Deploy (тип Site, собственный Dockerfile, порт 3000, лимиты 0.5 CPU / 384 MiB). Адрес: `unyly-food.unyly.org`. Опубликован 30.09.2026.
@@ -30,7 +30,7 @@
 
 Операции внутри контейнера: `node dist/cli.js kill-switch demo off`, `node dist/cli.js issue-login-code user@example.com` (восстановление доступа без почты), `node dist/cli.js migrate`.
 
-**Вход без почтового сервиса.** Основной вход — passkey (WebAuthn: Face ID, Touch ID, Windows Hello, ключи безопасности). Коды на email включаются через `MAIL_MODE=smtp`. Без SMTP поддержка выдаёт одноразовый код командой `issue-login-code`, пользователь вводит его на `/login/code` и добавляет новый passkey.
+**Вход без почтового сервиса.** Основной вход - passkey (WebAuthn: Face ID, Touch ID, Windows Hello, ключи безопасности). Коды на email включаются через `MAIL_MODE=smtp`. Без SMTP поддержка выдаёт одноразовый код командой `issue-login-code`, пользователь вводит его на `/login/code` и добавляет новый passkey.
 
 ## Окружения
 

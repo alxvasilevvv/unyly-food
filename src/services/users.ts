@@ -8,7 +8,8 @@ import type { DeliveryAddress, Mode } from '../providers/types.js';
 export interface UserRow {
   id: string;
   email: string;
-  locale: 'ru' | 'en';
+  locale: 'ru' | 'en' | 'th';
+  is_guest?: boolean;
   region: string;
   mode: Mode;
   onboarded_at: string | null;
@@ -25,7 +26,7 @@ export async function getUser(q: Queryable, id: string): Promise<UserRow> {
   return r.rows[0];
 }
 
-export async function findOrCreateUserByEmail(q: Queryable, email: string, locale: 'ru' | 'en'): Promise<UserRow> {
+export async function findOrCreateUserByEmail(q: Queryable, email: string, locale: 'ru' | 'en' | 'th'): Promise<UserRow> {
   const e = email.trim().toLowerCase();
   const found = await q.query<UserRow>('SELECT * FROM users WHERE lower(email) = $1 AND deleted_at IS NULL', [e]);
   if (found.rows[0]) return found.rows[0];
@@ -54,7 +55,7 @@ export async function setRegionAndMode(ctx: Ctx, userId: string, region: string,
   });
 }
 
-export async function setLocale(q: Queryable, userId: string, locale: 'ru' | 'en') {
+export async function setLocale(q: Queryable, userId: string, locale: 'ru' | 'en' | 'th') {
   await q.query('UPDATE users SET locale = $2 WHERE id = $1', [userId, locale]);
 }
 

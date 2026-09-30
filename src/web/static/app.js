@@ -133,3 +133,45 @@ document.addEventListener('submit', (e) => {
     });
   }
 })();
+
+// ---------------- Guided demo: example chips fill the request box ----------------
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-fill]');
+  const form = document.getElementById('ask');
+  if (!a || !form) return;
+  e.preventDefault();
+  form.querySelector('textarea').value = a.dataset.fill;
+  form.requestSubmit ? form.requestSubmit() : form.submit();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && e.target.matches?.('#ask textarea')) {
+    e.preventDefault();
+    const f = e.target.form;
+    f.requestSubmit ? f.requestSubmit() : f.submit();
+  }
+});
+
+// ---------------- Order status: poll and refresh when the status changes ----------------
+(() => {
+  const card = document.querySelector('[data-poll]');
+  if (!card || card.dataset.final) return;
+  let delay = 4000;
+  const tick = async () => {
+    try {
+      const r = await fetch(card.dataset.poll, { credentials: 'same-origin', headers: { accept: 'application/json' } });
+      if (r.ok) {
+        const j = await r.json();
+        if (j.status !== card.dataset.status) {
+          location.replace(location.pathname);
+          return;
+        }
+        if (j.is_final) return;
+        delay = 4000;
+      } else delay = Math.min(delay * 2, 30000);
+    } catch {
+      delay = Math.min(delay * 2, 30000);
+    }
+    setTimeout(tick, document.hidden ? 15000 : delay);
+  };
+  setTimeout(tick, delay);
+})();

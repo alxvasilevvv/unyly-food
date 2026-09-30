@@ -36,7 +36,7 @@ export async function loadOrder(q: Queryable, userId: string, id: string): Promi
   return r.rows[0];
 }
 
-export function describeOrder(o: OrderRow, locale: 'ru' | 'en' = 'en') {
+export function describeOrder(o: OrderRow, locale: 'ru' | 'en' | 'th' = 'en') {
   return {
     order_id: o.id,
     mode: o.mode,

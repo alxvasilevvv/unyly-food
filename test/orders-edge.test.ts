@@ -140,6 +140,6 @@ describe('Money', () => {
     expect(parseMajor('0.1', 'THB')).toBe(10);
     expect(parseMajor('19.99', 'THB')).toBe(1999);
     expect(() => parseMajor('1.999', 'THB')).toThrow();
-    expect(formatMinor(26500, 'THB', 'en').replace(/\s/g, ' ')).toBe('THB 265.00');
+    expect(formatMinor(26500, 'THB', 'en').replace(/\s/g, ' ')).toBe('฿265.00');
   });
 });
