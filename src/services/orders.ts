@@ -187,10 +187,7 @@ export async function reorder(ctx: Ctx, actor: Actor, orderId: string) {
   const oldCart = await loadCart(ctx.db, actor.userId, o.cart_id);
   const cart = await createCart(ctx, actor, {
     service: oldCart.service,
-    pickup: oldCart.trip?.pickup.name,
-    dropoff: oldCart.trip?.dropoff.name,
-    parcel_weight_kg: oldCart.trip?.parcel?.weight_kg,
-    parcel_description: oldCart.trip?.parcel?.description,
+    reuse_trip: oldCart.trip,
     restaurant_id: oldCart.restaurant_id ?? undefined,
     restaurant_name: oldCart.restaurant_name,
     items: oldCart.items.map((l) => ({ item_id: l.item_id, name: l.name, quantity: l.quantity, modifiers: l.modifiers, note: l.note })),

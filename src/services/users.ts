@@ -196,8 +196,10 @@ export async function exportUserData(q: Queryable, userId: string) {
     user: (await one('SELECT id, email, locale, region, mode, created_at FROM users WHERE id = $1'))[0],
     preferences: (await one('SELECT dietary, allergies, default_party_size FROM preferences WHERE user_id = $1'))[0],
     addresses: await one('SELECT label, line1, district, city, country, instructions, created_at FROM addresses WHERE user_id = $1 AND deleted_at IS NULL'),
-    orders: await one('SELECT id, mode, restaurant_name, items, total_minor, currency, fulfillment_status, created_at FROM orders WHERE user_id = $1'),
+    orders: await one('SELECT id, mode, service, restaurant_name, address_label, items, total_minor, currency, fulfillment_status, created_at FROM orders WHERE user_id = $1'),
     ai_connections: await one('SELECT client_name, scopes, created_at, revoked_at FROM oauth_grants WHERE user_id = $1'),
+    personal_tokens: await one('SELECT name, scopes, created_at, expires_at, last_used_at, revoked_at FROM personal_tokens WHERE user_id = $1'),
+    handoffs: await one('SELECT url, checklist, created_at FROM handoffs WHERE user_id = $1'),
   };
 }
 

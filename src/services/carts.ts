@@ -66,7 +66,18 @@ export async function loadCart(q: Queryable, userId: string, cartId: string, loc
 
 /** What the human approves as "where": the delivery address, or the trip for ride/express. */
 export async function locationFingerprint(q: Queryable, userId: string, cart: Pick<CartState, 'service' | 'address_id' | 'trip'>): Promise<string | null> {
-  if (isTripService(cart.service)) return cart.trip?.fingerprint ?? null;
+  if (isTripService(cart.service)) {
+    if (!cart.trip) return null;
+    // A trip from/to a saved address is also bound to that address's current content.
+    const parts = [cart.trip.fingerprint];
+    for (const p of [cart.trip.pickup, cart.trip.dropoff]) {
+      if (!p.address_id) continue;
+      const a = await getAddress(q, userId, p.address_id).catch(() => null);
+      if (!a) return null;
+      parts.push(addressFingerprint(a));
+    }
+    return parts.length === 1 ? parts[0] : sha256(parts.join('|'));
+  }
   if (!cart.address_id) return null;
   const addr = await getAddress(q, userId, cart.address_id).catch(() => null);
   return addr ? addressFingerprint(addr) : null;
@@ -94,7 +105,7 @@ async function resolveOne(ctx: Ctx, mode: Mode, userId: string, text: string | u
   if (!raw) throw new DomainError('TRIP_REQUIRED', `${field} is required for this service`, { field });
   const provider = ctx.provider(mode);
   if (!provider.resolvePlace) return { name: raw, kind: 'user_text' };
-  const saved = (await listAddresses(ctx.db, userId)).map((a) => ({ label: a.label, district: a.district, city: a.city }));
+  const saved = (await listAddresses(ctx.db, userId)).map((a) => ({ id: a.id, label: a.label, district: a.district, city: a.city }));
   const r = provider.resolvePlace(raw, saved);
   if (!r.ok) throw new DomainError(r.code, `${field}: ${r.message}`, { field, suggestions: r.suggestions });
   return r.place;
@@ -169,6 +180,8 @@ export interface CreateCartArgs extends TripInput {
   restaurant_name?: string;
   items: NewItem[];
   address_id?: string;
+  /** Reorder: reuse the exact trip of the earlier order instead of re-resolving names. */
+  reuse_trip?: Trip | null;
 }
 
 export async function createCart(ctx: Ctx, actor: Actor, args: CreateCartArgs): Promise<CartState> {
@@ -202,8 +215,17 @@ export async function createCart(ctx: Ctx, actor: Actor, args: CreateCartArgs): 
     service = menu.restaurant.service;
     if (isTripService(service)) address = null;
   }
-  const trip = isTripService(service) ? await resolveTrip(ctx, user.mode, actor.userId, service, args) : null;
+  const trip = isTripService(service) ? args.reuse_trip ?? (await resolveTrip(ctx, user.mode, actor.userId, service, args)) : null;
   const lines = await resolveLines(ctx, user.mode, restaurantId, items, address);
+  const perItem = new Map<string, number>();
+  for (const l of lines) if (l.item_id) perItem.set(l.item_id, (perItem.get(l.item_id) ?? 0) + l.quantity);
+  if (restaurantId && [...perItem.values()].some((n) => n > 1)) {
+    const menu = await callProvider(() => ctx.provider(user.mode).getMenu(restaurantId!, address ? toDeliveryAddress(address) : null));
+    for (const [id, n] of perItem) {
+      const it = menu.items.find((m) => m.id === id);
+      if (it?.max_quantity && n > it.max_quantity) throw new DomainError('QUANTITY_LIMIT', `At most ${it.max_quantity} of ${it.name} per order`, { item_id: id, max_quantity: it.max_quantity });
+    }
+  }
   if (trip) checkTripLines(lines);
   return ctx.db.tx(async (q) => {
     const c = await q.query<CartRow>(
@@ -333,7 +355,9 @@ export async function quoteCart(ctx: Ctx, actor: Actor, cartId: string) {
   let fingerprint: string;
   if (isTripService(cart.service)) {
     if (!cart.trip) throw new DomainError('TRIP_REQUIRED', 'Pickup and drop-off are required; call update_cart with set_trip');
-    fingerprint = cart.trip.fingerprint;
+    const fp = await locationFingerprint(ctx.db, actor.userId, cart);
+    if (!fp) throw new DomainError('ADDRESS_REQUIRED', 'A saved address used in this trip was deleted; call update_cart with set_trip');
+    fingerprint = fp;
   } else {
     if (!cart.address_id) {
       throw new DomainError('ADDRESS_REQUIRED', 'A delivery address is required', undefined, `Add an address at ${ctx.cfg.webOrigin}/app/addresses, then call update_cart with set_address or quote again.`);

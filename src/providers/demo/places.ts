@@ -51,6 +51,7 @@ const hits = (q: string, alias: string) => (THAI.test(alias) ? q.includes(alias)
 const norm = (s: string) => ` ${s.toLowerCase().replace(/[.,;:!?()"'«»]/g, ' ').replace(/\s+/g, ' ').trim()} `;
 
 export interface SavedPlace {
+  id?: string;
   label: string;
   district: string;
   city: string;
@@ -68,7 +69,7 @@ export function resolvePlace(text: string, saved: SavedPlace[] = []): PlaceResul
   if (own) {
     const c = DISTRICT_CENTRES[own.district];
     if (c && own.city.toLowerCase() === 'bangkok') {
-      return { ok: true, place: { name: own.label, lat: c.lat, lng: c.lng, kind: 'saved_address', area: `${own.district}, ${own.city}` } };
+      return { ok: true, place: { name: own.label, lat: c.lat, lng: c.lng, kind: 'saved_address', area: `${own.district}, ${own.city}`, address_id: own.id } };
     }
     return { ok: false, code: 'PLACE_NOT_FOUND', message: `Saved address "${own.label}" is outside the demo area (Bangkok)`, suggestions: [] };
   }

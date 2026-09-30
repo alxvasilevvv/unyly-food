@@ -72,7 +72,7 @@ export class DemoProvider implements Provider {
     };
   }
 
-  resolvePlace(text: string, saved: { label: string; district: string; city: string }[]) {
+  resolvePlace(text: string, saved: { id?: string; label: string; district: string; city: string }[]) {
     return resolvePlace(text, saved);
   }
 
@@ -163,6 +163,15 @@ export class DemoProvider implements Provider {
       }
       return { line_id: l.line_id, item_id: it.id, name: it.name, quantity: l.quantity, modifiers_desc: desc, unit_price_minor: unit, line_total_minor: unit * l.quantity, available: it.available };
     });
+    // Per-order limits apply to the item across all lines, not per line.
+    const perItem = new Map<string, number>();
+    for (const l of lines) if (l.item_id) perItem.set(l.item_id, (perItem.get(l.item_id) ?? 0) + l.quantity);
+    for (const [id, n] of perItem) {
+      const it = r.items.find((x) => x.id === id);
+      if (it?.max_quantity && n > it.max_quantity && !lines.some((l) => l.item_id === id && l.quantity > it.max_quantity!)) {
+        issues.push({ code: 'QUANTITY_LIMIT', message: `At most ${it.max_quantity} of ${it.name} per order (cart has ${n})` });
+      }
+    }
     const subtotal = qlines.reduce((s, l) => s + l.line_total_minor, 0);
     if (r.min_order_minor && subtotal < r.min_order_minor) {
       issues.push({ code: 'MINIMUM_ORDER_NOT_MET', message: `Minimum food subtotal is ${r.min_order_minor / 100} THB; add ${(r.min_order_minor - subtotal) / 100} THB more` });

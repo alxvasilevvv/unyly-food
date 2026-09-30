@@ -181,3 +181,26 @@ describe('Handoff across services and markets', () => {
     await m.close();
   });
 });
+
+describe('Review regressions', () => {
+  it('per-order limits count the same item across several lines', async () => {
+    const r = await u.mcp.call('create_cart', { store_id: 'demo-m4', items: [1, 2, 3].map(() => ({ item_id: 'm4-paracetamol', quantity: 2 })) });
+    expect(r.error.code).toBe('QUANTITY_LIMIT');
+    const c = await u.mcp.call('create_cart', { store_id: 'demo-m4', items: [{ item_id: 'm4-paracetamol', quantity: 2 }] });
+    const up = await u.mcp.call('update_cart', { cart_id: c.result.cart_id, expected_version: 1, operations: [{ op: 'add_item', item: { item_id: 'm4-paracetamol', quantity: 1 } }] });
+    const q = await u.mcp.call('quote_cart', { cart_id: up.result.cart_id });
+    expect(q.result.checkout_allowed).toBe(false);
+    expect(q.result.issues[0].code).toBe('QUANTITY_LIMIT');
+  });
+
+  it('editing a saved address used by a trip invalidates the pending confirmation', async () => {
+    const cart = await u.mcp.call('create_cart', { service: 'ride', pickup: 'Home', dropoff: 'Asok', items: [{ item_id: 'justgrab', quantity: 1 }] });
+    const q = await u.mcp.call('quote_cart', { cart_id: cart.result.cart_id });
+    const co = await u.mcp.call('prepare_checkout', { cart_id: cart.result.cart_id, quote_id: q.result.quote_id });
+    expect(co.ok).toBe(true);
+    await h.db.query(`UPDATE addresses SET district = 'Sathon' WHERE user_id = $1 AND label = 'Home'`, [u.userId]);
+    const post = await confirmOnWeb(h, u, co.result.checkout_id);
+    expect(post.statusCode).toBe(409);
+    expect((await u.mcp.call('get_checkout_status', { checkout_id: co.result.checkout_id })).result.status).toBe('invalidated');
+  });
+});

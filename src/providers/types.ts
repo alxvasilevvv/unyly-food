@@ -122,6 +122,8 @@ export interface Place {
   kind: 'landmark' | 'district' | 'saved_address' | 'user_text';
   area?: string;
   is_airport?: boolean;
+  /** Saved address this place came from; the confirmation is also bound to that address's content. */
+  address_id?: string;
 }
 export interface Trip {
   pickup: Place;
@@ -252,7 +254,7 @@ export interface Provider {
   cancelOrder(ref: string, idempotencyKey: string, maxFeeMinor: number): Promise<CancelResult>;
   verifyWebhook(rawBody: string, headers: Record<string, string | string[] | undefined>): ProviderEvent[];
   /** Resolve a free-text place (landmark, district, saved address label) to coordinates for trip pricing. */
-  resolvePlace?(text: string, saved: { label: string; district: string; city: string }[]):
+  resolvePlace?(text: string, saved: { id?: string; label: string; district: string; city: string }[]):
     | { ok: true; place: Place }
     | { ok: false; code: 'PLACE_NOT_FOUND' | 'PLACE_AMBIGUOUS'; message: string; suggestions: string[] };
   handoffUrl?(region: string, service: Service): { url: string; source: string; verified: boolean; verified_at?: string } | null;
