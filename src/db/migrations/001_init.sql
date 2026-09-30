@@ -1,7 +1,7 @@
 -- Unyly initial schema.
 -- Conventions: all timestamps are timestamptz (stored UTC); money is BIGINT in minor units + ISO 4217 code.
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- gen_random_uuid() is built into PostgreSQL 13+, no extension required.
 
 CREATE TABLE users (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),

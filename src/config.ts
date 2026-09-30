@@ -16,7 +16,7 @@ export interface Config {
   trustProxy: boolean;
   cookieSecure: boolean;
   demoWebhookSecret: string;
-  mail: { mode: 'console' | 'smtp'; smtpUrl?: string; from: string };
+  mail: { mode: 'console' | 'smtp' | 'disabled'; smtpUrl?: string; from: string };
   /** Show login code on the page. Only allowed outside production. */
   devEchoLoginCode: boolean;
   /** Env-level kill switch; DB setting can only further restrict. */
@@ -48,7 +48,7 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     cookieSecure: bool(process.env.COOKIE_SECURE, webOrigin.startsWith('https://')),
     demoWebhookSecret: process.env.DEMO_WEBHOOK_SECRET || 'dev-only-demo-webhook-secret-change-me',
     mail: {
-      mode: (process.env.MAIL_MODE as 'console' | 'smtp') || 'console',
+      mode: (process.env.MAIL_MODE as 'console' | 'smtp' | 'disabled') || 'console',
       smtpUrl: process.env.SMTP_URL,
       from: process.env.MAIL_FROM || 'Unyly <no-reply@unyly.org>',
     },
@@ -65,6 +65,7 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     if (cfg.devEchoLoginCode) throw new Error('DEV_ECHO_LOGIN_CODE must be false in production');
     if (cfg.demoWebhookSecret.startsWith('dev-only')) throw new Error('DEMO_WEBHOOK_SECRET must be set in production');
     if (!cfg.webOrigin.startsWith('https://')) throw new Error('WEB_ORIGIN must be https in production');
+    if (cfg.mail.mode === 'console') throw new Error('MAIL_MODE must be smtp or disabled in production');
   }
   return cfg;
 }

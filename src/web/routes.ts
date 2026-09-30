@@ -5,6 +5,7 @@ import { DomainError, isDomainError } from '../domain/errors.js';
 import { formatMinor, money } from '../domain/money.js';
 import { checkCsrf, loadSession, logout, requestLoginCode, safeNext, setSessionCookie, verifyLoginCode, WebSession } from '../auth/session.js';
 import { revokeGrantForUser } from '../auth/oauth.js';
+import { authenticationOptions, deletePasskey, listPasskeys, registrationOptions, verifyAuthentication, verifyRegistration } from '../auth/passkeys.js';
 import { approveCheckout, checkoutView, declineCheckout, submitOrder } from '../services/checkout.js';
 import {
   approveCancellation, cancelOrder, describeOrder, getOrderStatus, loadCancellation, loadOrder, prepareCancellation,
@@ -215,24 +216,50 @@ ${qa.map(([q, a]) => html`<details><summary>${q}</summary><p>${a}</p></details>`
     return send(reply, r, r.m.loginTitle, loginForm(r, next), { narrow: true });
   });
 
+  const pkData = (r: R) =>
+    html`data-msg-unsupported="${r.m.pkUnsupported}" data-msg-cancelled="${r.m.pkCancelled}" data-msg-working="${r.m.pkWorking}" data-locale="${r.l}"`;
+
   function loginForm(r: R, next: string, error?: unknown) {
-    return html`<h1>${r.m.loginTitle}</h1><p class="lead">${r.m.loginLead}</p>${error ? errorBox(error) : ''}
-<form method="post" action="/login" class="card stack">
+    const mailOn = ctx.cfg.mail.mode !== 'disabled';
+    return html`<h1>${r.m.loginTitle}</h1><p class="lead">${r.m.passkeyLead}</p>${error ? errorBox(error) : ''}
+<noscript><p class="notice warn">${r.m.jsNeeded}</p></noscript>
+<div class="card stack" id="pk-login-box" data-next="${next}" ${pkData(r)}>
+  <button class="btn block" type="button" id="pk-login">${r.m.passkeyLogin}</button>
+  <p class="small muted" id="pk-login-status" role="status" aria-live="polite"></p>
+</div>
+<h2>${r.m.newAccount}</h2>
+<form class="card stack" id="pk-register" data-next="/app/mode" ${pkData(r)}>
+  <div class="field"><label for="reg-email">${r.m.email}</label><input id="reg-email" name="email" type="email" autocomplete="email" required></div>
+  <p class="small muted">${r.m.regNote}</p>
+  <button class="btn secondary block" type="submit">${r.m.createPasskey}</button>
+  <p class="small muted" id="pk-register-status" role="status" aria-live="polite"></p>
+</form>
+<details style="margin-top:18px"><summary>${r.m.codeLogin}</summary>
+${mailOn
+  ? html`<form method="post" action="/login" class="stack" style="margin-top:12px">
   <input type="hidden" name="next" value="${next}">
-  <div class="field"><label for="email">${r.m.email}</label><input id="email" name="email" type="email" autocomplete="email" required autofocus></div>
-  <button class="btn block" type="submit">${r.m.sendCode}</button>
-</form>`;
+  <div class="field"><label for="email">${r.m.email}</label><input id="email" name="email" type="email" autocomplete="email" required></div>
+  <button class="btn secondary block" type="submit">${r.m.sendCode}</button></form>`
+  : html`<p class="small">${r.m.codeBySupport}</p>`}
+<p><a href="/login/code?next=${encodeURIComponent(next)}">${r.m.haveCode}</a></p>
+</details>`;
   }
 
   function codeForm(r: R, email: string, next: string, devCode?: string, error?: unknown) {
-    return html`<h1>${r.m.codeTitle}</h1><p class="lead">${fmt(r.m.codeLead, { email })}</p>
+    return html`<h1>${r.m.codeTitle}</h1>${email ? html`<p class="lead">${fmt(r.m.codeLead, { email })}</p>` : ''}
 ${devCode ? html`<p class="notice warn">${fmt(r.m.devCode, { code: devCode })}</p>` : ''}${error ? errorBox(error) : ''}
 <form method="post" action="/login/verify" class="card stack">
-  <input type="hidden" name="email" value="${email}"><input type="hidden" name="next" value="${next}">
-  <div class="field"><label for="code">${r.m.code}</label><input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required autofocus></div>
+  <input type="hidden" name="next" value="${next}">
+  ${email ? html`<input type="hidden" name="email" value="${email}">` : html`<div class="field"><label for="email">${r.m.email}</label><input id="email" name="email" type="email" autocomplete="email" required></div>`}
+  <div class="field"><label for="code">${r.m.code}</label><input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required ${email ? html`autofocus` : ''}></div>
   <button class="btn block" type="submit">${r.m.signIn}</button>
-</form><p><a href="/login?next=${encodeURIComponent(next)}">${r.m.otherEmail}</a></p>`;
+</form><p><a href="/login?next=${encodeURIComponent(next)}">${r.m.back}</a></p>`;
   }
+
+  app.get('/login/code', async (req, reply) => {
+    const r = await base(req, reply);
+    return send(reply, r, r.m.codeTitle, codeForm(r, '', safeNext((req.query as any)?.next)), { narrow: true });
+  });
 
   app.post('/login', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (req, reply) => {
     const r = await base(req, reply);
@@ -255,7 +282,7 @@ ${devCode ? html`<p class="notice warn">${fmt(r.m.devCode, { code: devCode })}</
       setSessionCookie(ctx, reply, token);
       return reply.redirect(user.onboarded_at || next !== '/app' ? next : '/app');
     } catch (e) {
-      return send(reply, r, r.m.codeTitle, codeForm(r, String(b?.email ?? ''), next, undefined, e), { narrow: true, status: 400 });
+      return send(reply, r, r.m.codeTitle, codeForm(r, '', next, undefined, e), { narrow: true, status: 400 });
     }
   });
 
@@ -264,6 +291,61 @@ ${devCode ? html`<p class="notice warn">${fmt(r.m.devCode, { code: devCode })}</
     if (s) checkCsrf(ctx, req, s);
     await logout(ctx, reply, s);
     return reply.redirect('/');
+  });
+
+  // ---------------- Passkeys (JSON, same-origin only) ----------------
+  const sameOrigin = (req: FastifyRequest) => {
+    const o = req.headers.origin;
+    if (typeof o !== 'string') return false;
+    try {
+      return new URL(o).origin === ctx.cfg.webOrigin;
+    } catch {
+      return false;
+    }
+  };
+  const pkError = (reply: FastifyReply, e: unknown) => {
+    if (isDomainError(e)) return reply.code(e.httpStatus).send({ error: e.code, message: e.message });
+    throw e;
+  };
+  const pkRate = { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } };
+
+  app.post('/auth/passkey/login/options', pkRate, async (req, reply) => {
+    if (!sameOrigin(req)) return reply.code(403).send({ error: 'forbidden' });
+    return reply.header('cache-control', 'no-store').send(await authenticationOptions(ctx));
+  });
+  app.post('/auth/passkey/login/verify', pkRate, async (req, reply) => {
+    if (!sameOrigin(req)) return reply.code(403).send({ error: 'forbidden' });
+    try {
+      const out = await verifyAuthentication(ctx, req.body);
+      setSessionCookie(ctx, reply, out.token);
+      return reply.send({ ok: true, redirect: safeNext((req.body as any)?.next) });
+    } catch (e) {
+      return pkError(reply, e);
+    }
+  });
+  app.post('/auth/passkey/register/options', pkRate, async (req, reply) => {
+    if (!sameOrigin(req)) return reply.code(403).send({ error: 'forbidden' });
+    const s = await loadSession(ctx, req);
+    try {
+      if (s && !(req.body as any)?.email) {
+        if ((req.body as any)?._csrf !== s.csrf) return reply.code(403).send({ error: 'forbidden' });
+        return reply.send(await registrationOptions(ctx, { sessionUserId: s.user.id, sessionEmail: s.user.email }));
+      }
+      return reply.header('cache-control', 'no-store').send(await registrationOptions(ctx, { email: (req.body as any)?.email }));
+    } catch (e) {
+      return pkError(reply, e);
+    }
+  });
+  app.post('/auth/passkey/register/verify', pkRate, async (req, reply) => {
+    if (!sameOrigin(req)) return reply.code(403).send({ error: 'forbidden' });
+    const s = await loadSession(ctx, req);
+    try {
+      const out = await verifyRegistration(ctx, req.body, s?.user.id);
+      if (out.token) setSessionCookie(ctx, reply, out.token);
+      return reply.send({ ok: true, redirect: out.isNew ? '/app/mode' : '/app/data?passkey=added' });
+    } catch (e) {
+      return pkError(reply, e);
+    }
   });
 
   // ---------------- Dashboard ----------------
@@ -685,12 +767,26 @@ ${g.revoked_at ? '' : html`<form method="post" action="/app/connections/${g.id}/
     const r = await authed(req, reply);
     if (!r) return;
     const m = r.m;
-    return send(reply, r, m.dataTitle, html`<h1>${m.dataTitle}</h1><p class="lead">${m.dataLead} <a href="/privacy">${m.footerPrivacy}</a></p>
+    const pks = await listPasskeys(ctx, r.s.user.id);
+    const added = (req.query as any)?.passkey === 'added';
+    return send(reply, r, m.dataTitle, html`<h1>${m.dataTitle}</h1>
+<h2>${m.passkeysTitle}</h2>${added ? html`<p class="notice ok" role="status">${m.pkAdded}</p>` : ''}
+${pks.length ? html`<ul class="list card">${pks.map((p: any) => html`<li><span><strong>${p.label || (p.device_type === 'multiDevice' ? 'Synced passkey' : 'Device passkey')}</strong><br><span class="small muted">${dt(p.created_at, r.l)}${p.last_used_at ? html` · ${m.lastUsed}: ${dt(p.last_used_at, r.l)}` : ''}</span></span>
+${pks.length > 1 ? html`<form method="post" action="/app/passkeys/delete">${csrfField(r.s)}<input type="hidden" name="id" value="${p.id}"><button class="btn secondary" type="submit">${m.delete}</button></form>` : ''}</li>`)}</ul>` : html`<p class="muted">${m.noPasskeys}</p>`}
+<div class="stack" id="pk-add-box" data-csrf="${r.s.csrf}" ${pkData(r)}><button class="btn secondary" type="button" id="pk-add">${m.addPasskey}</button><p class="small muted" id="pk-add-status" role="status" aria-live="polite"></p></div>
+<h2>${m.exportData}</h2><p class="lead">${m.dataLead} <a href="/privacy">${m.footerPrivacy}</a></p>
 <p><a class="btn secondary" href="/app/data/export">${m.exportData}</a></p>
 <h2>${m.deleteAccount}</h2>
 <form method="post" action="/app/data/delete" class="card stack">${csrfField(r.s)}
   <div class="field"><label for="confirm">${m.deleteConfirm}</label><input id="confirm" name="confirm" type="text" required autocomplete="off"></div>
   <button class="btn danger" type="submit">${m.deleteAccount}</button></form>`, { narrow: true });
+  });
+  app.post('/app/passkeys/delete', async (req, reply) => {
+    const r = await authed(req, reply);
+    if (!r) return;
+    checkCsrf(ctx, req, r.s);
+    await deletePasskey(ctx, r.s.user.id, String((req.body as any)?.id ?? '')).catch(() => undefined);
+    return reply.redirect('/app/data');
   });
   app.get('/app/data/export', async (req, reply) => {
     const r = await authed(req, reply);

@@ -19,8 +19,25 @@ export interface Db extends Queryable {
   ping(): Promise<boolean>;
 }
 
-export function createDb(connectionString: string, max = 10): Db {
-  const pool = new pg.Pool({ connectionString, max, statement_timeout: 15000 });
+/**
+ * TLS to Postgres. DATABASE_SSL_CA (PEM) = encrypted + verified (recommended).
+ * DATABASE_SSL=no-verify = encrypted without CA verification (only when the provider CA is not available).
+ * Otherwise the connection string's own sslmode applies.
+ */
+function sslConfig(): pg.PoolConfig['ssl'] {
+  if (process.env.DATABASE_SSL_CA) return { ca: process.env.DATABASE_SSL_CA.replace(/\\n/g, '\n'), rejectUnauthorized: true };
+  if (process.env.DATABASE_SSL === 'no-verify') return { rejectUnauthorized: false };
+  return undefined;
+}
+
+export function createDb(connectionString: string, max = Number(process.env.DATABASE_POOL_MAX || 10)): Db {
+  const ssl = sslConfig();
+  // When TLS is configured here, drop sslmode from the URL so it does not override the explicit settings.
+  const cs = ssl ? connectionString.replace(/([?&])sslmode=[^&]*&?/, '$1').replace(/[?&]$/, '') : connectionString;
+  // Transaction-mode poolers (e.g. Supabase Supavisor :6543) may not forward startup parameters;
+  // there, set statement_timeout on the database role instead (see docs/operations.md).
+  const pooled = process.env.DATABASE_POOLER === 'transaction';
+  const pool = new pg.Pool({ connectionString: cs, max, ssl, connectionTimeoutMillis: 10000, idleTimeoutMillis: 30000, ...(pooled ? {} : { statement_timeout: 15000 }) });
   pool.on('error', (err) => {
     // Idle client errors must not crash the process.
     console.error('[db] idle client error', err.message);

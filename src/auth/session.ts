@@ -1,6 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { randomInt } from 'node:crypto';
 import type { Ctx } from '../context.js';
+import type { Queryable } from '../db/db.js';
 import { audit } from '../context.js';
 import { randomToken, safeEqual, sha256 } from '../domain/crypto.js';
 import { DomainError } from '../domain/errors.js';
@@ -17,6 +18,7 @@ const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 export async function requestLoginCode(ctx: Ctx, emailRaw: string, locale: 'ru' | 'en'): Promise<{ devCode?: string }> {
   const email = emailRaw.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) throw new DomainError('VALIDATION_FAILED', 'Invalid email');
+  if (ctx.cfg.mail.mode === 'disabled') throw new DomainError('CAPABILITY_UNAVAILABLE', 'Email codes are not enabled on this server. Use a passkey.');
   const recent = await ctx.db.query(`SELECT count(*)::int AS n FROM login_codes WHERE lower(email) = $1 AND created_at > now() - interval '1 hour'`, [email]);
   if (recent.rows[0].n >= MAX_CODES_PER_HOUR) throw new DomainError('RATE_LIMITED', 'Too many codes requested. Try again later.');
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
@@ -46,14 +48,28 @@ export async function verifyLoginCode(ctx: Ctx, emailRaw: string, code: string, 
     }
     await q.query('UPDATE login_codes SET consumed_at = now() WHERE id = $1', [row.id]);
     const user = await findOrCreateUserByEmail(q, email, locale);
-    const token = randomToken();
-    const csrf = randomToken(24);
-    await q.query('INSERT INTO web_sessions (token_hash, user_id, csrf_token, expires_at) VALUES ($1,$2,$3,$4)', [sha256(token), user.id, csrf, new Date(Date.now() + SESSION_TTL_MS)]);
-    await audit(q, { userId: user.id, actor: 'web', action: 'user.login' });
+    const token = await createSession(q, user.id);
+    await audit(q, { userId: user.id, actor: 'web', action: 'user.login', details: { method: 'email_code' } });
     return { user, token };
   });
   if (out instanceof DomainError) throw out;
   return out;
+}
+
+/** Creates a web session and returns the raw cookie token (only its hash is stored). */
+export async function createSession(q: Queryable, userId: string): Promise<string> {
+  const token = randomToken();
+  await q.query('INSERT INTO web_sessions (token_hash, user_id, csrf_token, expires_at) VALUES ($1,$2,$3,$4)', [sha256(token), userId, randomToken(24), new Date(Date.now() + SESSION_TTL_MS)]);
+  return token;
+}
+
+/** Operator/support: issue a one-time sign-in code for an existing or new email (account recovery without SMTP). */
+export async function issueLoginCode(q: Queryable, emailRaw: string): Promise<string> {
+  const email = emailRaw.trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) throw new DomainError('VALIDATION_FAILED', 'Invalid email');
+  const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+  await q.query('INSERT INTO login_codes (email, code_hash, expires_at) VALUES ($1,$2,$3)', [email, sha256(`${email}:${code}`), new Date(Date.now() + CODE_TTL_MS)]);
+  return code;
 }
 
 export interface WebSession {

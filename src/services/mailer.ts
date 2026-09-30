@@ -9,6 +9,9 @@ export interface Mailer {
 
 export function createMailer(cfg: Config): Mailer {
   const outbox: Mailer['outbox'] = [];
+  if (cfg.mail.mode === 'disabled') {
+    return { outbox, async send() { throw new Error('mail disabled'); } };
+  }
   if (cfg.mail.mode === 'smtp') {
     if (!cfg.mail.smtpUrl) throw new Error('SMTP_URL is required when MAIL_MODE=smtp');
     const t = nodemailer.createTransport(cfg.mail.smtpUrl);

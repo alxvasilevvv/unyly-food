@@ -12,12 +12,13 @@
     "start": "node dist/main.js",
     "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "migrate": "tsx src/db/migrate-cli.ts",
+    "migrate": "tsx src/cli.ts migrate",
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e:mcp": "tsx scripts/mcp-e2e.ts",
     "backup:verify": "bash scripts/backup-verify.sh",
-    "kill-switch": "tsx scripts/kill-switch.ts"
+    "kill-switch": "tsx src/cli.ts kill-switch",
+    "issue-login-code": "tsx src/cli.ts issue-login-code"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
@@ -25,6 +26,7 @@
     "@fastify/helmet": "^13.1.1",
     "@fastify/rate-limit": "^11.2.0",
     "@modelcontextprotocol/sdk": "^1.31.0",
+    "@simplewebauthn/server": "^14.0.3",
     "fastify": "^5.12.5",
     "nodemailer": "^10.0.12",
     "pg": "^8.23.0",
