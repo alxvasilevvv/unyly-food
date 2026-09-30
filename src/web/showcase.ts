@@ -80,8 +80,17 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
     <div class="plate p2">${tomYum()}</div>
     <div class="plate p3">${mangoSticky()}</div>
     ${phone}
+    <div class="float-chip c1" aria-hidden="true"><span class="fc-ico lime">${icon('check')}</span><span><b>${tr(l, { ru: 'Подтверждено вами', en: 'Confirmed by you', th: 'คุณยืนยันแล้ว' })}</b><small>฿320 · ${tr(l, { ru: 'одно нажатие', en: 'one tap', th: 'กดครั้งเดียว' })}</small></span></div>
+    <div class="float-chip c2" aria-hidden="true"><span class="fc-ico">${icon('bike')}</span><span><b>${tr(l, { ru: 'Курьер в пути', en: 'Rider on the way', th: 'ไรเดอร์กำลังไป' })}</b><small>${tr(l, { ru: 'около 12 мин', en: 'about 12 min', th: 'ประมาณ 12 นาที' })}</small></span></div>
   </div>
 </section>
+
+<div class="kpis">
+  <div><b>14</b><span>${tr(l, { ru: 'инструментов MCP', en: 'MCP tools', th: 'เครื่องมือ MCP' })}</span></div>
+  <div><b>1</b><span>${tr(l, { ru: 'нажатие человека на заказ', en: 'human tap per order', th: 'การกดของคนต่อออเดอร์' })}</span></div>
+  <div><b>0</b><span>${tr(l, { ru: 'паролей Grab у нас', en: 'Grab passwords stored', th: 'รหัสผ่าน Grab ที่เราเก็บ' })}</span></div>
+  <div><b>TH · EN · RU</b><span>${tr(l, { ru: 'языка интерфейса', en: 'interface languages', th: 'ภาษาของหน้าจอ' })}</span></div>
+</div>
 
 <section class="section" aria-labelledby="st">
   <div class="section-head"><span class="eyebrow">${icon('check')} ${m.statusTitle}</span><h2 id="st">${tr(l, { ru: 'Честно о том, что работает', en: 'Honest about what works today', th: 'บอกตรงๆ ว่าตอนนี้อะไรใช้ได้บ้าง' })}</h2></div>
@@ -111,7 +120,7 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
   </div>
 </section>
 
-<section class="section split" aria-labelledby="sf">
+<section class="section split dark-band" aria-labelledby="sf">
   <div class="section-head">
     <span class="eyebrow">${icon('shield')} ${tr(l, { ru: 'Безопасность', en: 'Safety', th: 'ความปลอดภัย' })}</span>
     <h2 id="sf">${m.safetyTitle}</h2>
