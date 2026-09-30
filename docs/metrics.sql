@@ -32,6 +32,9 @@ FROM submission_attempts GROUP BY 1, 2, 3 ORDER BY 4 DESC;
 SELECT date_trunc('week', created_at) AS week, count(*) AS handoffs, count(DISTINCT user_id) AS users
 FROM handoffs GROUP BY 1 ORDER BY 1;
 
+-- 8. Orders by service (food, mart, ride, express)
+SELECT mode, service, count(*) AS orders FROM orders GROUP BY 1, 2 ORDER BY 3 DESC;
+
 -- Ops: unresolved unknown submissions (page on-call if any older than 10 minutes)
 SELECT id, checkout_id, mode, started_at, reconcile_attempts, next_reconcile_at
 FROM submission_attempts WHERE status IN ('unknown', 'in_flight') ORDER BY started_at;

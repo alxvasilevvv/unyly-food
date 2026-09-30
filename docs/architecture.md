@@ -1,12 +1,12 @@
-# Архитектура Unyly
+# Архитектура Unyly for Grab
 
 ## Обзор
 
 Один процесс Node.js (TypeScript) и одна база PostgreSQL. Микросервисы, очереди и Kubernetes не используются: при нагрузке беты они только добавили бы точки отказа.
 
 ```
- AI-клиент (ChatGPT / Claude / API)          Браузер пользователя
-        │  Streamable HTTP + Bearer                 │  HTML-формы + cookie-сессия
+ AI-клиент (ChatGPT / Claude / Gemini / API)  Браузер пользователя
+        │  Streamable HTTP + Bearer (OAuth или PAT) │  HTML-формы + cookie-сессия
         ▼                                           ▼
  ┌──────────────── Fastify (src/app.ts) ───────────────────────────┐
  │ mcp/tools.ts      auth/oauth.ts (AS + RS)   web/routes.ts (SSR) │
@@ -36,22 +36,26 @@
 | Фоновые задачи в том же процессе (`setInterval`, идемпотентные) | Отдельная очередь | Задачи безопасно запускать в нескольких экземплярах: захват строк через `FOR UPDATE`/`SKIP LOCKED` и уникальные ключи |
 | Деньги - `bigint` в минимальных единицах + ISO-код валюты | decimal/float | Нет ошибок округления. Exponent берётся из правил провайдера (THB = 2) |
 | Время - `timestamptz` (UTC); показ в ICT (Asia/Bangkok) | - | Требование ТЗ |
+| Один поток для всех сервисов (food, mart, ride, express): поездка и посылка - это корзина с одной «машиной» и маршрутом | Отдельные инструменты и таблицы на каждый сервис | Одна защита подтверждения, одна машина состояний, одни тесты. Сервис хранится в `carts.service` и `orders.service` |
+| Демо-карта Бангкока (`providers/demo/places.ts`): ориентиры и районы на EN/RU/TH, названия сохранённых адресов | Геокодер | Нет внешней зависимости и нет выдуманной точности. Live-адаптер использовал бы карты Grab |
+| Рынки в `domain/regions.ts`: 8 стран Grab, ссылки на сервисы с флагом `verified` | Одна ссылка GrabFood TH | Handoff работает для всех сервисов и рынков; непроверенная ссылка честно помечена |
 
 ## Сущности
 
 | Таблица | Назначение |
 |---|---|
-| `users` | Аккаунт, язык, регион, режим (`demo` / `handoff` / `live`) |
+| `users` | Аккаунт, язык, регион (один из 8 рынков Grab), режим (`demo` / `handoff` / `live`) |
 | `login_codes`, `web_sessions` | Вход на сайт (коды хранятся хэшами), сессии с CSRF-токеном |
 | `oauth_clients`, `oauth_grants`, `oauth_codes`, `oauth_tokens` | Подключения ИИ-клиентов: grant = пользователь × клиент × scopes × resource |
+| `personal_tokens` | Персональные токены для клиентов без OAuth: префикс `unyly_pat_`, хранится только SHA-256, показывается один раз, срок 1–365 дней, до 10 активных, отзыв в кабинете. Принимаются только в заголовке `Authorization`, гостям недоступны |
 | `provider_connections` | Подключение провайдера (demo - автоматически; live - `external_ref`, без секретов) |
 | `addresses` | Адреса неизменяемы; удаление стирает текст. Отпечаток адреса привязывается к подтверждению |
 | `preferences` | Питание (`dietary`) и аллергии (`allergies`) хранятся **раздельно** |
-| `carts` + `cart_versions` | Корзина и неизменяемые версии состава/адреса. `carts.version` - текущая |
+| `carts` + `cart_versions` | Корзина одного сервиса (`carts.service`) и неизменяемые версии состава, адреса и маршрута (`cart_versions.trip`: откуда, куда, посылка, оценка км и минут, отпечаток). `carts.version` - текущая |
 | `quotes` | Расчёт цены для конкретной версии корзины и адреса, с TTL |
-| `checkouts` | **Подтверждение**: user × cart_version × quote × address_fingerprint × total × currency × expires_at, одноразовое |
+| `checkouts` | **Подтверждение**: user × cart_version × quote × отпечаток места × total × currency × expires_at, одноразовое. Отпечаток места (`address_fingerprint`) - это адрес доставки для food/mart или отпечаток маршрута для ride/express плюс содержимое сохранённых адресов, использованных как точки маршрута |
 | `submission_attempts` | Попытка отправки. `UNIQUE(checkout_id)` и `UNIQUE(idempotency_key)` |
-| `orders` | Принятый провайдером заказ. `UNIQUE(checkout_id)` и `UNIQUE(provider, provider_order_ref)` |
+| `orders` | Принятый провайдером заказ, поездка или посылка (`orders.service`). `UNIQUE(checkout_id)` и `UNIQUE(provider, provider_order_ref)` |
 | `cancellation_requests` | Подготовленная и подтверждённая отмена с суммой сбора |
 | `handoffs` | Выданные списки и ссылки (это не заказы) |
 | `provider_events` | Webhook и опросы: сохраняются до обработки, дедупликация по `UNIQUE(provider, event_id)` |
@@ -71,7 +75,7 @@ awaiting_user ──(человек нажал «Подтвердить» на �
       ├──► invalidated  (CART_CHANGED / ADDRESS_CHANGED / SUPERSEDED)
       └──► declined     (человек отказался)
 ```
-Перед одобрением и перед отправкой заново проверяются версия корзины, отпечаток адреса и срок действия. Цену проверяет провайдер: адаптер передаёт `expected_total_minor`, и при расхождении заказ отклоняется с `PRICE_CHANGED`.
+Перед одобрением и перед отправкой заново проверяются версия корзины, отпечаток места (адрес или маршрут) и срок действия. Изменение маршрута через `set_trip` или правка сохранённого адреса, который служит точкой маршрута, аннулирует ожидающее подтверждение. Цену проверяет провайдер: адаптер передаёт `expected_total_minor`, и при расхождении заказ отклоняется с `PRICE_CHANGED`.
 
 **Submission attempt**
 ```
@@ -83,7 +87,7 @@ in_flight ──► accepted        (провайдер вернул заказ)
 ```
 Повторная отправка той же попытки **не выполняется никогда**. `in_flight`, зависший дольше `timeout + 5 с`, считается неизвестным и сверяется, например после перезапуска процесса.
 
-**Fulfillment:** `submitted → accepted → preparing → picked_up → delivered`, плюс терминальные `cancelled` и `failed`. События применяются, только если `sequence` провайдера больше сохранённого `status_version`; из терминального состояния выхода нет. Поэтому поздние и повторные события безопасны. Событие, пришедшее раньше записи заказа, хранится и применяется позже; через 24 часа оно помечается `orphaned`.
+**Fulfillment:** `submitted → accepted → preparing → picked_up → delivered`, плюс терминальные `cancelled` и `failed`. Состояния общие для всех сервисов, а подписи свои (`domain/labels.ts`, EN/RU/TH): для поездки `accepted` - «Водитель назначен», `picked_up` - «В пути», `delivered` - «Поездка завершена»; для посылки «Курьер назначен» ... «Посылка доставлена». Демо-таймлайн и условия отмены тоже заданы по сервису (`providers/demo/provider.ts`): у поездки и посылки последний шаг зависит от длительности маршрута, отмена бесплатна сразу после назначения, затем 30 THB (поездка) или 20 THB (посылка), после посадки или забора невозможна. События применяются, только если `sequence` провайдера больше сохранённого `status_version`; из терминального состояния выхода нет. Поэтому поздние и повторные события безопасны. Событие, пришедшее раньше записи заказа, хранится и применяется позже; через 24 часа оно помечается `orphaned`.
 
 **Payment** хранится отдельно (`payment_status`): `not_charged_demo` / `pending` / `authorized` / `captured` / `refunded` / `paid_in_grab` / `unknown`. Значение приходит от провайдера и не выводится из fulfillment.
 
@@ -114,11 +118,11 @@ src/
   config.ts           конфигурация из env и проверки для production
   context.ts          Ctx (db, clock, providers, mailer), Actor, audit()
   db/                 пул pg, транзакции с retry, SQL-миграции
-  domain/             ошибки, деньги, криптография
-  providers/          интерфейс; demo (каталог + симулятор); handoff/live
+  domain/             ошибки, деньги, криптография, рынки и ссылки (regions.ts), подписи статусов (labels.ts)
+  providers/          интерфейс; demo (catalog.ts, places.ts, provider.ts: тарифы, таймлайны, отмена); handoff/live
   services/           бизнес-логика, общая для MCP и веба
   auth/               веб-сессии, OAuth 2.1 AS/RS
-  mcp/tools.ts        14 инструментов, схемы, аннотации, envelope
-  web/                страницы, i18n (ru/en), CSS/JS
+  mcp/tools.ts        15 инструментов, схемы, title и аннотации, envelope, SERVER_INSTRUCTIONS
+  web/                страницы, i18n (ru/en/th), /try (intent.ts: определение сервиса; try-services.ts), CSS/JS
   jobs/worker.ts      сверка, симулятор, TTL, очистка
 ```

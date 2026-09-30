@@ -4,13 +4,15 @@
 
 Это **внутренние инструменты Unyly**. Из их наличия не следует, что у Grab есть API с такими же операциями.
 
+15 инструментов покрывают четыре сервиса одним сценарием: `food` и `mart` (магазины: `supermarket`, `convenience`, `flowers`, `pharmacy`, `cakes`) ищутся через `search_stores`, `ride` и `express` оцениваются через `estimate_trip`. Корзина принадлежит одному магазину или одной поездке. Инструкции сервера (`SERVER_INSTRUCTIONS` в `src/mcp/tools.ts`) описывают этот путь для модели и лежат в поле `instructions` файла схем.
+
 ## Общие правила
 
 - Транспорт: Streamable HTTP, `POST /mcp`, без сессий (stateless). `GET` и `DELETE` возвращают 405.
 - Авторизация: `Authorization: Bearer <token>`. Без токена сервер отвечает 401 с `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/mcp"`.
 - Входные схемы **строгие** (`additionalProperties: false`), поэтому лишний аргумент вроде `confirmed: true` или `user_id` отклоняется.
 - Пользователь определяется только по токену. Объекты другого пользователя возвращают `NOT_FOUND`, неотличимый от несуществующего объекта.
-- Аннотации (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) - подсказки для клиента. Защита на них **не строится**: её обеспечивают scopes, проверка владельца и подтверждение на сайте.
+- У каждого инструмента есть `title` и явные `readOnlyHint`, `destructiveHint`, `openWorldHint` (у изменяющих ещё `idempotentHint`). Аннотации - подсказки для клиента. Защита на них **не строится**: её обеспечивают scopes, проверка владельца и подтверждение на сайте.
 
 ### Ответ (envelope, `structuredContent`)
 
@@ -23,7 +25,7 @@
   "data_as_of": "2026-09-30T03:40:12.000Z",
   "result": { "...": "..." },
   "next_actions": [{ "tool": "prepare_checkout", "why": "Create the confirmation page for the user" }],
-  "notices": ["DEMO MODE: synthetic restaurants and orders. Nothing is delivered or charged. Always tell the user this is a demo."]
+  "notices": ["DEMO MODE: synthetic stores, fares and orders. Nothing is delivered, driven or charged. Always tell the user this is a demo."]
 }
 ```
 При ошибке: `isError: true`, `ok: false`, `error: { code, message, details?, user_action? }`.
@@ -32,20 +34,21 @@
 
 | Инструмент | Scope | Побочные эффекты | Аннотации |
 |---|---|---|---|
-| `get_capabilities` | orders:read | нет | readOnly |
-| `search_restaurants` | orders:read | нет (читает провайдера) | readOnly, openWorld |
-| `get_menu` | orders:read | нет | readOnly, openWorld |
-| `create_cart` | orders:prepare | создаёт черновик корзины; `from_order_id` создаёт **новую** корзину для повтора заказа | - |
-| `update_cart` | orders:prepare | меняет корзину (версия +1) и **аннулирует** ожидающие подтверждения | destructive |
+| `get_capabilities` | orders:read | нет. Режим, сервисы с подсказкой «как пользоваться», 8 рынков, есть ли адрес | readOnly |
+| `search_stores` | orders:read | нет (читает провайдера). `service`: `food` (по умолчанию) или `mart`; `category`, `query`, бюджет, аллергены, диета | readOnly, openWorld |
+| `get_store` | orders:read | нет. Все товары магазина: цены, наличие, обязательные опции, `max_quantity`, аллергены | readOnly, openWorld |
+| `estimate_trip` | orders:read | нет, ничего не бронирует. `service`: `ride` или `express`; `pickup`, `dropoff`, `passengers`, `parcel_weight_kg` (обязателен для `express`) | readOnly, openWorld |
+| `create_cart` | orders:prepare | создаёт черновик. Food/mart: `store_id` + `items`. Ride/express: `service`, `pickup`, `dropoff` и один `item_id` машины. Handoff: `service` + `store_name` и названия товаров, или откуда и куда. `from_order_id` создаёт **новую** корзину для повтора заказа (поездка повторяется точно) | - |
+| `update_cart` | orders:prepare | операции `add_item`, `set_quantity`, `remove_item`, `set_address`, `set_trip` (новые `pickup`, `dropoff`, вес посылки). Версия +1, ожидающие подтверждения **аннулируются** | destructive |
 | `quote_cart` | orders:prepare | сохраняет расчёт с TTL | openWorld |
 | `prepare_checkout` | orders:prepare | создаёт одноразовое подтверждение и `confirm_url` | - |
 | `get_checkout_status` | orders:read | нет | readOnly |
 | `submit_order` | orders:submit | **необратимо**: отправляет заказ, если человек уже подтвердил его на сайте. Отправка выполняется не более одного раза на checkout | destructive, idempotent, openWorld |
-| `get_order_status` | orders:read | может обновить статус у провайдера | readOnly, openWorld |
-| `list_orders` | orders:read | нет | readOnly |
+| `get_order_status` | orders:read | может обновить статус у провайдера; `status_label` по сервису («Driver assigned», «Parcel in transit») | readOnly, openWorld |
+| `list_orders` | orders:read | нет. Заказы, поездки и посылки, плюс недавние Handoff-списки | readOnly |
 | `prepare_cancellation` | orders:cancel | запрашивает условия отмены у провайдера и создаёт страницу подтверждения | openWorld |
 | `cancel_order` | orders:cancel | **необратимо**: выполняет отмену, если человек подтвердил её на сайте | destructive, idempotent, openWorld |
-| `create_handoff` | orders:prepare | сохраняет список и ссылку. Заказ **не создаётся** | - |
+| `create_handoff` | orders:prepare | сохраняет список (товары или откуда и куда) и ссылку Grab для сервиса и рынка (`link_verified`). Заказ **не создаётся** | - |
 
 ## Доменные ошибки
 
@@ -57,7 +60,10 @@
 | `VALIDATION_FAILED` | неверные аргументы | исправить |
 | `CAPABILITY_UNAVAILABLE` | функция недоступна в текущем режиме; `details.reason` и `details.source` | `get_capabilities` |
 | `ADDRESS_REQUIRED` / `ADDRESS_AMBIGUOUS` | нет адреса / адрес неполный | дать пользователю ссылку из `user_action` |
-| `DELIVERY_UNAVAILABLE`, `RESTAURANT_CLOSED`, `OUT_OF_STOCK`, `MODIFIERS_INVALID`, `MINIMUM_ORDER_NOT_MET`, `ITEM_NOT_FOUND` | проблемы меню и корзины (у `MODIFIERS_INVALID` в `details.required_groups` перечислены обязательные группы) | изменить корзину |
+| `DELIVERY_UNAVAILABLE`, `RESTAURANT_CLOSED`, `OUT_OF_STOCK`, `MODIFIERS_INVALID`, `MINIMUM_ORDER_NOT_MET`, `ITEM_NOT_FOUND` | проблемы каталога и корзины (у `MODIFIERS_INVALID` в `details.required_groups` перечислены обязательные группы) | изменить корзину |
+| `QUANTITY_LIMIT` | больше `max_quantity` на заказ (считается по всем строкам; у поездки ровно одна машина) | уменьшить количество |
+| `PLACE_NOT_FOUND` / `PLACE_AMBIGUOUS` | место не найдено на демо-карте / неоднозначно («аэропорт»); `details.suggestions` | спросить пользователя, предложив варианты |
+| `TRIP_REQUIRED`, `WEIGHT_LIMIT`, `OUTSIDE_SERVICE_AREA` | нет откуда/куда или веса посылки; посылка тяжелее лимита машины; место вне демо-карты | `update_cart` с `set_trip` или другая машина |
 | `CART_VERSION_CONFLICT` | `expected_version` устарела; `details.current_version` | перечитать и повторить |
 | `CART_EMPTY`, `CART_NOT_OPEN` | - | - |
 | `QUOTE_EXPIRED`, `PRICE_CHANGED` | расчёт устарел или цена изменилась | `quote_cart`, затем новое подтверждение |
@@ -70,16 +76,25 @@
 | `CANCELLATION_NOT_ALLOWED`, `CANCELLATION_UNKNOWN` | - | - |
 | `RATE_LIMITED`, `INTERNAL` | - | - |
 
-## Пример сценария (Demo)
+## Примеры сценариев (Demo)
 
+Еда:
 ```text
 get_capabilities → mode=demo
-search_restaurants {party_size:2, budget_total_major:600, exclude_allergens:["peanut","tree_nut"], limit:3}
-create_cart {restaurant_id:"demo-r3", items:[{item_id:"r3-wonton",quantity:1},{item_id:"r3-crispypork",quantity:1}]}
+search_stores {party_size:2, budget_total_major:600, exclude_allergens:["peanut","tree_nut"], limit:3}
+create_cart {store_id:"demo-r3", items:[{item_id:"r3-wonton",quantity:1},{item_id:"r3-crispypork",quantity:1}]}
 quote_cart {cart_id} → total THB 250.00, expires_at
 prepare_checkout {cart_id, quote_id} → confirm_url=https://unyly.org/confirm/<id>
    … пользователь открывает ссылку, проверяет и нажимает «Подтвердить и оформить» …
 get_checkout_status {checkout_id} → status=consumed, submission.accepted, order_id
 get_order_status {order_id} → fulfillment=accepted, payment=not_charged_demo
 ```
+Поездка:
+```text
+estimate_trip {service:"ride", pickup:"Siam Paragon", dropoff:"ICONSIAM"} → options (item_id, seats, fits, estimated_total), подходящие и дешёвые первыми
+create_cart {service:"ride", pickup:"Siam Paragon", dropoff:"ICONSIAM", items:[{item_id:"justgrab",quantity:1}]}
+quote_cart → prepare_checkout → подтверждение на сайте → get_checkout_status → get_order_status → status_label="Driver assigned"
+```
+Посылка: то же с `service:"express"` и `parcel_weight_kg`. Цветы: `create_cart {store_id:"demo-m3", items:[{item_id:"m3-roses", quantity:1, modifiers:[{group_id:"wrap", option_ids:["box"]}], note:"Happy anniversary!"}]}`.
+
 Если ассистент вызовет `submit_order` до подтверждения, он получит `CONFIRMATION_REQUIRED`. Вызов после подтверждения - безопасный повтор, возвращающий тот же результат.

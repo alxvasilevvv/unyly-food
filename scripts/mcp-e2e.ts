@@ -56,10 +56,10 @@ const call = async (name: string, args: Record<string, unknown> = {}) => {
 };
 console.log(`  tools: ${(await client.listTools()).tools.map((t) => t.name).join(', ')}`);
 await call('get_capabilities');
-const s = await call('search_restaurants', { party_size: 2, budget_total_major: 600, exclude_allergens: ['peanut', 'tree_nut'], limit: 3 });
-for (const r of s.result.restaurants) console.log(`   • ${r.restaurant.name}: ${r.suggestion ? `${r.suggestion.items.map((i: any) => `${i.quantity}× ${i.name}`).join(', ')} ≈ ${r.suggestion.estimated_total.formatted}` : r.availability_notes.join('; ')}`);
-const first = s.result.restaurants.find((r: any) => r.suggestion && r.suggestion.within_budget);
-const cart = await call('create_cart', { restaurant_id: first.restaurant.restaurant_id, items: first.suggestion.items.map((i: any) => ({ item_id: i.item_id, quantity: i.quantity })) });
+const s = await call('search_stores', { party_size: 2, budget_total_major: 600, exclude_allergens: ['peanut', 'tree_nut'], limit: 3 });
+for (const r of s.result.stores) console.log(`   • ${r.store.name}: ${r.suggestion ? `${r.suggestion.items.map((i: any) => `${i.quantity}× ${i.name}`).join(', ')} ≈ ${r.suggestion.estimated_total.formatted}` : r.availability_notes.join('; ')}`);
+const first = s.result.stores.find((r: any) => r.suggestion && r.suggestion.within_budget);
+const cart = await call('create_cart', { store_id: first.store.store_id, items: first.suggestion.items.map((i: any) => ({ item_id: i.item_id, quantity: i.quantity })) });
 const quote = await call('quote_cart', { cart_id: cart.result.cart_id });
 console.log(`   total ${quote.result.breakdown.total.formatted}`);
 const co = await call('prepare_checkout', { cart_id: cart.result.cart_id, quote_id: quote.result.quote_id });
