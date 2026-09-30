@@ -25,6 +25,7 @@ export interface Config {
   demoTimeScale: number;
   demoGuestSpeed: number;
   guestHourlyLimit: number;
+  guestPerIpHourly: number;
   accessTokenTtlSec: number;
   refreshTokenTtlSec: number;
   runJobs: boolean;
@@ -59,7 +60,8 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     providerTimeoutMs: Number(process.env.PROVIDER_TIMEOUT_MS || 10000),
     demoTimeScale: Number(process.env.DEMO_TIME_SCALE || 1),
     demoGuestSpeed: Number(process.env.DEMO_GUEST_SPEED || 12),
-    guestHourlyLimit: Number(process.env.GUEST_HOURLY_LIMIT || 300),
+    guestHourlyLimit: Number(process.env.GUEST_HOURLY_LIMIT || 2000),
+    guestPerIpHourly: Number(process.env.GUEST_PER_IP_HOURLY || 6),
     accessTokenTtlSec: Number(process.env.ACCESS_TOKEN_TTL_SEC || 3600),
     refreshTokenTtlSec: Number(process.env.REFRESH_TOKEN_TTL_SEC || 30 * 24 * 3600),
     runJobs: bool(process.env.RUN_JOBS, true),

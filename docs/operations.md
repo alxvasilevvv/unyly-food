@@ -27,6 +27,8 @@
 | `DEV_ECHO_LOGIN_CODE` | `false` |
 | `TRUST_PROXY` | `true` |
 | `SUPPORT_EMAIL` | адрес поддержки |
+| `DEMO_GUEST_SPEED` | во сколько раз быстрее идут гостевые заказы из `/try` (по умолчанию 12, доставка ~3 минуты) |
+| `GUEST_PER_IP_HOURLY` / `GUEST_HOURLY_LIMIT` | лимиты создания гостевых аккаунтов: на IP в час (6) и всего в час (2000) |
 
 Операции внутри контейнера: `node dist/cli.js kill-switch demo off`, `node dist/cli.js issue-login-code user@example.com` (восстановление доступа без почты), `node dist/cli.js migrate`.
 
@@ -121,13 +123,3 @@ curl -fsS https://<web host>/readyz
 | **Итого** | **~15–45** | **~150–400** |
 
 Основная переменная стоимость на росте - управляемый Postgres и логи. Сама модель ИИ Unyly ничего не стоит: её оплачивает клиент пользователя.
-
-## Чего не хватает для публикации
-
-1. Решение по хостам (см. выше) и доступ к DNS в Cloudflare для одной записи.
-2. Сервер (VPS) или облачный аккаунт с Docker.
-3. SMTP-креды для отправки кодов входа.
-4. `DEMO_WEBHOOK_SECRET`, `POSTGRES_PASSWORD` (сгенерировать на хосте).
-5. Адрес поддержки (`SUPPORT_EMAIL`).
-
-**Сервис не опубликован.** Всё проверено локально (см. testing.md).

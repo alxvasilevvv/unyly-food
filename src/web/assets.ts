@@ -32,7 +32,7 @@ export async function loadStaticAssets(dir: string): Promise<Map<string, Asset>>
         const type = TYPES[extname(e.name).toLowerCase()];
         if (!type) continue;
         const rel = relative(dir, p).split(sep).join('/');
-        out.set(rel, { type, body: await readFile(p), immutable: rel.startsWith('fonts/') });
+        out.set(rel, { type, body: await readFile(p), immutable: false });
       }
     }
   };

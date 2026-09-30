@@ -83,10 +83,12 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     const key = String((req.params as any)['*'] ?? '');
     const a = /^[a-z0-9._/-]+$/i.test(key) && !key.includes('..') ? assets.get(key) : undefined;
     if (!a) return reply.code(404).send();
-    const versioned = a.immutable || (req.query as any)?.v === ASSET_VERSION;
+    // Only css/js carry a content hash (?v=); fonts get a long but finite cache.
+    const versioned = (req.query as any)?.v === ASSET_VERSION;
+    const fontCache = key.startsWith('fonts/') ? 'public, max-age=2592000' : 'public, max-age=300';
     return reply
       .header('content-type', a.type)
-      .header('cache-control', versioned ? 'public, max-age=31536000, immutable' : 'public, max-age=300')
+      .header('cache-control', versioned ? 'public, max-age=31536000, immutable' : fontCache)
       .header('x-content-type-options', 'nosniff')
       .send(a.body);
   });

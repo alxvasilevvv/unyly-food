@@ -2,6 +2,7 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { audit } from '../context.js';
+import { sha256 } from '../domain/crypto.js';
 import { checkCsrf, createSession, setSessionCookie } from '../auth/session.js';
 import { isDomainError, DomainError } from '../domain/errors.js';
 import { formatMinor } from '../domain/money.js';
@@ -36,7 +37,7 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
   <div class="phone-top"><span class="avatar">${icon('sparkle')}</span><span><b>${tr(l, { ru: 'ИИ-ассистент', en: 'AI assistant', th: 'ผู้ช่วย AI' })}</b><small>${tr(l, { ru: 'через Unyly MCP', en: 'via Unyly MCP', th: 'ผ่าน Unyly MCP' })}</small></span></div>
   <div class="chat">
     <div class="bubble me">${EXAMPLES[l][0]}</div>
-    <div class="bubble ai"><span>${tr(l, { ru: 'Нашёл 3 варианта без орехов:', en: 'Found 3 nut-free options:', th: 'เจอ 3 ตัวเลือกที่ไม่มีถั่ว:' })}</span>
+    <div class="bubble ai"><span>${tr(l, { ru: '3 варианта, где рестораны не заявили орехи:', en: '3 options with no nuts declared:', th: '3 ตัวเลือกที่ร้านไม่ได้ระบุว่ามีถั่ว:' })}</span>
       <span class="opt">${greenCurry()}<span>Baan Suan Kitchen</span><b>฿320</b></span>
       <span class="opt">${noodleSoup()}<span>Sukhumvit Noodle House</span><b>฿250</b></span>
       <span class="opt">${tofuBowl()}<span>Green Bowl Bangkok</span><b>฿358</b></span>
@@ -244,17 +245,24 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
   // ---------------- Guided demo ----------------
   const cleanQ = (v: unknown) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
 
-  async function createGuest(l: Locale, reply: FastifyReply) {
-    const recent = (await ctx.db.query(`SELECT count(*)::int n FROM users WHERE is_guest AND created_at > now() - interval '1 hour'`)).rows[0].n;
-    if (recent >= ctx.cfg.guestHourlyLimit) throw new DomainError('RATE_LIMITED', 'The demo is busy right now. Please try again in a few minutes.');
+  async function createGuest(l: Locale, reply: FastifyReply, ip: string) {
+    const ipHash = sha256(`guest-ip:${ip}`).slice(0, 32);
     const userId = await ctx.db.tx(async (q) => {
-      const u = await q.query(`INSERT INTO users (email, locale, is_guest, onboarded_at) VALUES ($1, $2, true, now()) RETURNING id`, [`guest-${randomUUID()}@guest.unyly.invalid`, l]);
+      // Serialize guest creation so both caps hold under concurrency.
+      await q.query("SELECT pg_advisory_xact_lock(hashtext('unyly.guest_create'))");
+      const c = (await q.query(
+        `SELECT count(*)::int total, count(*) FILTER (WHERE guest_ip_hash = $1)::int mine FROM users WHERE is_guest AND created_at > now() - interval '1 hour'`,
+        [ipHash],
+      )).rows[0];
+      if (c.mine >= ctx.cfg.guestPerIpHourly || c.total >= ctx.cfg.guestHourlyLimit) return null;
+      const u = await q.query(`INSERT INTO users (email, locale, is_guest, onboarded_at, guest_ip_hash) VALUES ($1, $2, true, now(), $3) RETURNING id`, [`guest-${randomUUID()}@guest.unyly.invalid`, l, ipHash]);
       const id = u.rows[0].id as string;
       await q.query('INSERT INTO preferences (user_id, default_party_size) VALUES ($1, 2)', [id]);
       await q.query(`INSERT INTO provider_connections (user_id, provider, mode, status) VALUES ($1,'demo','demo','connected') ON CONFLICT DO NOTHING`, [id]);
       await audit(q, { userId: id, actor: 'web', action: 'user.guest_created' });
       return id;
     });
+    if (!userId) throw new DomainError('RATE_LIMITED', 'The demo is busy right now. Please try again in a few minutes.');
     await addAddress(ctx, userId, {
       label: tr(l, { ru: 'Демо-квартира', en: 'Demo condo', th: 'คอนโดเดโม' }),
       line1: '88 Sukhumvit Soi 24 (demo)', district: 'Watthana', city: 'Bangkok', country: 'TH',
@@ -271,9 +279,10 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
       else {
         // No session yet, so no CSRF token: require a same-origin browser request instead.
         if (!kit.sameOrigin(req)) throw new DomainError('AUTH_REQUIRED', 'Cross-site request blocked');
-        await createGuest(r.l, reply);
+        await createGuest(r.l, reply, req.ip);
       }
     } catch (e) {
+      if (!isDomainError(e)) req.log.error(e);
       return renderTry(reply, r, q, null, errorBox(e), 400);
     }
     return reply.code(303).redirect(`/try?q=${encodeURIComponent(q)}`);
@@ -290,6 +299,7 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
       const res = await searchRestaurants(ctx, { userId: r.s.user.id, via: 'web' }, { ...intent, limit: 10 });
       return renderTry(reply, r, q, { intent, res });
     } catch (e) {
+      if (!isDomainError(e)) req.log.error(e);
       return renderTry(reply, r, q, null, errorBox(e));
     }
   });
@@ -307,12 +317,13 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
       // Never trust the client for items: recompute the suggestion server-side.
       const res = await searchRestaurants(ctx, actor, { ...parseIntent(q), limit: 10 });
       const hit = res.restaurants.find((x: any) => x.restaurant.restaurant_id === String(b.restaurant_id ?? ''));
-      if (!hit?.suggestion || hit.availability_notes.length) throw new DomainError('VALIDATION_FAILED', 'This option is no longer available. Please search again.');
+      if (!hit?.suggestion || hit.availability_notes.length || hit.suggestion.blocking_issues.length) throw new DomainError('VALIDATION_FAILED', 'This option is no longer available. Please search again.');
       const cart = await createCart(ctx, actor, { restaurant_id: hit.restaurant.restaurant_id, items: hit.suggestion.items.map((i: any) => ({ item_id: i.item_id, quantity: i.quantity })) });
       const { quote } = await quoteCart(ctx, actor, cart.id);
       const co = await prepareCheckout(ctx, actor, { cart_id: cart.id, quote_id: quote.id });
       return reply.code(303).redirect(`/confirm/${co.id}`);
     } catch (e) {
+      if (!isDomainError(e)) req.log.error(e);
       if (isDomainError(e) && e.code === 'AUTH_REQUIRED') return renderTry(reply, r, q, null, errorBox(e), 403);
       return renderTry(reply, r, q, null, errorBox(e), 409);
     }

@@ -17,14 +17,17 @@ const WORD_NUM: Record<string, number> = {
 };
 
 // Negation/exclusion cue followed closely by the allergen word (EN/RU are spaced; Thai is not).
-const NEG_EN = String.raw`(?:no|without|free of|avoid|allergic to|allergy to|not)\s+(?:\S+\s+){0,2}?`;
-const NEG_RU = String.raw`(?:без|аллерги[яю] на|не)\s+(?:\S+\s+){0,2}?`;
+// Words between the cue and the allergen may not cross a comma ("no pork , extra fish").
+const NEG_EN = String.raw`(?<![a-z])(?:no|without|free of|avoid|not)\s+(?:[^\s,]+\s+){0,2}?`;
+const NEG_RU = String.raw`(?<!\p{L})(?:без|не)\s+(?:[^\s,]+\s+){0,2}?`;
+/** After an allergy cue, every allergen word until the end of the sentence counts. */
+const ALLERGY_CUE = /(?<![a-z])allerg\S*|(?<!\p{L})аллерги\S*|แพ้/u;
 const NEG_TH = String.raw`(?:ไม่ใส่|ไม่เอา|ไม่กิน|แพ้|ไม่มี|งด)\S{0,6}?`;
 
 const ALLERGEN_WORDS: [string[], string, string, string, string?][] = [
   // [allergens], en, ru, th, suffix-form (en "nut-free", "nut allergy")
   [['peanut', 'tree_nut'], 'nuts?|peanuts?|cashews?', 'орех\\S*|арахис\\S*', 'ถั่ว(?!เหลือง)'],
-  [['shellfish'], 'shellfish|shrimps?|prawns?', 'кревет\\S*|морепродукт\\S*|моллюск\\S*', 'กุ้ง|อาหารทะเล|หอย'],
+  [['shellfish'], 'shellfish|shrimps?|prawns?|crabs?|lobsters?|clams?|mussels?|oysters?', 'кревет\\S*|морепродукт\\S*|моллюск\\S*|краб\\S*|миди\\S*|устриц\\S*', 'กุ้ง|อาหารทะเล|หอย|ปู'],
   [['milk'], 'dairy|milk|lactose', 'молок\\S*|молочн\\S*|лактоз\\S*', 'นม'],
   [['egg'], 'eggs?', 'яйц\\S*|яиц\\S*', 'ไข่'],
   [['wheat'], 'gluten|wheat', 'глютен\\S*|пшениц\\S*', 'กลูเตน|แป้งสาลี'],
@@ -34,7 +37,16 @@ const ALLERGEN_WORDS: [string[], string, string, string, string?][] = [
 ];
 
 export function parseIntent(input: string): Intent {
-  const q = ` ${input.toLowerCase().replace(/[,.;!?()]/g, ' ').replace(/\s+/g, ' ')} `;
+  const lower = input.toLowerCase();
+  const q = ` ${lower.replace(/,/g, ' , ').replace(/[.;!?():]/g, ' ').replace(/\s+/g, ' ')} `;
+  // Sentences that follow an allergy cue ("allergic to shrimp, crab and peanuts", "Allergy: peanuts").
+  const allergyTail = lower
+    .split(/[.;!?\n]/)
+    .map((sentence) => {
+      const m = ALLERGY_CUE.exec(sentence);
+      return m ? sentence.slice(m.index) : '';
+    })
+    .join(' ');
   const out: Intent = { exclude_allergens: [], dietary: [] };
 
   // Budget: a number next to a currency word or after a budget cue.
@@ -57,10 +69,11 @@ export function parseIntent(input: string): Intent {
 
   for (const [codes, en, ru, th] of ALLERGEN_WORDS) {
     const hit =
-      new RegExp(`${NEG_EN}(?:${en})\\b`).test(q) ||
-      new RegExp(`(?:${en})[- ](?:free|allergy)`).test(q) ||
-      new RegExp(`${NEG_RU}(?:${ru})`).test(q) ||
-      new RegExp(`${NEG_TH}(?:${th})`).test(q);
+      new RegExp(`${NEG_EN}(?:${en})\\b`, 'u').test(q) ||
+      new RegExp(`(?:${en})[- ](?:free|allergy)`, 'u').test(q) ||
+      new RegExp(`${NEG_RU}(?:${ru})`, 'u').test(q) ||
+      new RegExp(`${NEG_TH}(?:${th})`, 'u').test(q) ||
+      new RegExp(`(?<![a-z])(?:${en})\\b|(?:${ru})|(?:${th})`, 'u').test(allergyTail);
     if (hit) for (const c of codes) if (!out.exclude_allergens.includes(c)) out.exclude_allergens.push(c);
   }
   // "No soy" must not also exclude peanuts: the Thai soy word contains the nut word.

@@ -35,6 +35,12 @@ describe('Intent parser (guided demo)', () => {
     expect(i.cuisine).toBe('seafood');
     expect(i.exclude_allergens).not.toContain('shellfish');
   });
+  it('handles allergy lists and does not leak cues across commas', () => {
+    expect(parseIntent('allergic to shrimp, crab and peanuts').exclude_allergens).toEqual(expect.arrayContaining(['shellfish', 'peanut']));
+    expect(parseIntent('Allergy: peanuts').exclude_allergens).toContain('peanut');
+    expect(parseIntent('no pork, extra fish please').exclude_allergens).toEqual([]);
+    expect(parseIntent('Тайской кухне рыбу').exclude_allergens).toEqual([]);
+  });
   it('Thai soy allergy does not exclude peanuts', () => {
     expect(parseIntent('แพ้ถั่วเหลือง 2 คน').exclude_allergens).toEqual(['soy']);
   });
@@ -45,6 +51,15 @@ describe('Locale', () => {
     expect(acceptLanguage('th-TH,th;q=0.9,en;q=0.8')).toBe('th');
     expect(acceptLanguage('de-DE,ru;q=0.5')).toBe('ru');
     expect(acceptLanguage('fr-FR')).toBe('en');
+  });
+  it('rejects inherited property names as a language', async () => {
+    for (const bad of ['constructor', 'toString', '__proto__']) {
+      const r = await h.app.inject({ method: 'GET', url: `/try?lang=${bad}` });
+      expect(r.statusCode).toBe(200);
+      expect(String(r.headers['set-cookie'] ?? '')).not.toContain('unyly_lang');
+      const c = await h.app.inject({ method: 'GET', url: '/for-grab', headers: { cookie: `unyly_lang=${bad}` } });
+      expect(c.statusCode).toBe(200);
+    }
   });
   it('serves Thai pages with lang="th"', async () => {
     const r = await h.app.inject({ method: 'GET', url: '/?lang=th' });
@@ -100,6 +115,12 @@ describe('Guided demo as a guest', () => {
     const g = await startGuest('x');
     const r = await h.app.inject({ method: 'POST', url: '/oauth/authorize', headers: { cookie: g.cookie, ...ORIGIN }, payload: { _csrf: g.csrf, decision: 'allow' } });
     expect(r.statusCode).toBe(401);
+  });
+
+  it('a guest cannot attach a passkey to the temporary account', async () => {
+    const g = await startGuest('x');
+    const r = await h.app.inject({ method: 'POST', url: '/auth/passkey/register/options', headers: { cookie: g.cookie, ...ORIGIN, 'content-type': 'application/json' }, payload: JSON.stringify({ _csrf: g.csrf }) });
+    expect(r.statusCode).toBe(403);
   });
 
   it('guests are deleted after 24 hours', async () => {

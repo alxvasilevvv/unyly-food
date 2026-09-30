@@ -1,6 +1,6 @@
 // Original illustrations and icons for Unyly. All artwork here is drawn from scratch for this
 // project (flat top-down food, stroke icons). No third-party or Grab brand assets are used.
-import { raw, SafeHtml } from './html.js';
+import { esc, raw, SafeHtml } from './html.js';
 
 let seq = 0;
 const uid = (p: string) => `${p}${(++seq).toString(36)}`;
@@ -23,7 +23,7 @@ const bowlBase = (id: string, broth: string, rim = '#fffaf0') => `<circle cx="60
 <circle cx="60" cy="60" r="44" fill="${broth}"/><clipPath id="${id}"><circle cx="60" cy="60" r="44"/></clipPath>`;
 
 const svg = (inner: string, label: string, vb = '0 0 120 120') =>
-  raw(`<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}">${inner}</svg>`);
+  raw(`<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(label)}">${inner}</svg>`);
 
 // ---------- Dishes ----------
 export function padThai(label = 'Pad thai') {
@@ -109,7 +109,7 @@ export function burger(label = 'Burger') {
 }
 
 const DISH_BY_RESTAURANT: Record<string, (l?: string) => SafeHtml> = {
-  'demo-r1': padThai,
+  'demo-r1': greenCurry,
   'demo-r2': tofuBowl,
   'demo-r3': noodleSoup,
   'demo-r4': burger,
@@ -126,7 +126,7 @@ export const FAVICON =
 
 // ---------- Scenes ----------
 export function scooter(label = 'Rider on the way') {
-  return raw(`<svg viewBox="0 0 160 110" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}">
+  return raw(`<svg viewBox="0 0 160 110" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(label)}">
 <ellipse cx="82" cy="100" rx="62" ry="5" fill="#0f1f18" opacity=".1"/>
 <g stroke="#b9c9c0" stroke-width="3" stroke-linecap="round" opacity=".8"><path d="M8 52h22M2 64h24M12 76h16"/></g>
 <circle cx="44" cy="84" r="14" fill="#0f1f18"/><circle cx="44" cy="84" r="6" fill="#e9efe9"/>
@@ -142,7 +142,7 @@ export function scooter(label = 'Rider on the way') {
 }
 
 export function checkBurst(label = 'Done') {
-  return raw(`<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}">
+  return raw(`<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(label)}">
 <circle cx="60" cy="60" r="46" fill="#e3f4ea"/><circle cx="60" cy="60" r="32" fill="#0a8a53"/><path d="M45 61l10 10 20-22" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 ${[0, 45, 90, 135, 180, 225, 270, 315].map((a) => `<rect x="58" y="4" width="4" height="10" rx="2" fill="${a % 90 ? '#c9f26b' : '#0a8a53'}" transform="rotate(${a} 60 60)"/>`).join('')}</svg>`);
 }
@@ -184,7 +184,6 @@ export const icon = (name: keyof typeof ICONS | string, cls = '') =>
 
 // ---------- Architecture diagram ----------
 export function flowDiagram(t: { you: string; assistant: string; assistantSub: string; unyly: string; unylySub: string; grab: string; grabSub: string; confirm: string; confirmSub: string; tap: string; mcp: string; api: string }) {
-  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   const box = (x: number, y: number, w: number, title: string, sub: string, fill: string, ink: string, subInk: string) =>
     `<rect x="${x}" y="${y}" width="${w}" height="74" rx="18" fill="${fill}"/><text x="${x + w / 2}" y="${y + 32}" text-anchor="middle" font-size="17" font-weight="800" fill="${ink}">${esc(title)}</text><text x="${x + w / 2}" y="${y + 54}" text-anchor="middle" font-size="12.5" fill="${subInk}">${esc(sub)}</text>`;
   return raw(`<svg viewBox="0 0 900 290" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(t.you)} → ${esc(t.assistant)} → ${esc(t.unyly)} → ${esc(t.grab)}" font-family="Manrope, Inter, 'Noto Sans Thai', sans-serif">

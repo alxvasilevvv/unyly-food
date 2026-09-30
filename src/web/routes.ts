@@ -14,7 +14,7 @@ import {
   addAddress, ALLERGENS, deleteAccount, deleteAddress, DIETS, exportUserData, getPreferences, listAddresses, markOnboarded,
   savePreferences, setDefaultAddress, setLocale, setRegionAndMode,
 } from '../services/users.js';
-import { DEMO_DISTRICTS } from '../providers/demo/catalog.js';
+import { DEMO_DISTRICTS, findRestaurant } from '../providers/demo/catalog.js';
 import type { Mode } from '../providers/types.js';
 import { checkBurst, icon, restaurantArt, scooter } from './art.js';
 import { ALLERGEN_NAMES, DIET_NAMES, dishName, t3 } from './copy.js';
@@ -26,12 +26,15 @@ import { registerShowcase } from './showcase.js';
 const LANG_COOKIE = 'unyly_lang';
 const STATUS_FLOW = ['accepted', 'preparing', 'picked_up', 'delivered'] as const;
 
+/** Own-property check: `in` would also accept inherited names such as "constructor". */
+export const isLocale = (v: unknown): v is Locale => typeof v === 'string' && Object.hasOwn(LOCALES, v);
+
 export function detectLocale(req: FastifyRequest, s: WebSession | null): Locale {
   const q = (req.query as any)?.lang;
-  if (q && q in LOCALES) return q;
+  if (isLocale(q)) return q;
   const c = req.cookies?.[LANG_COOKIE];
-  if (c && c in LOCALES) return c as Locale;
-  if (s && s.user.locale in LOCALES) return s.user.locale;
+  if (isLocale(c)) return c;
+  if (s && isLocale(s.user.locale)) return s.user.locale;
   return acceptLanguage(String(req.headers['accept-language'] ?? ''));
 }
 
@@ -45,7 +48,7 @@ export function acceptLanguage(h: string): Locale {
     })
     .filter((x) => x.tag)
     .sort((a, b) => b.q - a.q);
-  for (const x of langs) if (x.tag in LOCALES) return x.tag as Locale;
+  for (const x of langs) if (isLocale(x.tag)) return x.tag;
   return 'en';
 }
 
@@ -81,7 +84,7 @@ export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
     const s = await loadSession(ctx, req);
     const l = detectLocale(req, s);
     const q = (req.query as any)?.lang;
-    if (q && q in LOCALES) {
+    if (isLocale(q)) {
       reply.setCookie(LANG_COOKIE, q, { path: '/', sameSite: 'lax', secure: ctx.cfg.cookieSecure, maxAge: 365 * 86400 });
       if (s && s.user.locale !== q) await setLocale(ctx.db, s.user.id, q);
     }
@@ -348,6 +351,8 @@ ${devCode ? html`<p class="notice warn">${fmt(r.m.devCode, { code: devCode })}</
     try {
       if (s && !(req.body as any)?.email) {
         if ((req.body as any)?._csrf !== s.csrf) return reply.code(403).send({ error: 'forbidden' });
+        // Guest demo accounts are deleted after 24 hours; a passkey on them would silently vanish.
+        if (s.user.is_guest) return reply.code(403).send({ error: 'guest', message: 'Create an account with your email first.' });
         return reply.send(await registrationOptions(ctx, { sessionUserId: s.user.id, sessionEmail: s.user.email }));
       }
       return reply.header('cache-control', 'no-store').send(await registrationOptions(ctx, { email: (req.body as any)?.email }));
@@ -756,7 +761,9 @@ ${fromTry ? html`<details class="trace"><summary>${icon('code')} ${tr(l, { ru: '
       if (r.s.user.is_guest && ctx.cfg.demoGuestSpeed > 1) {
         // Guest demo orders move through the timeline faster so a walkthrough finishes in minutes.
         await ctx.db.query('UPDATE demo_sim_orders SET speed = $2 WHERE ref = $1', [placed.provider_order_ref, ctx.cfg.demoGuestSpeed]);
-        await ctx.db.query(`UPDATE orders SET eta_at = created_at + make_interval(secs => $2) WHERE id = $1 AND mode = 'demo'`, [placed.id, Math.round((30 * 60) / ctx.cfg.demoGuestSpeed)]);
+        const etaMax = findRestaurant(String((await ctx.db.query('SELECT restaurant_id FROM orders WHERE id = $1', [placed.id])).rows[0]?.restaurant_id))?.eta[1] ?? 30;
+        const secs = Math.round((etaMax * 60) / (ctx.cfg.demoTimeScale * ctx.cfg.demoGuestSpeed));
+        await ctx.db.query(`UPDATE orders SET eta_at = created_at + make_interval(secs => $2) WHERE id = $1 AND mode = 'demo'`, [placed.id, secs]);
       }
       return reply.redirect(`/app/orders/${placed.id}?placed=1`);
     } catch (e) {
@@ -865,7 +872,7 @@ ${g.revoked_at ? '' : html`<form method="post" action="/app/connections/${g.id}/
 <h2>${m.passkeysTitle}</h2>${added ? html`<p class="notice ok" role="status">${m.pkAdded}</p>` : ''}
 ${pks.length ? html`<ul class="list card">${pks.map((p: any) => html`<li><span><strong>${p.label || (p.device_type === 'multiDevice' ? 'Synced passkey' : 'Device passkey')}</strong><br><span class="small muted">${dt(p.created_at, r.l)}${p.last_used_at ? html` · ${m.lastUsed}: ${dt(p.last_used_at, r.l)}` : ''}</span></span>
 ${pks.length > 1 ? html`<form method="post" action="/app/passkeys/delete">${csrfField(r.s)}<input type="hidden" name="id" value="${p.id}"><button class="btn secondary" type="submit">${m.delete}</button></form>` : ''}</li>`)}</ul>` : html`<p class="muted">${m.noPasskeys}</p>`}
-<div class="stack" id="pk-add-box" data-csrf="${r.s.csrf}" ${pkData(r)}><button class="btn secondary" type="button" id="pk-add">${m.addPasskey}</button><p class="small muted" id="pk-add-status" role="status" aria-live="polite"></p></div>
+${r.s.user.is_guest ? '' : html`<div class="stack" id="pk-add-box" data-csrf="${r.s.csrf}" ${pkData(r)}><button class="btn secondary" type="button" id="pk-add">${m.addPasskey}</button><p class="small muted" id="pk-add-status" role="status" aria-live="polite"></p></div>`}
 <h2>${m.exportData}</h2><p class="lead">${m.dataLead} <a href="/privacy">${m.footerPrivacy}</a></p>
 <p><a class="btn secondary" href="/app/data/export">${m.exportData}</a></p>
 <h2>${m.deleteAccount}</h2>
