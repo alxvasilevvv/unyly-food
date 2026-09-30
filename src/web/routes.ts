@@ -25,7 +25,7 @@ import { html, SafeHtml } from './html.js';
 import { page } from './layout.js';
 import { fmt, intlLocale, Locale, LOCALES, Messages, msg, tr } from './messages.js';
 import { registerShowcase } from './showcase.js';
-import { CONTACT, whatsappLabel, whatsappUrl } from './contacts.js';
+import { CONTACT, instagramUrl, phoneLabel, whatsappUrl } from './contacts.js';
 
 const LANG_COOKIE = 'unyly_lang';
 const STATUS_FLOW = ['accepted', 'preparing', 'picked_up', 'delivered'] as const;
@@ -252,8 +252,14 @@ export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
   <p class="lead">${tr(l, { ru: 'Пишите по партнёрству, вопросам и ошибкам. Отвечаем на английском, русском и тайском.', en: 'Reach us about partnerships, questions or bugs. We reply in English, Russian and Thai.', th: 'ติดต่อเราเรื่องความร่วมมือ คำถาม หรือข้อผิดพลาด เราตอบเป็นภาษาอังกฤษ รัสเซีย และไทย' })}</p></div>
 </div>
 <div class="contact-grid">
-  ${o.linkedin || o.whatsapp ? card('handshake', tr(l, { ru: 'Партнёрство и связь напрямую', en: 'Partnership and direct contact', th: 'ความร่วมมือและติดต่อโดยตรง' }), tr(l, { ru: 'Встречи, пилот с Grab и доступ к API.', en: 'Meetings, the Grab pilot and API access.', th: 'การประชุม โครงการนำร่องกับ Grab และสิทธิ์เข้าถึง API' }),
-    html`<div class="links">${o.linkedin ? html`<a href="${o.linkedin}" rel="noopener">${icon('users')} LinkedIn</a>` : ''}${o.whatsapp ? html`<a href="${whatsappUrl(o.whatsapp)}" rel="noopener">${icon('chat')} WhatsApp ${whatsappLabel(o.whatsapp)}</a>` : ''}</div>`, true) : ''}
+  ${card('handshake', tr(l, { ru: 'Партнёрство и связь напрямую', en: 'Partnership and direct contact', th: 'ความร่วมมือและติดต่อโดยตรง' }), tr(l, { ru: 'Встречи, пилот с Grab и доступ к API.', en: 'Meetings, the Grab pilot and API access.', th: 'การประชุม โครงการนำร่องกับ Grab และสิทธิ์เข้าถึง API' }),
+    html`<div class="big">${o.name}</div><div class="links">
+      <a href="mailto:${o.email}">${icon('mail')} ${o.email}</a>
+      <a href="${whatsappUrl(o.whatsapp)}" rel="noopener">${icon('chat')} WhatsApp ${phoneLabel(o.whatsapp)}</a>
+      <a href="tel:+${o.line}">${icon('chat')} LINE ${phoneLabel(o.line)}</a>
+      <a href="${instagramUrl(o.instagram)}" rel="noopener">${icon('users')} Instagram @${o.instagram}</a>
+      ${o.linkedin ? html`<a href="${o.linkedin}" rel="noopener">${icon('users')} LinkedIn</a>` : ''}
+    </div>`, true)}
   ${card('mail', tr(l, { ru: 'Общие вопросы и пресса', en: 'General questions and press', th: 'คำถามทั่วไปและสื่อมวลชน' }), tr(l, { ru: 'Партнёрства, пресса, сообщения об уязвимостях (ответ в течение 24 часов).', en: 'Partnerships, press and security reports (answered within 24 hours).', th: 'ความร่วมมือ สื่อมวลชน และการแจ้งช่องโหว่ (ตอบภายใน 24 ชั่วโมง)' }),
     html`<div class="big"><a href="mailto:${CONTACT.email}">${CONTACT.email}</a></div>`)}
   ${card('send', 'Telegram', tr(l, { ru: 'Сообщество Unyly.', en: 'The Unyly community.', th: 'ชุมชน Unyly' }),

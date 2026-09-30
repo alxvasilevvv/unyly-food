@@ -115,7 +115,7 @@ Dockerfile, docker-compose.yml, .github/workflows/ci.yml
 
 ## Контакты
 
-- Партнёрство: LinkedIn и WhatsApp владельца (переменные `CONTACT_LINKEDIN`, `CONTACT_WHATSAPP`)
+- Партнёрство: Alex Vasilev, alxvasilevv@gmail.com, WhatsApp +971 58 547 9661, LINE +66 61 826 7415, Instagram @Alvasilev
 - Общие вопросы: info@unyly.org
 - Telegram: [Unyly Global](https://t.me/unyly_global), [Unyly CIS](https://t.me/unyly_cis)
 - Компания: CSA PROJECT - FZCO, IFZA Business Park, DDP, Premises Number 31174 - 001, Dubai, UAE
