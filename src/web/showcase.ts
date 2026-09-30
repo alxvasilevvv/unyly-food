@@ -2,7 +2,7 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { audit } from '../context.js';
-import { sha256 } from '../domain/crypto.js';
+import { hmac } from '../domain/crypto.js';
 import { checkCsrf, createSession, setSessionCookie } from '../auth/session.js';
 import { isDomainError, DomainError } from '../domain/errors.js';
 import { formatMinor } from '../domain/money.js';
@@ -238,7 +238,7 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
   <div class="section-head"><span class="eyebrow">${icon('check')} ${tr(l, { ru: 'Уже сделано', en: 'Already built', th: 'สร้างเสร็จแล้ว' })}</span><h2>${tr(l, { ru: 'Работает сегодня', en: 'Working today', th: 'ใช้งานได้วันนี้' })}</h2>
   <p class="lead">${tr(l, { ru: 'Полный сценарий для всех сервисов на вымышленных данных, с той же логикой, что понадобится для живых заказов.', en: 'The full flow for every service on fictional data, with the same logic live orders will need.', th: 'ขั้นตอนครบถ้วนสำหรับทุกบริการด้วยข้อมูลสมมติ ใช้ตรรกะเดียวกับที่การสั่งจริงต้องใช้' })}</p></div>
   <div class="built-list">
-    ${built('/try', tr(l, { ru: 'Интерактивное демо', en: 'Interactive demo', th: 'เดโมแบบโต้ตอบ' }), tr(l, { ru: 'Еда, продукты, цветы, аптека, торты, такси, посылки на тайском, английском или русском', en: 'Food, groceries, flowers, pharmacy, cakes, rides and parcels in Thai, English or Russian', th: 'อาหาร ของชำ ดอกไม้ ร้านยา เค้ก เรียกรถ ส่งพัสดุ เป็นภาษาไทย อังกฤษ หรือรัสเซีย' }))}
+    ${built('/try', tr(l, { ru: 'Интерактивное демо', en: 'Interactive demo', th: 'เดโมแบบโต้ตอบ' }), tr(l, { ru: 'Еда, продукты, цветы, аптека, торты, такси, посылки на 10 языках стран Grab', en: 'Food, groceries, flowers, pharmacy, cakes, rides and parcels in the 10 languages of Grab markets', th: 'อาหาร ของชำ ดอกไม้ ร้านยา เค้ก เรียกรถ ส่งพัสดุ ใน 10 ภาษาของประเทศที่มี Grab' }))}
     ${built('/connect', tr(l, { ru: 'Удалённый MCP-сервер для 10 ассистентов', en: 'Remote MCP server for 10 assistants', th: 'เซิร์ฟเวอร์ MCP ระยะไกลสำหรับผู้ช่วย 10 ตัว' }), `${origin}/mcp · OAuth 2.1 + PKCE · CIMD · ${tr(l, { ru: 'персональные токены', en: 'personal tokens', th: 'โทเคนส่วนตัว' })}`)}
     ${built(`${origin}/.well-known/oauth-authorization-server`, tr(l, { ru: 'Метаданные OAuth', en: 'OAuth metadata', th: 'ข้อมูลเมตา OAuth' }), 'RFC 8414 · RFC 9728 · RFC 8707')}
     ${built(REPO_URL, tr(l, { ru: 'Исходный код и документация', en: 'Source code and docs', th: 'ซอร์สโค้ดและเอกสาร' }), tr(l, { ru: 'Архитектура, модель угроз, схемы инструментов, тесты', en: 'Architecture, threat model, tool schemas, tests', th: 'สถาปัตยกรรม โมเดลภัยคุกคาม สคีมาเครื่องมือ การทดสอบ' }))}
@@ -299,7 +299,8 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
   const cleanQ = (v: unknown) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
 
   async function createGuest(l: Locale, reply: FastifyReply, ip: string) {
-    const ipHash = sha256(`guest-ip:${ip}`).slice(0, 32);
+    // Keyed hash: a plain sha256 of an IPv4 address can be reversed by brute force.
+    const ipHash = hmac(ctx.cfg.demoWebhookSecret, `guest-ip:${ip}`).slice(0, 32);
     const userId = await ctx.db.tx(async (q) => {
       // Serialize guest creation so both caps hold under concurrency.
       await q.query("SELECT pg_advisory_xact_lock(hashtext('unyly.guest_create'))");
@@ -369,12 +370,13 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
       const si = detectService(q);
       const other = field === 'pickup' ? si.dropoff : si.pickup;
       const verb = si.service === 'express' ? tr(l, { ru: 'Посылка', en: 'Parcel', th: 'ส่งพัสดุ' }) : tr(l, { ru: 'Такси', en: 'Taxi', th: 'แท็กซี่' });
-      const make = (p: string) =>
-        field === 'pickup'
-          ? `${verb} ${tr(l, { ru: 'от', en: 'from', th: 'จาก' })} ${p} ${tr(l, { ru: 'до', en: 'to', th: 'ไป' })} ${other ?? ''}`.trim()
-          : other
-            ? `${verb} ${tr(l, { ru: 'от', en: 'from', th: 'จาก' })} ${other} ${tr(l, { ru: 'до', en: 'to', th: 'ไป' })} ${p}`
-            : `${verb} ${tr(l, { ru: 'до', en: 'to', th: 'ไป' })} ${p}`;
+      const FROM = tr(l, { ru: 'от', en: 'from', th: 'จาก' });
+      const TO = tr(l, { ru: 'до', en: 'to', th: 'ไป' });
+      // Burmese puts the particles after the place: "X မှ Y သို့ Taxi".
+      const post = l === 'my';
+      const route = (a: string | undefined, b: string) =>
+        post ? `${a ? `${a}${FROM} ` : ''}${b}${TO} ${verb}` : `${verb}${a ? ` ${FROM} ${a}` : ''} ${TO} ${b}`;
+      const make = (p: string) => (field === 'pickup' ? route(p, other ?? '') : route(other, p)).replace(/\s+/g, ' ').trim();
       const head = e.code === 'PLACE_AMBIGUOUS'
         ? tr(l, { ru: 'Уточните место:', en: 'Which one do you mean?', th: 'หมายถึงที่ไหน?' })
         : tr(l, { ru: 'Не нашёл это место на демо-карте Бангкока. Например:', en: 'That place is not on the Bangkok demo map. Try one of these:', th: 'ไม่พบสถานที่นี้บนแผนที่เดโมกรุงเทพฯ ลองเลือก:' });
@@ -450,22 +452,22 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
     const form = html`<form class="ask card" method="post" action="/try/start" id="ask">
   ${r.s ? csrfField(r.s) : ''}
   <label for="q" class="sr-only">${tr(l, { ru: 'Ваш запрос', en: 'Your request', th: 'คำขอของคุณ' })}</label>
-  <textarea id="q" name="q" rows="2" maxlength="300" placeholder="${ex[0]}">${q}</textarea>
+  <textarea id="q" name="q" rows="2" maxlength="300" required placeholder="${ex[0]}">${q}</textarea>
   <div class="ask-row">
-    <div class="chips svc-chips" aria-label="${tr(l, { ru: 'Примеры', en: 'Examples', th: 'ตัวอย่าง' })}">${ex.map((e, i) => html`<a href="/try?q=${encodeURIComponent(e)}" data-fill="${e}" title="${e}">${icon(EXAMPLE_KIND[i].ic)}${tr(l, EXAMPLE_KIND[i].name)}</a>`)}</div>
+    <div class="chips svc-chips" role="group" aria-label="${tr(l, { ru: 'Примеры', en: 'Examples', th: 'ตัวอย่าง' })}">${ex.map((e, i) => html`<a href="/try?q=${encodeURIComponent(e)}" data-fill="${e}" title="${e}">${icon(EXAMPLE_KIND[i].ic)}${tr(l, EXAMPLE_KIND[i].name)}</a>`)}</div>
     <button class="btn" type="submit">${tr(l, { ru: 'Спросить', en: 'Ask', th: 'ถาม' })} ${icon('send')}</button>
   </div>
 </form>`;
     let convo: SafeHtml | string = '';
     let log: SafeHtml;
-    const me = html`<div class="msg me"><span class="who">${icon('users')}</span><div class="body"><div class="txt">${q}</div></div></div>`;
+    const me = html`<div class="msg me"><span class="who">${icon('users')}<span class="sr-only">${tr(l, { ru: 'Вы:', en: 'You:', th: 'คุณ:' })}</span></span><div class="body"><div class="txt">${q}</div></div></div>`;
     const min = tr(l, { ru: 'мин', en: 'min', th: 'นาที' });
     const afterChoose = html`<li class="next"><span class="fn">create_cart</span> → <span class="fn">quote_cart</span> → <span class="fn">prepare_checkout</span> <span class="ret">${tr(l, { ru: 'после выбора', en: 'after you choose', th: 'หลังคุณเลือก' })}</span></li>
   <li class="next"><span class="fn">submit_order</span> <span class="ret">${tr(l, { ru: 'только после вашего подтверждения', en: 'only after you confirm', th: 'หลังคุณยืนยันเท่านั้น' })}</span></li>`;
     if (found?.kind === 'shop') {
       const p = found.plan;
       convo = html`${me}
-<div class="msg ai"><span class="who">${icon('sparkle')}</span><div class="body stack">
+<div class="msg ai"><span class="who">${icon('sparkle')}<span class="sr-only">${tr(l, { ru: 'Ассистент:', en: 'Assistant:', th: 'ผู้ช่วย:' })}</span></span><div class="body stack">
   <p class="said">${tr(l, { ru: 'Собрал корзину. Цена уже с доставкой и сборами:', en: 'Here is a basket. The price already includes delivery and fees:', th: 'จัดตะกร้าให้แล้ว ราคารวมค่าส่งและค่าบริการ:' })}</p>
   ${p.notice ? html`<p class="notice warn small">${icon('alert')} ${p.notice}</p>` : ''}
   <div class="options one"><article class="opt-card">
@@ -492,7 +494,7 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
       const opts = p.result.options.filter((o) => o.fits).slice(0, 3);
       const art = p.service === 'ride' ? car : parcel;
       convo = html`${me}
-<div class="msg ai"><span class="who">${icon('sparkle')}</span><div class="body stack">
+<div class="msg ai"><span class="who">${icon('sparkle')}<span class="sr-only">${tr(l, { ru: 'Ассистент:', en: 'Assistant:', th: 'ผู้ช่วย:' })}</span></span><div class="body stack">
   <div class="route-card"><span class="rt-dot a"></span><span><strong>${t.pickup.name}</strong>${t.pickup.area ? html` <span class="small muted">${t.pickup.area}</span>` : ''}</span>
     <span class="rt-line"></span><span class="rt-dot b"></span><span><strong>${t.dropoff.name}</strong>${t.dropoff.area ? html` <span class="small muted">${t.dropoff.area}</span>` : ''}</span>
     <span class="small muted rt-meta">≈ ${t.distance_km_estimate} km · ≈ ${t.drive_minutes_estimate} ${min}${t.parcel ? ` · ${t.parcel.weight_kg} kg` : ''}</span></div>
@@ -567,8 +569,8 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
       const reason = (x: any) =>
         !x.restaurant.is_open ? tr(l, { ru: 'закрыт', en: 'closed', th: 'ปิดอยู่' }) : x.restaurant.delivers_to_address === false ? tr(l, { ru: 'не доставляет по вашему адресу', en: 'does not deliver to you', th: 'ไม่ส่งถึงที่อยู่ของคุณ' }) : tr(l, { ru: 'недоступен', en: 'unavailable', th: 'ไม่พร้อมให้บริการ' });
       convo = html`
-<div class="msg me"><span class="who">${icon('users')}</span><div class="body"><div class="txt">${q}</div></div></div>
-<div class="msg ai"><span class="who">${icon('sparkle')}</span><div class="body stack">
+<div class="msg me"><span class="who">${icon('users')}<span class="sr-only">${tr(l, { ru: 'Вы:', en: 'You:', th: 'คุณ:' })}</span></span><div class="body"><div class="txt">${q}</div></div></div>
+<div class="msg ai"><span class="who">${icon('sparkle')}<span class="sr-only">${tr(l, { ru: 'Ассистент:', en: 'Assistant:', th: 'ผู้ช่วย:' })}</span></span><div class="body stack">
   <p class="said">${tr(l, { ru: 'Понял так:', en: 'Here is what I understood:', th: 'ฉันเข้าใจว่า:' })}</p>
   ${understood}
   ${res.allergen_disclaimer ? html`<p class="notice warn small">${icon('alert')} ${tr(l, { ru: 'Данные об аллергенах приходят от ресторанов и могут быть неполными. Unyly никогда не называет блюдо безопасным. Уточняйте у ресторана.', en: 'Allergen data comes from restaurants and may be incomplete. Unyly never calls a dish safe. Check with the restaurant.', th: 'ข้อมูลสารก่อภูมิแพ้มาจากร้านอาหารและอาจไม่ครบถ้วน Unyly ไม่เคยเรียกเมนูใดว่าปลอดภัย โปรดสอบถามร้าน' })}</p>` : ''}

@@ -21,6 +21,7 @@
     "issue-login-code": "tsx src/cli.ts issue-login-code"
   },
   "dependencies": {
+    "@fastify/compress": "^8.3.1",
     "@fastify/cookie": "^11.1.2",
     "@fastify/formbody": "^9.0.0",
     "@fastify/helmet": "^13.1.1",

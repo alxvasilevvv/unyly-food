@@ -19,6 +19,15 @@ export interface PageOpts {
   noBanner?: boolean;
 }
 
+/** Script-specific font to preload per interface language (Chinese uses system fonts). */
+const LOCALE_FONT: Partial<Record<Locale, string>> = {
+  th: 'noto-sans-thai-thai-wght-normal.woff2',
+  km: 'noto-sans-khmer-khmer-wght-normal.woff2',
+  my: 'noto-sans-myanmar-myanmar-wght-normal.woff2',
+  vi: 'inter-vietnamese-wght-normal.woff2',
+  ru: 'inter-cyrillic-wght-normal.woff2',
+};
+
 export const REPO_URL = 'https://github.com/alxvasilevvv/unyly-food';
 
 export function page(o: PageOpts): string {
@@ -40,6 +49,7 @@ export function page(o: PageOpts): string {
 <meta property="og:description" content="${o.description ?? m.brandTagline}">
 <link rel="preload" href="/static/fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+${LOCALE_FONT[l] ? html`<link rel="preload" href="/static/fonts/${LOCALE_FONT[l]}" as="font" type="font/woff2" crossorigin>` : ''}
 <link rel="stylesheet" href="/static/app.css?v=${ASSET_VERSION}">
 <link rel="icon" href="${FAVICON}">
 <script src="/static/app.js?v=${ASSET_VERSION}" defer></script>
@@ -63,9 +73,9 @@ export function page(o: PageOpts): string {
     ${o.loggedIn && !o.guest ? html`<a href="/app" class="hide-sm" ${cur('/app')}>${m.navApp}</a>` : html`<a href="/login" class="hide-sm" ${cur('/login')}>${m.navLogin}</a>`}
     <a href="/try" class="cta" ${cur('/try')}>${tr(l, { ru: 'Попробовать', en: 'Try the demo', th: 'ลองเดโม' })}</a>
     <details class="lang-menu">
-      <summary aria-label="Language: ${LOCALE_NATIVE[l]}">${icon('globe')}<span>${l.toUpperCase()}</span></summary>
+      <summary>${icon('globe')}<span><span class="sr-only">Language: </span>${l.toUpperCase()}</span></summary>
       <ul role="list">
-        ${LOCALE_CODES.map((x) => html`<li><a href="${langHref(x)}" ${l === x ? html`aria-current="true"` : ''} lang="${x}" hreflang="${x}"><span class="code">${x.toUpperCase()}</span>${LOCALE_NATIVE[x]}</a></li>`)}
+        ${LOCALE_CODES.map((x) => html`<li><a href="${langHref(x)}" ${l === x ? html`aria-current="true"` : ''} lang="${x}" hreflang="${x}"><span class="lang-code">${x.toUpperCase()}</span><span class="lang-name">${LOCALE_NATIVE[x]}</span></a></li>`)}
       </ul>
     </details>
   </nav>
@@ -79,12 +89,13 @@ ${!o.noBanner && o.mode === 'handoff' ? html`<div class="banner handoff" role="s
       <a class="logo" href="/" aria-label="Unyly">${logoMark()}<span class="logo-text"><span class="logo-word">unyly</span></span></a>
       <p>${m.footerDisclaimer}</p>
     </div>
-    <div class="foot-col"><h4>${tr(l, { ru: 'Продукт', en: 'Product', th: 'ผลิตภัณฑ์' })}</h4>
+    <div class="foot-col"><p class="foot-h">${tr(l, { ru: 'Продукт', en: 'Product', th: 'ผลิตภัณฑ์' })}</p>
+      ${o.loggedIn && !o.guest ? html`<a href="/app">${m.navApp}</a>` : html`<a href="/login">${m.navLogin}</a>`}
       <a href="/try">${tr(l, { ru: 'Демо', en: 'Live demo', th: 'เดโม' })}</a>
       <a href="/#how">${m.navHow}</a>
       <a href="/connect">${m.connectTitle}</a>
     </div>
-    <div class="foot-col"><h4>${tr(l, { ru: 'О проекте', en: 'Project', th: 'โครงการ' })}</h4>
+    <div class="foot-col"><p class="foot-h">${tr(l, { ru: 'О проекте', en: 'Project', th: 'โครงการ' })}</p>
       <a href="/for-grab">${tr(l, { ru: 'Предложение для Grab', en: 'Proposal for Grab', th: 'ข้อเสนอสำหรับ Grab' })}</a>
       <a href="${REPO_URL}" rel="noopener">${tr(l, { ru: 'Исходный код', en: 'Source code', th: 'ซอร์สโค้ด' })}</a>
       <a href="/help">${m.navHelp}</a>

@@ -144,6 +144,7 @@ document.addEventListener('click', (e) => {
   form.requestSubmit ? form.requestSubmit() : form.submit();
 });
 document.addEventListener('keydown', (e) => {
+  if (e.isComposing || e.keyCode === 229) return; // IME candidate selection (Thai, Vietnamese, Chinese)
   if (e.key === 'Enter' && !e.shiftKey && e.target.matches?.('#ask textarea')) {
     e.preventDefault();
     const f = e.target.form;
@@ -181,5 +182,19 @@ document.addEventListener('click', (e) => {
   for (const d of document.querySelectorAll('details.lang-menu[open]')) if (!d.contains(e.target)) d.removeAttribute('open');
 });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') for (const d of document.querySelectorAll('details.lang-menu[open]')) d.removeAttribute('open');
+  if (e.key !== 'Escape') return;
+  for (const d of document.querySelectorAll('details.lang-menu[open]')) {
+    d.removeAttribute('open');
+    d.querySelector('summary')?.focus();
+  }
 });
+document.addEventListener('focusout', (e) => {
+  const d = e.target.closest?.('details.lang-menu[open]');
+  if (d && !d.contains(e.relatedTarget)) d.removeAttribute('open');
+});
+// Keep the current query (for example ?q= or ?next=) when switching language.
+for (const a of document.querySelectorAll('.lang-menu a[hreflang]')) {
+  const u = new URL(location.href);
+  u.searchParams.set('lang', a.getAttribute('hreflang'));
+  a.href = u.pathname + u.search + u.hash;
+}

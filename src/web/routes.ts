@@ -6,7 +6,7 @@ import { formatMinor, money } from '../domain/money.js';
 import { checkCsrf, loadSession, logout, requestLoginCode, safeNext, setSessionCookie, verifyLoginCode, WebSession } from '../auth/session.js';
 import { createPersonalToken, revokeGrantForUser, revokePersonalToken, Scope, SCOPES } from '../auth/oauth.js';
 import { authenticationOptions, deletePasskey, listPasskeys, registrationOptions, verifyAuthentication, verifyRegistration } from '../auth/passkeys.js';
-import { approveCheckout, checkoutView, declineCheckout, submitOrder } from '../services/checkout.js';
+import { approveCheckout, checkoutView, declineCheckout, refreshCheckout, submitOrder } from '../services/checkout.js';
 import {
   approveCancellation, cancelOrder, describeOrder, getOrderStatus, loadCancellation, loadOrder, prepareCancellation,
 } from '../services/orders.js';
@@ -266,16 +266,21 @@ ${qa.map(([q, a]) => html`<details><summary>${q}</summary><p>${a}</p></details>`
       [tr(l, { ru: 'Коды входа', en: 'Sign-in codes', th: 'รหัสเข้าสู่ระบบ' }), tr(l, { ru: 'удаляются через 1 день', en: 'deleted after 1 day', th: 'ลบหลัง 1 วัน' })],
       [tr(l, { ru: 'Сессии сайта', en: 'Website sessions', th: 'เซสชันเว็บไซต์' }), tr(l, { ru: '14 дней, затем удаляются', en: '14 days, then deleted', th: '14 วัน แล้วลบ' })],
       [tr(l, { ru: 'Гостевые демо-аккаунты', en: 'Guest demo accounts', th: 'บัญชีเดโมผู้เยี่ยมชม' }), tr(l, { ru: 'удаляются через 24 часа со всеми данными', en: 'deleted with all data after 24 hours', th: 'ลบพร้อมข้อมูลทั้งหมดหลัง 24 ชั่วโมง' })],
-      [tr(l, { ru: 'Токены ассистентов', en: 'Assistant tokens', th: 'โทเคนของผู้ช่วย' }), tr(l, { ru: 'доступ 1 час, обновление 30 дней; удаляются при отзыве', en: 'access 1 hour, refresh 30 days; deleted on revocation', th: 'สิทธิ์เข้าถึง 1 ชั่วโมง รีเฟรช 30 วัน ลบเมื่อเพิกถอน' })],
-      [tr(l, { ru: 'Адреса', en: 'Addresses', th: 'ที่อยู่' }), tr(l, { ru: 'пока вы их не удалите; при удалении текст адреса стирается', en: 'until you delete them; deletion erases the address text', th: 'จนกว่าคุณจะลบ เมื่อลบข้อความที่อยู่จะถูกลบด้วย' })],
+      [tr(l, { ru: 'Подключения ассистентов (OAuth)', en: 'Assistant connections (OAuth)', th: 'การเชื่อมต่อผู้ช่วย (OAuth)' }), tr(l, { ru: 'токены удаляются при отзыве или по истечении срока', en: 'tokens are deleted on revocation or expiry', th: 'โทเคนถูกลบเมื่อเพิกถอนหรือหมดอายุ' })],
+      [tr(l, { ru: 'Персональные токены', en: 'Personal tokens', th: 'โทเคนส่วนตัว' }), tr(l, { ru: 'хранится только хеш; через 30 дней после отзыва или истечения удаляются', en: 'only a hash is stored; deleted 30 days after revocation or expiry', th: 'เก็บเพียงค่าแฮช ลบหลังเพิกถอนหรือหมดอายุ 30 วัน' })],
+      [tr(l, { ru: 'Ключи входа (passkeys)', en: 'Passkeys', th: 'พาสคีย์' }), tr(l, { ru: 'только открытый ключ, пока вы его не удалите', en: 'public key only, until you remove it', th: 'เก็บเฉพาะกุญแจสาธารณะ จนกว่าคุณจะลบ' })],
+      [tr(l, { ru: 'Адреса и получатели подарков', en: 'Addresses and gift recipients', th: 'ที่อยู่และผู้รับของขวัญ' }), tr(l, { ru: 'пока вы их не удалите; при удалении текст адреса стирается', en: 'until you delete them; deletion erases the address text', th: 'จนกว่าคุณจะลบ เมื่อลบข้อความที่อยู่จะถูกลบด้วย' })],
+      [tr(l, { ru: 'Маршруты, заметки к позициям, описания посылок', en: 'Trips, item notes, parcel descriptions', th: 'เส้นทาง หมายเหตุสินค้า รายละเอียดพัสดุ' }), tr(l, { ru: 'в составе корзин и заказов', en: 'kept with carts and orders', th: 'เก็บพร้อมตะกร้าและคำสั่งซื้อ' })],
+      [tr(l, { ru: 'Аллергии и диета', en: 'Allergies and diet', th: 'อาการแพ้และอาหาร' }), tr(l, { ru: 'только для фильтрации, пока вы их не измените', en: 'used only for filtering, until you change them', th: 'ใช้เพื่อกรองเท่านั้น จนกว่าคุณจะเปลี่ยน' })],
+      [tr(l, { ru: 'Хеш IP гостя', en: 'Guest IP hash', th: 'แฮช IP ของผู้เยี่ยมชม' }), tr(l, { ru: 'ключевой хеш для лимита гостевых сессий, удаляется через 24 часа', en: 'keyed hash for the guest limit, deleted after 24 hours', th: 'แฮชแบบมีกุญแจเพื่อจำกัดเซสชันผู้เยี่ยมชม ลบหลัง 24 ชั่วโมง' })],
       [tr(l, { ru: 'Корзины, расчёты, заказы', en: 'Carts, quotes, orders', th: 'ตะกร้า ใบเสนอราคา คำสั่งซื้อ' }), tr(l, { ru: 'пока существует аккаунт (история заказов)', en: 'while the account exists (order history)', th: 'ตลอดอายุบัญชี (ประวัติคำสั่งซื้อ)' })],
       [tr(l, { ru: 'Журнал действий', en: 'Audit log', th: 'บันทึกการทำงาน' }), tr(l, { ru: 'при удалении аккаунта отвязывается от вас и очищается', en: 'unlinked from you and scrubbed when you delete the account', th: 'ถูกแยกออกจากตัวคุณและล้างข้อมูลเมื่อคุณลบบัญชี' })],
     ];
     return send(reply, r, r.m.privacyTitle, html`<div class="page-head"><h1>${r.m.privacyTitle}</h1>
 <p class="lead">${tr(l, {
-  ru: 'Мы храним минимум: email, адреса доставки, предпочтения, корзины и заказы. Мы не храним пароли Grab, коды из SMS и платёжные реквизиты. Ассистенту передаются только название адреса и район.',
-  en: 'We store the minimum: email, delivery addresses, preferences, carts and orders. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area.',
-  th: 'เราเก็บข้อมูลเท่าที่จำเป็น: อีเมล ที่อยู่จัดส่ง ความชอบ ตะกร้า และคำสั่งซื้อ เราไม่เก็บรหัสผ่าน Grab รหัส SMS หรือข้อมูลการชำระเงิน ผู้ช่วยได้รับเพียงชื่อที่อยู่และเขตเท่านั้น',
+  ru: 'Мы храним только то, что нужно для работы: email, ключи входа, адреса, предпочтения, корзины, маршруты и заказы, подключения ассистентов и журнал действий. Мы не храним пароли Grab, коды из SMS и платёжные реквизиты. Ассистенту передаются только название адреса и район. Все данные можно скачать или удалить в разделе «Данные».',
+  en: 'We store only what the service needs: email, passkeys, addresses, preferences, carts, trips and orders, assistant connections and an audit log. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area. You can download or delete everything under Data.',
+  th: 'เราเก็บเฉพาะข้อมูลที่บริการต้องใช้: อีเมล พาสคีย์ ที่อยู่ ความชอบ ตะกร้า เส้นทางและคำสั่งซื้อ การเชื่อมต่อผู้ช่วย และบันทึกการทำงาน เราไม่เก็บรหัสผ่าน Grab รหัส SMS หรือข้อมูลการชำระเงิน ผู้ช่วยได้รับเพียงชื่อที่อยู่และเขต คุณดาวน์โหลดหรือลบข้อมูลทั้งหมดได้ในหน้าข้อมูล',
 })}</p></div>
 <div class="card"><ul class="list">${rows.map(([a, b]) => html`<li><strong>${a}</strong><span class="muted">${b}</span></li>`)}</ul></div>
 <p class="small muted" style="margin-top:14px">${tr(l, { ru: 'Сроки для Таиланда (PDPA) должны быть согласованы с юристом до запуска Live.', en: 'Retention for Thailand (PDPA) must be reviewed by counsel before any Live launch.', th: 'ระยะเวลาจัดเก็บสำหรับประเทศไทย (PDPA) ต้องได้รับการตรวจสอบจากที่ปรึกษากฎหมายก่อนเปิดใช้งานจริง' })}</p>`, { narrow: true });
@@ -748,16 +753,18 @@ ${data.notices.map((n) => html`<p class="notice warn" role="status">${n}</p>`)}
       const g = await ctx.db.query('SELECT client_name FROM oauth_clients WHERE client_id=$1', [c.created_by.slice(4)]);
       if (g.rows[0]) clientName = `${g.rows[0].client_name} (${tr(l, { ru: 'имя указал сам клиент', en: 'name set by the client itself', th: 'ชื่อที่ไคลเอนต์ตั้งเอง' })})`;
     }
+    // Same cart, fresh price: creates a new confirmation the user still has to press.
+    const refreshForm = html`<form method="post" action="/confirm/${c.id}/refresh" class="refresh-price">${csrfField(r.s)}<button class="btn secondary" type="submit">${icon('repeat')} ${tr(r.l, { ru: 'Обновить цену', en: 'Refresh price', th: 'อัปเดตราคา' })}</button></form>`;
     const state = (() => {
       if (v.attempt) {
         const a = v.attempt;
         if (a.status === 'accepted') return html`<div class="notice ok" role="status">${icon('check')} ${m.submittedOk} ${v.order ? html`<a class="btn" href="/app/orders/${v.order.id}">${m.viewOrder} ${icon('arrow')}</a>` : ''}</div>`;
         if (a.status === 'in_flight') return html`<p class="notice warn" role="status">${m.submissionInFlight}</p>`;
         if (a.status === 'unknown') return html`<p class="notice warn" role="alert">${m.submissionUnknown}</p>`;
-        return html`<p class="notice bad" role="alert">${fmt(m.submissionRejected, { reason: a.error_code ?? '' })}</p>`;
+        return html`<p class="notice bad" role="alert">${fmt(m.submissionRejected, { reason: a.error_code ?? '' })}</p>${a.error_code !== 'NOT_RECEIVED_BY_PROVIDER' ? refreshForm : ''}`;
       }
-      if (c.status === 'expired') return html`<p class="notice bad" role="alert">${m.confirmExpired}</p>`;
-      if (c.status === 'invalidated') return html`<p class="notice bad" role="alert">${fmt(m.confirmInvalid, { reason: (m as any)[`reason_${c.invalid_reason}`] ?? c.invalid_reason ?? '' })}</p>`;
+      if (c.status === 'expired') return html`<p class="notice bad" role="alert">${m.confirmExpired}</p>${refreshForm}`;
+      if (c.status === 'invalidated') return html`<p class="notice bad" role="alert">${fmt(m.confirmInvalid, { reason: (m as any)[`reason_${c.invalid_reason}`] ?? c.invalid_reason ?? '' })}</p>${['EXPIRED', 'PRICE_CHANGED'].includes(c.invalid_reason ?? '') ? refreshForm : ''}`;
       if (c.status === 'declined') return html`<p class="notice" role="status">${m.confirmDeclined}</p>`;
       return null;
     })();
@@ -780,7 +787,7 @@ ${flash ?? ''}${state ?? ''}
       const local = dishName(ln.item_id ?? '', ln.name, l);
       return html`<tr><td><strong>${ln.quantity}×</strong> ${local}${local !== ln.name ? html`<br><span class="small muted">${ln.name}</span>` : ''}${ln.modifiers_desc?.length ? html`<br><span class="small muted">${ln.modifiers_desc.join(', ')}</span>` : ''}</td><td class="num">${formatMinor(ln.line_total_minor, c.currency, l)}</td></tr>`;
     })}
-    ${line(v.trip ? tr(l, { ru: 'Стоимость поездки', en: 'Fare', th: 'ค่าโดยสาร' }) : m.subtotal, b.items_subtotal, true)}${line(m.deliveryFee, b.delivery_fee, !v.trip)}${line(m.serviceFee, b.service_fee)}${line(m.smallOrderFee, b.small_order_fee)}${line(m.discount, b.discount)}
+    ${line(v.trip ? tr(l, { ru: 'Стоимость поездки', en: 'Fare', th: 'ค่าโดยสาร' }) : v.service === 'food' ? m.subtotal : tr(l, { ru: 'Товары', en: 'Items', th: 'สินค้า' }), b.items_subtotal, true)}${line(m.deliveryFee, b.delivery_fee, !v.trip)}${line(m.serviceFee, b.service_fee)}${line(m.smallOrderFee, b.small_order_fee)}${line(m.discount, b.discount)}
     <tr class="total"><td>${m.total}</td><td class="num">${formatMinor(b.total.amount_minor, c.currency, l)}</td></tr>
   </tbody></table>
   <dl class="facts">
@@ -838,6 +845,21 @@ ${fromTry ? html`<details class="trace"><summary>${icon('code')} ${tr(l, { ru: '
     } catch (e) {
       if (isDomainError(e) && e.code === 'NOT_FOUND') return notFound(reply, r);
       if (isDomainError(e) && e.code === 'SUBMISSION_UNKNOWN') return reply.redirect(`/confirm/${id}`);
+      return renderConfirm(req, reply, r, id, errorBox(e), 409);
+    }
+  });
+
+  app.post('/confirm/:id/refresh', async (req, reply) => {
+    const r = await authed(req, reply);
+    if (!r) return;
+    checkCsrf(ctx, req, r.s);
+    const id = (req.params as any).id;
+    if (!UUID_RE.test(id)) return notFound(reply, r);
+    try {
+      const fresh = await refreshCheckout(ctx, r.s.user.id, id);
+      return reply.redirect(`/confirm/${fresh.checkout_id}`);
+    } catch (e) {
+      if (isDomainError(e) && e.code === 'NOT_FOUND') return notFound(reply, r);
       return renderConfirm(req, reply, r, id, errorBox(e), 409);
     }
   });
@@ -933,7 +955,7 @@ ${pats.length ? html`<ul class="list card">${pats.map((t: any) => {
 ${dead ? '' : html`<form method="post" action="/app/tokens/${t.id}/revoke">${csrfField(r.s)}<button class="btn secondary" type="submit">${m.revoke}</button></form>`}</li>`;
       })}</ul>` : ''}
 <form class="card stack" method="post" action="/app/tokens">${csrfField(r.s)}
-  <div class="field"><label for="pat-name">${tr(l, { ru: 'Название', en: 'Name', th: 'ชื่อ' })}</label><input id="pat-name" name="name" maxlength="60" required placeholder="Le Chat"></div>
+  <div class="field"><label for="pat-name">${tr(l, { ru: 'Название', en: 'Name', th: 'ชื่อ' })}</label><input id="pat-name" type="text" name="name" maxlength="60" required placeholder="Le Chat"></div>
   <fieldset class="field"><legend>${m.scopes}</legend>${SCOPES.map((sc) => html`<label class="check"><input type="checkbox" name="scope" value="${sc}" checked> ${scopeName(sc)}</label>`)}</fieldset>
   <div class="field"><label for="pat-days">${tr(l, { ru: 'Срок, дней', en: 'Valid for, days', th: 'อายุ (วัน)' })}</label><select id="pat-days" name="days"><option>30</option><option selected>90</option><option>365</option></select></div>
   <button class="btn" type="submit">${tr(l, { ru: 'Создать токен', en: 'Create token', th: 'สร้างโทเคน' })}</button>
@@ -1029,7 +1051,7 @@ ${r.s.user.is_guest ? '' : html`<div class="stack" id="pk-add-box" data-csrf="${
   });
 
   function notFound(reply: FastifyReply, r: R) {
-    return send(reply, r, r.m.notFound, html`<h1>${r.m.notFound}</h1><p><a href="/">${r.m.back}</a></p>`, { narrow: true, status: 404 });
+    return send(reply, r, r.m.notFound, html`<h1>${r.m.notFound}</h1><div class="actions"><a class="btn" href="/">${tr(r.l, { ru: 'На главную', en: 'Home', th: 'หน้าแรก' })}</a><a class="btn secondary" href="/try">${tr(r.l, { ru: 'Открыть демо', en: 'Open the demo', th: 'เปิดเดโม' })}</a></div>`, { narrow: true, status: 404 });
   }
 
   registerShowcase(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });

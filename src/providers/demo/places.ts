@@ -2,6 +2,7 @@
 // English, Russian and Thai names. Coordinates are approximate public locations, used only to
 // estimate synthetic demo fares. A live integration would use GrabMaps (AWS Location Service).
 import { sha256, stableJson } from '../../domain/crypto.js';
+import { packs } from '../../i18n/index.js';
 import type { Place, Trip } from '../types.js';
 
 interface Landmark {
@@ -45,9 +46,16 @@ export const DISTRICT_CENTRES: Record<string, { lat: number; lng: number; aliase
 
 const AIRPORT_WORDS = ['airport', 'аэропорт', 'สนามบิน'];
 
-const THAI = /[\u0E00-\u0E7F]/;
-/** Latin/Cyrillic aliases match at a word start (so Russian case endings work); Thai has no spaces, so substring. */
-const hits = (q: string, alias: string) => (THAI.test(alias) ? q.includes(alias) : q.includes(` ${alias}`));
+// Local names from the language packs (vi, id, ms, fil, km, my, zh): merged into the gazetteer.
+for (const [, p] of packs()) {
+  for (const l of LANDMARKS) for (const a of p.place_aliases?.[l.id] ?? []) if (a && !l.aliases.includes(a.toLowerCase())) l.aliases.push(a.toLowerCase());
+  for (const w of p.airport_words ?? []) if (w && !AIRPORT_WORDS.includes(w.toLowerCase())) AIRPORT_WORDS.push(w.toLowerCase());
+}
+
+/** Scripts other than basic Latin and Cyrillic (Thai, Khmer, Myanmar, Chinese, Vietnamese letters) are matched as substrings. */
+const UNSPACED = /[^\u0000-\u024F\u0400-\u04FF\s]/;
+/** Latin/Cyrillic aliases match at a word start (so Russian case endings work); scripts without word spaces match as substrings. */
+const hits = (q: string, alias: string) => (UNSPACED.test(alias) ? q.includes(alias) : q.includes(` ${alias}`));
 const norm = (s: string) => ` ${s.toLowerCase().replace(/[.,;:!?()"'«»]/g, ' ').replace(/\s+/g, ' ').trim()} `;
 
 export interface SavedPlace {

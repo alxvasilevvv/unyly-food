@@ -8,7 +8,7 @@
  {
   "en": "(default)",
   "where": [
-   "src/web/showcase.ts:535"
+   "src/web/showcase.ts:537"
   ]
  },
  {
@@ -84,15 +84,9 @@
   ]
  },
  {
-  "en": "access 1 hour, refresh 30 days; deleted on revocation",
-  "where": [
-   "src/web/routes.ts:269"
-  ]
- },
- {
   "en": "Add a Bangkok delivery address to see prices.",
   "where": [
-   "src/web/showcase.ts:437"
+   "src/web/showcase.ts:439"
   ]
  },
  {
@@ -105,7 +99,7 @@
   "en": "Add address",
   "where": [
    "src/web/messages.ts:347",
-   "src/web/showcase.ts:437"
+   "src/web/showcase.ts:439"
   ]
  },
  {
@@ -133,9 +127,9 @@
   ]
  },
  {
-  "en": "Addresses",
+  "en": "Addresses and gift recipients",
   "where": [
-   "src/web/routes.ts:270"
+   "src/web/routes.ts:272"
   ]
  },
  {
@@ -147,8 +141,8 @@
  {
   "en": "after you choose",
   "where": [
-   "src/web/showcase.ts:463",
-   "src/web/showcase.ts:590"
+   "src/web/showcase.ts:465",
+   "src/web/showcase.ts:592"
   ]
  },
  {
@@ -192,13 +186,19 @@
  {
   "en": "Allergen data comes from restaurants and may be incomplete. Unyly never calls a dish safe. Check with the restaurant.",
   "where": [
-   "src/web/showcase.ts:574"
+   "src/web/showcase.ts:576"
   ]
  },
  {
   "en": "Allergies (safety)",
   "where": [
    "src/web/messages.ts:354"
+  ]
+ },
+ {
+  "en": "Allergies and diet",
+  "where": [
+   "src/web/routes.ts:274"
   ]
  },
  {
@@ -265,7 +265,7 @@
  {
   "en": "Arrival",
   "where": [
-   "src/web/routes.ts:777"
+   "src/web/routes.ts:784"
   ]
  },
  {
@@ -277,7 +277,7 @@
  {
   "en": "Ask",
   "where": [
-   "src/web/showcase.ts:456"
+   "src/web/showcase.ts:458"
   ]
  },
  {
@@ -289,7 +289,7 @@
  {
   "en": "Ask the way you would text a friend",
   "where": [
-   "src/web/showcase.ts:605"
+   "src/web/showcase.ts:607"
   ]
  },
  {
@@ -299,15 +299,23 @@
   ]
  },
  {
-  "en": "Assistant tokens",
+  "en": "Assistant connections (OAuth)",
   "where": [
    "src/web/routes.ts:269"
   ]
  },
  {
+  "en": "Assistant:",
+  "where": [
+   "src/web/showcase.ts:470",
+   "src/web/showcase.ts:497",
+   "src/web/showcase.ts:573"
+  ]
+ },
+ {
   "en": "Audit log",
   "where": [
-   "src/web/routes.ts:272"
+   "src/web/routes.ts:277"
   ]
  },
  {
@@ -325,7 +333,7 @@
  {
   "en": "avoid:",
   "where": [
-   "src/web/showcase.ts:537"
+   "src/web/showcase.ts:539"
   ]
  },
  {
@@ -349,7 +357,7 @@
  {
   "en": "Before you confirm, the assistant can change quantities, add items or a note (a card message, for example).",
   "where": [
-   "src/web/showcase.ts:481"
+   "src/web/showcase.ts:483"
   ]
  },
  {
@@ -509,13 +517,13 @@
  {
   "en": "Carts, quotes, orders",
   "where": [
-   "src/web/routes.ts:271"
+   "src/web/routes.ts:276"
   ]
  },
  {
   "en": "Change mode",
   "where": [
-   "src/web/showcase.ts:434"
+   "src/web/showcase.ts:436"
   ]
  },
  {
@@ -527,7 +535,7 @@
  {
   "en": "Check out",
   "where": [
-   "src/web/showcase.ts:478"
+   "src/web/showcase.ts:480"
   ]
  },
  {
@@ -557,8 +565,8 @@
  {
   "en": "Choose",
   "where": [
-   "src/web/showcase.ts:510",
-   "src/web/showcase.ts:563"
+   "src/web/showcase.ts:512",
+   "src/web/showcase.ts:565"
   ]
  },
  {
@@ -582,7 +590,7 @@
  {
   "en": "closed",
   "where": [
-   "src/web/showcase.ts:568"
+   "src/web/showcase.ts:570"
   ]
  },
  {
@@ -612,7 +620,7 @@
  {
   "en": "Concept demo built for a Grab partnership. Not affiliated with or endorsed by Grab.",
   "where": [
-   "src/web/layout.ts:53"
+   "src/web/layout.ts:63"
   ]
  },
  {
@@ -636,7 +644,7 @@
  {
   "en": "Confirm on the secure page",
   "where": [
-   "src/web/showcase.ts:599"
+   "src/web/showcase.ts:601"
   ]
  },
  {
@@ -760,7 +768,7 @@
  {
   "en": "Copy the token now: it will not be shown again.",
   "where": [
-   "src/web/routes.ts:925"
+   "src/web/routes.ts:947"
   ]
  },
  {
@@ -802,7 +810,7 @@
  {
   "en": "Create token",
   "where": [
-   "src/web/routes.ts:939"
+   "src/web/routes.ts:961"
   ]
  },
  {
@@ -947,7 +955,7 @@
  {
   "en": "Demo condo",
   "where": [
-   "src/web/showcase.ts:320"
+   "src/web/showcase.ts:321"
   ]
  },
  {
@@ -995,7 +1003,7 @@
  {
   "en": "Describe what you need",
   "where": [
-   "src/web/showcase.ts:597"
+   "src/web/showcase.ts:599"
   ]
  },
  {
@@ -1007,7 +1015,7 @@
  {
   "en": "Details",
   "where": [
-   "src/web/layout.ts:55",
+   "src/web/layout.ts:65",
    "src/web/messages.ts:376"
   ]
  },
@@ -1050,7 +1058,7 @@
  {
   "en": "does not deliver to you",
   "where": [
-   "src/web/showcase.ts:568"
+   "src/web/showcase.ts:570"
   ]
  },
  {
@@ -1112,7 +1120,7 @@
  {
   "en": "Drop-off",
   "where": [
-   "src/web/routes.ts:789"
+   "src/web/routes.ts:796"
   ]
  },
  {
@@ -1134,18 +1142,6 @@
   ]
  },
  {
-  "en": "en-GB",
-  "where": [
-   "src/domain/locales.ts:7"
-  ]
- },
- {
-  "en": "English",
-  "where": [
-   "src/domain/locales.ts:12"
-  ]
- },
- {
   "en": "Enter the code",
   "where": [
    "src/web/messages.ts:302"
@@ -1154,7 +1150,7 @@
  {
   "en": "Estimate",
   "where": [
-   "src/web/showcase.ts:508"
+   "src/web/showcase.ts:510"
   ]
  },
  {
@@ -1178,7 +1174,7 @@
  {
   "en": "Examples",
   "where": [
-   "src/web/showcase.ts:455"
+   "src/web/showcase.ts:457"
   ]
  },
  {
@@ -1203,7 +1199,7 @@
  {
   "en": "Fare",
   "where": [
-   "src/web/routes.ts:783"
+   "src/web/routes.ts:790"
   ]
  },
  {
@@ -1271,7 +1267,7 @@
   ]
  },
  {
-  "en": "Food, groceries, flowers, pharmacy, cakes, rides and parcels in Thai, English or Russian",
+  "en": "Food, groceries, flowers, pharmacy, cakes, rides and parcels in the 10 languages of Grab markets",
   "where": [
    "src/web/showcase.ts:241"
   ]
@@ -1279,7 +1275,7 @@
  {
   "en": "For assistants that take a bearer token instead of OAuth sign-in: Mistral Le Chat, Copilot Studio, Perplexity, API integrations. A token has the same powers as an OAuth connection: you still confirm every order on an Unyly page.",
   "where": [
-   "src/web/routes.ts:922"
+   "src/web/routes.ts:944"
   ]
  },
  {
@@ -1291,13 +1287,13 @@
  {
   "en": "For Grab",
   "where": [
-   "src/web/layout.ts:61"
+   "src/web/layout.ts:71"
   ]
  },
  {
   "en": "for Grab · concept",
   "where": [
-   "src/web/layout.ts:58"
+   "src/web/layout.ts:68"
   ]
  },
  {
@@ -1351,8 +1347,7 @@
  {
   "en": "from",
   "where": [
-   "src/web/showcase.ts:374",
-   "src/web/showcase.ts:376"
+   "src/web/showcase.ts:373"
   ]
  },
  {
@@ -1560,7 +1555,7 @@
  {
   "en": "Guest demo account",
   "where": [
-   "src/web/routes.ts:448"
+   "src/web/routes.ts:453"
   ]
  },
  {
@@ -1570,9 +1565,15 @@
   ]
  },
  {
+  "en": "Guest IP hash",
+  "where": [
+   "src/web/routes.ts:275"
+  ]
+ },
+ {
   "en": "Guest sessions are deleted after 24 hours.",
   "where": [
-   "src/web/layout.ts:73"
+   "src/web/layout.ts:83"
   ]
  },
  {
@@ -1602,7 +1603,7 @@
  {
   "en": "Handoff; demo data is Bangkok",
   "where": [
-   "src/web/routes.ts:495"
+   "src/web/routes.ts:500"
   ]
  },
  {
@@ -1614,7 +1615,7 @@
  {
   "en": "Header",
   "where": [
-   "src/web/routes.ts:927"
+   "src/web/routes.ts:949"
   ]
  },
  {
@@ -1645,25 +1646,26 @@
  {
   "en": "Here are {n} options. Prices already include all fees:",
   "where": [
-   "src/web/showcase.ts:576"
+   "src/web/showcase.ts:578"
   ]
  },
  {
   "en": "Here is a basket. The price already includes delivery and fees:",
   "where": [
-   "src/web/showcase.ts:469"
+   "src/web/showcase.ts:471"
   ]
  },
  {
   "en": "Here is what I understood:",
   "where": [
-   "src/web/showcase.ts:572"
+   "src/web/showcase.ts:574"
   ]
  },
  {
   "en": "Home",
   "where": [
-   "src/web/messages.ts:339"
+   "src/web/messages.ts:339",
+   "src/web/routes.ts:1054"
   ]
  },
  {
@@ -1746,7 +1748,7 @@
  {
   "en": "How the demo goes",
   "where": [
-   "src/web/showcase.ts:618"
+   "src/web/showcase.ts:620"
   ]
  },
  {
@@ -1854,13 +1856,14 @@
  {
   "en": "Items",
   "where": [
-   "src/web/messages.ts:379"
+   "src/web/messages.ts:379",
+   "src/web/routes.ts:790"
   ]
  },
  {
   "en": "items picked",
   "where": [
-   "src/web/showcase.ts:486"
+   "src/web/showcase.ts:488"
   ]
  },
  {
@@ -1891,6 +1894,18 @@
   "en": "Keep the order",
   "where": [
    "src/web/messages.ts:433"
+  ]
+ },
+ {
+  "en": "kept with carts and orders",
+  "where": [
+   "src/web/routes.ts:273"
+  ]
+ },
+ {
+  "en": "keyed hash for the guest limit, deleted after 24 hours",
+  "where": [
+   "src/web/routes.ts:275"
   ]
  },
  {
@@ -1950,14 +1965,14 @@
  {
   "en": "Live demo",
   "where": [
-   "src/web/layout.ts:83",
-   "src/web/showcase.ts:621"
+   "src/web/layout.ts:94",
+   "src/web/showcase.ts:623"
   ]
  },
  {
   "en": "Live demo · fictional data · no payment",
   "where": [
-   "src/web/showcase.ts:604"
+   "src/web/showcase.ts:606"
   ]
  },
  {
@@ -1981,7 +1996,7 @@
  {
   "en": "Main",
   "where": [
-   "src/web/layout.ts:59"
+   "src/web/layout.ts:69"
   ]
  },
  {
@@ -2019,7 +2034,7 @@
  {
   "en": "MCP calls",
   "where": [
-   "src/web/showcase.ts:616"
+   "src/web/showcase.ts:618"
   ]
  },
  {
@@ -2092,9 +2107,9 @@
  {
   "en": "min",
   "where": [
-   "src/web/routes.ts:767",
-   "src/web/showcase.ts:462",
-   "src/web/showcase.ts:551"
+   "src/web/routes.ts:774",
+   "src/web/showcase.ts:464",
+   "src/web/showcase.ts:553"
   ]
  },
  {
@@ -2143,13 +2158,13 @@
   "en": "Name",
   "where": [
    "src/web/messages.ts:338",
-   "src/web/routes.ts:936"
+   "src/web/routes.ts:958"
   ]
  },
  {
   "en": "name set by the client itself",
   "where": [
-   "src/web/routes.ts:749"
+   "src/web/routes.ts:754"
   ]
  },
  {
@@ -2197,7 +2212,7 @@
  {
   "en": "no allergen data",
   "where": [
-   "src/web/showcase.ts:543"
+   "src/web/showcase.ts:545"
   ]
  },
  {
@@ -2325,7 +2340,7 @@
  {
   "en": "Not shown:",
   "where": [
-   "src/web/showcase.ts:579"
+   "src/web/showcase.ts:581"
   ]
  },
  {
@@ -2337,7 +2352,7 @@
  {
   "en": "Nothing fits these filters. Try a higher budget or fewer restrictions.",
   "where": [
-   "src/web/showcase.ts:578"
+   "src/web/showcase.ts:580"
   ]
  },
  {
@@ -2402,22 +2417,28 @@
   ]
  },
  {
+  "en": "only a hash is stored; deleted 30 days after revocation or expiry",
+  "where": [
+   "src/web/routes.ts:270"
+  ]
+ },
+ {
   "en": "only after you confirm",
   "where": [
-   "src/web/showcase.ts:464",
-   "src/web/showcase.ts:591"
+   "src/web/showcase.ts:466",
+   "src/web/showcase.ts:593"
   ]
  },
  {
   "en": "only after your confirmation",
   "where": [
-   "src/web/routes.ts:811"
+   "src/web/routes.ts:818"
   ]
  },
  {
   "en": "Only you can press this button. Your assistant cannot confirm for you.",
   "where": [
-   "src/web/routes.ts:803"
+   "src/web/routes.ts:810"
   ]
  },
  {
@@ -2436,13 +2457,14 @@
   "en": "Open the demo",
   "where": [
    "src/web/routes.ts:234",
+   "src/web/routes.ts:1054",
    "src/web/showcase.ts:178"
   ]
  },
  {
   "en": "options",
   "where": [
-   "src/web/showcase.ts:516"
+   "src/web/showcase.ts:518"
   ]
  },
  {
@@ -2496,7 +2518,7 @@
  {
   "en": "over budget",
   "where": [
-   "src/web/showcase.ts:558"
+   "src/web/showcase.ts:560"
   ]
  },
  {
@@ -2552,7 +2574,7 @@
   "en": "Parcel",
   "where": [
    "src/domain/labels.ts:54",
-   "src/web/routes.ts:791",
+   "src/web/routes.ts:798",
    "src/web/showcase.ts:44"
   ]
  },
@@ -2571,7 +2593,7 @@
  {
   "en": "Parcel options. Demo fares:",
   "where": [
-   "src/web/showcase.ts:501"
+   "src/web/showcase.ts:503"
   ]
  },
  {
@@ -2620,7 +2642,8 @@
  {
   "en": "Passkeys",
   "where": [
-   "src/web/messages.ts:291"
+   "src/web/messages.ts:291",
+   "src/web/routes.ts:271"
   ]
  },
  {
@@ -2669,7 +2692,7 @@
   "en": "people",
   "where": [
    "src/web/messages.ts:357",
-   "src/web/showcase.ts:533"
+   "src/web/showcase.ts:535"
   ]
  },
  {
@@ -2687,7 +2710,7 @@
  {
   "en": "person",
   "where": [
-   "src/web/showcase.ts:533"
+   "src/web/showcase.ts:535"
   ]
  },
  {
@@ -2701,7 +2724,7 @@
  {
   "en": "personal token",
   "where": [
-   "src/web/routes.ts:746"
+   "src/web/routes.ts:751"
   ]
  },
  {
@@ -2713,7 +2736,8 @@
  {
   "en": "Personal tokens",
   "where": [
-   "src/web/routes.ts:919"
+   "src/web/routes.ts:270",
+   "src/web/routes.ts:941"
   ]
  },
  {
@@ -2744,7 +2768,7 @@
  {
   "en": "Pick an option",
   "where": [
-   "src/web/showcase.ts:598"
+   "src/web/showcase.ts:600"
   ]
  },
  {
@@ -2762,7 +2786,7 @@
  {
   "en": "Pickup",
   "where": [
-   "src/web/routes.ts:788"
+   "src/web/routes.ts:795"
   ]
  },
  {
@@ -2853,13 +2877,13 @@
  {
   "en": "Product",
   "where": [
-   "src/web/layout.ts:82"
+   "src/web/layout.ts:92"
   ]
  },
  {
   "en": "Project",
   "where": [
-   "src/web/layout.ts:87"
+   "src/web/layout.ts:98"
   ]
  },
  {
@@ -2871,7 +2895,7 @@
  {
   "en": "Proposal for Grab",
   "where": [
-   "src/web/layout.ts:88",
+   "src/web/layout.ts:99",
    "src/web/showcase.ts:98",
    "src/web/showcase.ts:206"
   ]
@@ -2905,6 +2929,12 @@
   "en": "Providers",
   "where": [
    "src/web/messages.ts:444"
+  ]
+ },
+ {
+  "en": "public key only, until you remove it",
+  "where": [
+   "src/web/routes.ts:271"
   ]
  },
  {
@@ -2948,6 +2978,12 @@
   "en": "Refresh",
   "where": [
    "src/web/messages.ts:384"
+  ]
+ },
+ {
+  "en": "Refresh price",
+  "where": [
+   "src/web/routes.ts:757"
   ]
  },
  {
@@ -2996,13 +3032,13 @@
  {
   "en": "restaurants",
   "where": [
-   "src/web/showcase.ts:589"
+   "src/web/showcase.ts:591"
   ]
  },
  {
   "en": "Retention for Thailand (PDPA) must be reviewed by counsel before any Live launch.",
   "where": [
-   "src/web/routes.ts:281"
+   "src/web/routes.ts:286"
   ]
  },
  {
@@ -3057,7 +3093,7 @@
  {
   "en": "Ride options. Demo fares:",
   "where": [
-   "src/web/showcase.ts:500"
+   "src/web/showcase.ts:502"
   ]
  },
  {
@@ -3081,7 +3117,7 @@
  {
   "en": "Route",
   "where": [
-   "src/web/routes.ts:790"
+   "src/web/routes.ts:797"
   ]
  },
  {
@@ -3167,7 +3203,7 @@
  {
   "en": "Secure confirmation",
   "where": [
-   "src/web/routes.ts:770"
+   "src/web/routes.ts:777"
   ]
  },
  {
@@ -3179,7 +3215,7 @@
  {
   "en": "Send a request and the tool calls appear here.",
   "where": [
-   "src/web/showcase.ts:594"
+   "src/web/showcase.ts:596"
   ]
  },
  {
@@ -3339,7 +3375,7 @@
  {
   "en": "Skip to content",
   "where": [
-   "src/web/layout.ts:48"
+   "src/web/layout.ts:58"
   ]
  },
  {
@@ -3382,7 +3418,7 @@
  {
   "en": "Source code",
   "where": [
-   "src/web/layout.ts:89"
+   "src/web/layout.ts:100"
   ]
  },
  {
@@ -3514,7 +3550,7 @@
  {
   "en": "Taxi",
   "where": [
-   "src/web/showcase.ts:371"
+   "src/web/showcase.ts:372"
   ]
  },
  {
@@ -3562,7 +3598,7 @@
  {
   "en": "That place is not on the Bangkok demo map. Try one of these:",
   "where": [
-   "src/web/showcase.ts:380"
+   "src/web/showcase.ts:382"
   ]
  },
  {
@@ -3574,7 +3610,7 @@
  {
   "en": "The address is incomplete or ambiguous. Check:",
   "where": [
-   "src/web/routes.ts:560"
+   "src/web/routes.ts:565"
   ]
  },
  {
@@ -3586,7 +3622,7 @@
  {
   "en": "The assistant only sees the address name and area.",
   "where": [
-   "src/web/showcase.ts:617"
+   "src/web/showcase.ts:619"
   ]
  },
  {
@@ -3676,7 +3712,7 @@
  {
   "en": "The guided demo runs in Demo mode. Your account uses another mode.",
   "where": [
-   "src/web/showcase.ts:434"
+   "src/web/showcase.ts:436"
   ]
  },
  {
@@ -3730,13 +3766,13 @@
  {
   "en": "the Unyly demo assistant",
   "where": [
-   "src/web/routes.ts:743"
+   "src/web/routes.ts:748"
   ]
  },
  {
   "en": "The Unyly demo assistant turns your request into the same MCP calls ChatGPT or Claude would make. The order goes out only after you confirm.",
   "where": [
-   "src/web/showcase.ts:608"
+   "src/web/showcase.ts:610"
   ]
  },
  {
@@ -3772,7 +3808,7 @@
  {
   "en": "This is a guest account from the demo and it is deleted after 24 hours. To connect your own AI assistant, create an account with a passkey.",
   "where": [
-   "src/web/routes.ts:449"
+   "src/web/routes.ts:454"
   ]
  },
  {
@@ -3796,9 +3832,7 @@
  {
   "en": "to",
   "where": [
-   "src/web/showcase.ts:374",
-   "src/web/showcase.ts:376",
-   "src/web/showcase.ts:377"
+   "src/web/showcase.ts:374"
   ]
  },
  {
@@ -3811,6 +3845,12 @@
   "en": "Tofu teriyaki bowl",
   "where": [
    "src/providers/demo/catalog.ts:83"
+  ]
+ },
+ {
+  "en": "tokens are deleted on revocation or expiry",
+  "where": [
+   "src/web/routes.ts:269"
   ]
  },
  {
@@ -3829,15 +3869,15 @@
  {
   "en": "Total with fees",
   "where": [
-   "src/web/showcase.ts:476",
-   "src/web/showcase.ts:561"
+   "src/web/showcase.ts:478",
+   "src/web/showcase.ts:563"
   ]
  },
  {
   "en": "Track the status",
   "where": [
    "src/web/messages.ts:273",
-   "src/web/showcase.ts:600"
+   "src/web/showcase.ts:602"
   ]
  },
  {
@@ -3855,19 +3895,25 @@
  {
   "en": "Trip",
   "where": [
-   "src/web/routes.ts:466"
+   "src/web/routes.ts:471"
+  ]
+ },
+ {
+  "en": "Trips, item notes, parcel descriptions",
+  "where": [
+   "src/web/routes.ts:273"
   ]
  },
  {
   "en": "Try ordering through an AI assistant in your browser.",
   "where": [
-   "src/web/showcase.ts:621"
+   "src/web/showcase.ts:623"
   ]
  },
  {
   "en": "Try the demo",
   "where": [
-   "src/web/layout.ts:64"
+   "src/web/layout.ts:74"
   ]
  },
  {
@@ -3897,7 +3943,7 @@
  {
   "en": "unavailable",
   "where": [
-   "src/web/showcase.ts:568"
+   "src/web/showcase.ts:570"
   ]
  },
  {
@@ -3909,19 +3955,19 @@
  {
   "en": "unlinked from you and scrubbed when you delete the account",
   "where": [
-   "src/web/routes.ts:272"
+   "src/web/routes.ts:277"
   ]
  },
  {
   "en": "until",
   "where": [
-   "src/web/routes.ts:932"
+   "src/web/routes.ts:954"
   ]
  },
  {
   "en": "until you delete them; deletion erases the address text",
   "where": [
-   "src/web/routes.ts:270"
+   "src/web/routes.ts:272"
   ]
  },
  {
@@ -3963,7 +4009,7 @@
  {
   "en": "up to",
   "where": [
-   "src/web/showcase.ts:536"
+   "src/web/showcase.ts:538"
   ]
  },
  {
@@ -3985,6 +4031,12 @@
   ]
  },
  {
+  "en": "used only for filtering, until you change them",
+  "where": [
+   "src/web/routes.ts:274"
+  ]
+ },
+ {
   "en": "Using Unyly, find dinner for two under 600 baht delivered home. No nuts. Show three options.",
   "where": [
    "src/web/messages.ts:367"
@@ -3999,13 +4051,13 @@
  {
   "en": "Valid for, days",
   "where": [
-   "src/web/routes.ts:938"
+   "src/web/routes.ts:960"
   ]
  },
  {
   "en": "Valid until",
   "where": [
-   "src/web/routes.ts:927"
+   "src/web/routes.ts:949"
   ]
  },
  {
@@ -4100,9 +4152,9 @@
   ]
  },
  {
-  "en": "We store the minimum: email, delivery addresses, preferences, carts and orders. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area.",
+  "en": "We store only what the service needs: email, passkeys, addresses, preferences, carts, trips and orders, assistant connections and an audit log. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area. You can download or delete everything under Data.",
   "where": [
-   "src/web/routes.ts:277"
+   "src/web/routes.ts:282"
   ]
  },
  {
@@ -4150,7 +4202,7 @@
  {
   "en": "What the assistant did (MCP calls)",
   "where": [
-   "src/web/routes.ts:805"
+   "src/web/routes.ts:812"
   ]
  },
  {
@@ -4180,13 +4232,13 @@
  {
   "en": "Which one do you mean?",
   "where": [
-   "src/web/showcase.ts:379"
+   "src/web/showcase.ts:381"
   ]
  },
  {
   "en": "while the account exists (order history)",
   "where": [
-   "src/web/routes.ts:271"
+   "src/web/routes.ts:276"
   ]
  },
  {
@@ -4206,7 +4258,7 @@
  {
   "en": "with a suggestion",
   "where": [
-   "src/web/showcase.ts:589"
+   "src/web/showcase.ts:591"
   ]
  },
  {
@@ -4218,7 +4270,7 @@
  {
   "en": "within budget",
   "where": [
-   "src/web/showcase.ts:557"
+   "src/web/showcase.ts:559"
   ]
  },
  {
@@ -4272,7 +4324,7 @@
  {
   "en": "You are in a guest demo. Signing in or creating an account replaces the guest session.",
   "where": [
-   "src/web/routes.ts:298"
+   "src/web/routes.ts:303"
   ]
  },
  {
@@ -4288,9 +4340,16 @@
   ]
  },
  {
+  "en": "You:",
+  "where": [
+   "src/web/showcase.ts:463",
+   "src/web/showcase.ts:572"
+  ]
+ },
+ {
   "en": "You: confirm on this page",
   "where": [
-   "src/web/routes.ts:810"
+   "src/web/routes.ts:817"
   ]
  },
  {
@@ -4308,13 +4367,13 @@
  {
   "en": "your allergens not declared",
   "where": [
-   "src/web/showcase.ts:545"
+   "src/web/showcase.ts:547"
   ]
  },
  {
   "en": "your assistant",
   "where": [
-   "src/web/routes.ts:741"
+   "src/web/routes.ts:746"
   ]
  },
  {
@@ -4344,7 +4403,7 @@
  {
   "en": "Your request",
   "where": [
-   "src/web/showcase.ts:452"
+   "src/web/showcase.ts:454"
   ]
  }
 ]

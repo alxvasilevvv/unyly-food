@@ -8,6 +8,7 @@ import type { CartLine } from '../providers/types.js';
 import { estimateTrip } from '../services/catalog.js';
 import { callProvider } from '../services/common.js';
 import { getDefaultAddress, toDeliveryAddress } from '../services/users.js';
+import { packs } from '../i18n/index.js';
 import type { DemoService, ServiceIntent } from './intent.js';
 
 export const SHOP_STORE: Record<Exclude<DemoService, 'food' | 'ride' | 'express'>, string> = {
@@ -57,6 +58,10 @@ const PICKS: Record<string, [string, RegExp][]> = {
   ],
 };
 
+/** Item words from the language packs, keyed by item id (substring match on lowercased text). */
+const SHOP_WORDS: Record<string, string[]> = {};
+for (const [, p] of packs()) for (const [id, words] of Object.entries(p.shop_items ?? {})) (SHOP_WORDS[id] ??= []).push(...words.map((w) => w.toLowerCase()).filter((w) => w.length >= 2));
+
 export interface ShopPlan {
   store_id: string;
   store_name: string;
@@ -75,7 +80,7 @@ export async function shopPlan(ctx: Ctx, actor: Actor, service: keyof typeof SHO
   const storeId = SHOP_STORE[service];
   const text = q.toLowerCase();
   const table = PICKS[storeId];
-  let ids = table.filter(([, re]) => re.test(text)).map(([id]) => id);
+  let ids = table.filter(([id, re]) => re.test(text) || (SHOP_WORDS[id] ?? []).some((w) => text.includes(w))).map(([id]) => id);
   if (!ids.length) ids = service === 'groceries' ? ['m1-rice', 'm1-eggs', 'm1-water'] : [table[0][0]];
   ids = ids.slice(0, 5);
   const addr = await getDefaultAddress(ctx.db, actor.userId);

@@ -1,5 +1,6 @@
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
+import compress from '@fastify/compress';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -98,6 +99,8 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
 
   await app.register(cookie);
   await app.register(formbody);
+  // gzip/brotli for HTML, CSS and JS (fonts are already compressed). MCP replies are hijacked and bypass it.
+  await app.register(compress, { global: true, threshold: 1024, encodings: ['br', 'gzip'] });
   await app.register(helmet, {
     contentSecurityPolicy: {
       directives: {
