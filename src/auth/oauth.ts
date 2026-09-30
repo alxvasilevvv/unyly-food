@@ -34,7 +34,8 @@ export function asMetadata(ctx: Ctx) {
     code_challenge_methods_supported: ['S256'],
     token_endpoint_auth_methods_supported: ['none'],
     revocation_endpoint_auth_methods_supported: ['none'],
-    scopes_supported: [...SCOPES],
+    // offline_access is accepted for clients that always request it; refresh tokens are issued regardless.
+    scopes_supported: [...SCOPES, 'offline_access'],
     client_id_metadata_document_supported: true,
     authorization_response_iss_parameter_supported: true,
     service_documentation: `${o}/connect`,
@@ -78,6 +79,28 @@ export function validRedirectUri(u: string): boolean {
   if (url.protocol === 'https:') return true;
   if (url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) return true;
   return false;
+}
+
+const LOOPBACK = ['localhost', '127.0.0.1', '[::1]'];
+
+/** RFC 8252 7.3: for http loopback redirects the port may vary per request; everything else must match exactly. */
+export function redirectMatches(registered: string[], requested: string): boolean {
+  if (registered.includes(requested)) return true;
+  let req: URL;
+  try {
+    req = new URL(requested);
+  } catch {
+    return false;
+  }
+  if (req.protocol !== 'http:' || !LOOPBACK.includes(req.hostname) || req.hash || req.username || req.password) return false;
+  return registered.some((r) => {
+    try {
+      const u = new URL(r);
+      return u.protocol === 'http:' && u.hostname === req.hostname && u.pathname === req.pathname && u.search === req.search;
+    } catch {
+      return false;
+    }
+  });
 }
 
 export async function registerClient(ctx: Ctx, body: any): Promise<Client & { client_id_issued_at: number }> {
@@ -186,16 +209,21 @@ export interface AuthzRequest {
 export async function parseAuthzRequest(ctx: Ctx, p: Record<string, string | undefined>, fetcher = fetchClientMetadata): Promise<AuthzRequest> {
   const client = await getClient(ctx, p.client_id ?? '', fetcher);
   const redirect = p.redirect_uri ?? '';
-  if (!client.redirect_uris.includes(redirect)) throw new OAuthError('invalid_request', 'redirect_uri is not registered for this client');
+  if (!redirectMatches(client.redirect_uris, redirect)) throw new OAuthError('invalid_request', 'redirect_uri is not registered for this client');
   if (p.response_type !== 'code') throw new OAuthError('unsupported_response_type', 'response_type must be code');
   if (p.code_challenge_method !== 'S256' || !p.code_challenge || !/^[A-Za-z0-9_-]{43,128}$/.test(p.code_challenge)) {
     throw new OAuthError('invalid_request', 'PKCE with S256 is required');
   }
   const resource = p.resource ?? ctx.cfg.mcpResourceUrl;
   if (resource.replace(/\/$/, '') !== ctx.cfg.mcpResourceUrl) throw new OAuthError('invalid_target', 'Unknown resource');
-  const requested = (p.scope ?? SCOPES.join(' ')).split(/\s+/).filter(Boolean);
-  const scopes = requested.filter((s): s is Scope => (SCOPES as readonly string[]).includes(s));
-  if (!scopes.length) throw new OAuthError('invalid_scope', 'No supported scopes requested');
+  const requested = (p.scope ?? '').split(/\s+/).filter(Boolean);
+  let scopes = requested.filter((s): s is Scope => (SCOPES as readonly string[]).includes(s));
+  // No Unyly scope named (no scope, or only offline_access/openid): offer all; the user can untick on the consent page.
+  if (!scopes.length) {
+    const unknown = requested.filter((s) => !['offline_access', 'openid'].includes(s));
+    if (unknown.length) throw new OAuthError('invalid_scope', 'No supported scopes requested');
+    scopes = [...SCOPES];
+  }
   return { client, redirect_uri: redirect, state: p.state?.slice(0, 500), code_challenge: p.code_challenge, scopes, resource: ctx.cfg.mcpResourceUrl };
 }
 
@@ -311,8 +339,46 @@ export interface TokenInfo {
 }
 
 /** Resource-server check: token exists, not expired, grant not revoked, audience = this MCP resource. */
+export const PAT_PREFIX = 'unyly_pat_';
+
+export async function createPersonalToken(ctx: Ctx, userId: string, name: string, scopes: Scope[], days = 90) {
+  const clean = scopes.filter((s) => (SCOPES as readonly string[]).includes(s));
+  if (!clean.length) throw new OAuthError('invalid_scope', 'Choose at least one permission');
+  const days2 = Math.min(Math.max(Math.round(days), 1), 365);
+  const token = `${PAT_PREFIX}${randomToken(32)}`;
+  const r = await ctx.db.tx(async (q) => {
+    const n = (await q.query('SELECT count(*)::int n FROM personal_tokens WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()', [userId])).rows[0].n;
+    if (n >= 10) throw new OAuthError('invalid_request', 'Too many active tokens (max 10). Revoke one first.');
+    const row = await q.query(
+      `INSERT INTO personal_tokens (user_id, name, token_hash, scopes, expires_at) VALUES ($1,$2,$3,$4, now() + make_interval(days => $5)) RETURNING id, expires_at`,
+      [userId, name.trim().slice(0, 60) || 'Personal token', sha256(token), clean, days2],
+    );
+    await audit(q, { userId, actor: 'web', action: 'pat.created', entity: 'personal_token', entityId: row.rows[0].id, details: { scopes: clean } });
+    return row.rows[0];
+  });
+  return { id: r.id as string, token, expires_at: r.expires_at as string };
+}
+
+export async function revokePersonalToken(ctx: Ctx, userId: string, id: string) {
+  await ctx.db.tx(async (q) => {
+    const r = await q.query('UPDATE personal_tokens SET revoked_at = now() WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL RETURNING id', [id, userId]);
+    if (r.rowCount) await audit(q, { userId, actor: 'web', action: 'pat.revoked', entity: 'personal_token', entityId: id });
+  });
+}
+
 export async function verifyAccessToken(ctx: Ctx, token: string): Promise<TokenInfo | null> {
   if (!token || token.length > 200) return null;
+  if (token.startsWith(PAT_PREFIX)) {
+    const p = await ctx.db.query(
+      `SELECT t.id, t.user_id, t.scopes FROM personal_tokens t JOIN users u ON u.id = t.user_id
+       WHERE t.token_hash = $1 AND t.revoked_at IS NULL AND t.expires_at > now() AND u.deleted_at IS NULL AND NOT u.is_guest`,
+      [sha256(token)],
+    );
+    const row = p.rows[0];
+    if (!row) return null;
+    ctx.db.query(`UPDATE personal_tokens SET last_used_at = now() WHERE id = $1 AND (last_used_at IS NULL OR last_used_at < now() - interval '1 minute')`, [row.id]).catch(() => {});
+    return { userId: row.user_id, clientId: `pat:${row.id}`, scopes: row.scopes, grantId: `pat:${row.id}` };
+  }
   const r = await ctx.db.query(
     `SELECT g.id AS grant_id, g.user_id, g.client_id, g.scopes, g.resource FROM oauth_tokens t
      JOIN oauth_grants g ON g.id = t.grant_id JOIN users u ON u.id = g.user_id

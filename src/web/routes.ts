@@ -4,7 +4,7 @@ import { UUID_RE } from '../domain/crypto.js';
 import { DomainError, isDomainError } from '../domain/errors.js';
 import { formatMinor, money } from '../domain/money.js';
 import { checkCsrf, loadSession, logout, requestLoginCode, safeNext, setSessionCookie, verifyLoginCode, WebSession } from '../auth/session.js';
-import { revokeGrantForUser } from '../auth/oauth.js';
+import { createPersonalToken, revokeGrantForUser, revokePersonalToken, Scope, SCOPES } from '../auth/oauth.js';
 import { authenticationOptions, deletePasskey, listPasskeys, registrationOptions, verifyAuthentication, verifyRegistration } from '../auth/passkeys.js';
 import { approveCheckout, checkoutView, declineCheckout, submitOrder } from '../services/checkout.js';
 import {
@@ -27,6 +27,66 @@ import { registerShowcase } from './showcase.js';
 
 const LANG_COOKIE = 'unyly_lang';
 const STATUS_FLOW = ['accepted', 'preparing', 'picked_up', 'delivered'] as const;
+type T3 = { ru: string; en: string; th: string };
+const KIND: Record<'oauth' | 'token' | 'both' | 'none', T3> = {
+  oauth: { ru: 'Вход через OAuth', en: 'OAuth sign-in', th: 'ลงชื่อเข้าใช้ด้วย OAuth' },
+  both: { ru: 'OAuth или токен', en: 'OAuth or token', th: 'OAuth หรือโทเคน' },
+  token: { ru: 'Через токен и MCP-клиент', en: 'Via token and an MCP client', th: 'ผ่านโทเคนและไคลเอนต์ MCP' },
+  none: { ru: 'Пока без MCP', en: 'No MCP yet', th: 'ยังไม่รองรับ MCP' },
+};
+const PASTE: T3 = { ru: 'Вставьте адрес MCP выше', en: 'Paste the MCP URL above', th: 'วางที่อยู่ MCP ด้านบน' };
+const SIGNIN: T3 = { ru: 'Войдите в Unyly и разрешите доступ', en: 'Sign in to Unyly and allow access', th: 'เข้าสู่ระบบ Unyly แล้วกดอนุญาต' };
+const TOKEN: T3 = { ru: 'Или создайте персональный токен в «Подключениях» и выберите авторизацию Bearer', en: 'Or create a personal token under Connections and choose Bearer auth', th: 'หรือสร้างโทเคนส่วนตัวในหน้าการเชื่อมต่อ แล้วเลือกแบบ Bearer' };
+/** The ten most used assistants and how each can reach Unyly today. */
+const ASSISTANTS: { name: string; where: T3; kind: keyof typeof KIND; steps: T3[]; note?: T3 }[] = [
+  {
+    name: 'ChatGPT', kind: 'oauth', where: { ru: 'веб-версия, режим разработчика', en: 'web, developer mode', th: 'เว็บ, Developer mode' },
+    steps: [{ ru: 'Настройки → Приложения → Дополнительно → Режим разработчика', en: 'Settings → Apps → Advanced → Developer mode', th: 'Settings → Apps → Advanced → Developer mode' }, { ru: 'Создайте приложение, вставьте адрес MCP выше, авторизация OAuth', en: 'Create an app, paste the MCP URL above, OAuth authentication', th: 'สร้างแอป วางที่อยู่ MCP ด้านบน เลือก OAuth' }, SIGNIN],
+    note: { ru: 'Действия записи (оформление заказов) доступны не на всех тарифах; решает политика аккаунта.', en: 'Write actions (placing orders) are not available on every plan; account policy decides.', th: 'การดำเนินการแบบเขียน (สั่งซื้อ) ไม่ได้มีในทุกแพ็กเกจ ขึ้นอยู่กับนโยบายของบัญชี' },
+  },
+  {
+    name: 'Claude', kind: 'oauth', where: { ru: 'claude.ai, Desktop, мобильное приложение', en: 'claude.ai, Desktop, mobile', th: 'claude.ai, เดสก์ท็อป, มือถือ' },
+    steps: [{ ru: 'Настройки → Коннекторы → Добавить свой коннектор', en: 'Settings → Connectors → Add custom connector', th: 'Settings → Connectors → Add custom connector' }, PASTE, SIGNIN],
+    note: { ru: 'На бесплатном тарифе можно подключить один свой коннектор. На Team и Enterprise коннектор сначала добавляет владелец организации.', en: 'The free plan allows one custom connector. On Team and Enterprise an owner adds the connector first.', th: 'แพ็กเกจฟรีเพิ่มคอนเนกเตอร์เองได้ 1 รายการ สำหรับ Team และ Enterprise เจ้าขององค์กรต้องเพิ่มก่อน' },
+  },
+  {
+    name: 'Gemini', kind: 'oauth', where: { ru: 'Gemini Enterprise и Gemini CLI', en: 'Gemini Enterprise and Gemini CLI', th: 'Gemini Enterprise และ Gemini CLI' },
+    steps: [{ ru: 'Gemini Enterprise: администратор добавляет MCP-сервер с адресом выше (Streamable HTTP, OAuth)', en: 'Gemini Enterprise: an admin adds an MCP server with the URL above (Streamable HTTP, OAuth)', th: 'Gemini Enterprise: ผู้ดูแลเพิ่มเซิร์ฟเวอร์ MCP ด้วยที่อยู่ด้านบน (Streamable HTTP, OAuth)' }, { ru: 'Gemini CLI: добавьте сервер в settings.json (httpUrl) и войдите через браузер', en: 'Gemini CLI: add the server to settings.json (httpUrl) and sign in via the browser', th: 'Gemini CLI: เพิ่มเซิร์ฟเวอร์ใน settings.json (httpUrl) แล้วลงชื่อเข้าใช้ผ่านเบราว์เซอร์' }],
+    note: { ru: 'Потребительское приложение Gemini пока не подключает сторонние MCP-серверы во всех странах.', en: 'The consumer Gemini app does not yet connect third-party MCP servers in every country.', th: 'แอป Gemini สำหรับผู้ใช้ทั่วไปยังเชื่อมต่อเซิร์ฟเวอร์ MCP ภายนอกไม่ได้ในทุกประเทศ' },
+  },
+  {
+    name: 'Microsoft Copilot', kind: 'both', where: { ru: 'Copilot Studio', en: 'Copilot Studio', th: 'Copilot Studio' },
+    steps: [{ ru: 'Copilot Studio → агент → Инструменты → Добавить MCP-сервер', en: 'Copilot Studio → your agent → Tools → Add an MCP server', th: 'Copilot Studio → เอเจนต์ → Tools → Add an MCP server' }, PASTE, TOKEN],
+    note: { ru: 'Потребительское приложение Copilot своих MCP-серверов не подключает.', en: 'The consumer Copilot app does not connect custom MCP servers.', th: 'แอป Copilot สำหรับผู้ใช้ทั่วไปไม่รองรับเซิร์ฟเวอร์ MCP ที่เพิ่มเอง' },
+  },
+  {
+    name: 'Perplexity', kind: 'both', where: { ru: 'Коннекторы', en: 'Connectors', th: 'Connectors' },
+    steps: [{ ru: 'Настройки → Коннекторы → Добавить свой (удалённый MCP)', en: 'Settings → Connectors → Add custom (remote MCP)', th: 'Settings → Connectors → เพิ่มแบบกำหนดเอง (remote MCP)' }, PASTE, TOKEN],
+  },
+  {
+    name: 'Grok', kind: 'oauth', where: { ru: 'Коннекторы', en: 'Connectors', th: 'Connectors' },
+    steps: [{ ru: 'Настройки → Коннекторы → Добавить свой', en: 'Settings → Connectors → Add custom', th: 'Settings → Connectors → Add custom' }, PASTE, SIGNIN],
+    note: { ru: 'Если в вашем тарифе есть свои коннекторы.', en: 'If your plan offers custom connectors.', th: 'หากแพ็กเกจของคุณรองรับคอนเนกเตอร์ที่เพิ่มเอง' },
+  },
+  {
+    name: 'Mistral Le Chat', kind: 'both', where: { ru: 'Коннекторы, все тарифы', en: 'Connectors, all plans', th: 'Connectors ทุกแพ็กเกจ' },
+    steps: [{ ru: 'Интеллект → Коннекторы → Добавить коннектор → свой MCP', en: 'Intelligence → Connectors → Add connector → custom MCP', th: 'Intelligence → Connectors → Add connector → custom MCP' }, PASTE, TOKEN],
+  },
+  {
+    name: 'DeepSeek', kind: 'token', where: { ru: 'через MCP-клиент', en: 'through an MCP client', th: 'ผ่านไคลเอนต์ MCP' },
+    steps: [{ ru: 'Приложение DeepSeek не подключает MCP. Используйте модель DeepSeek в клиенте с поддержкой MCP (например, в десктопном чат-клиенте или агенте) с персональным токеном Unyly.', en: 'The DeepSeek app does not connect MCP servers. Use a DeepSeek model inside an MCP-capable client (a desktop chat client or agent) with an Unyly personal token.', th: 'แอป DeepSeek ยังไม่รองรับ MCP ให้ใช้โมเดล DeepSeek ในไคลเอนต์ที่รองรับ MCP พร้อมโทเคนส่วนตัวของ Unyly' }],
+  },
+  {
+    name: 'Qwen', kind: 'token', where: { ru: 'Qwen-Agent и MCP-клиенты', en: 'Qwen-Agent and MCP clients', th: 'Qwen-Agent และไคลเอนต์ MCP' },
+    steps: [{ ru: 'Подключите адрес выше в Qwen-Agent или другом MCP-клиенте с моделью Qwen, авторизация Bearer с персональным токеном.', en: 'Add the URL above in Qwen-Agent or another MCP client running a Qwen model, with Bearer auth and a personal token.', th: 'เพิ่มที่อยู่ด้านบนใน Qwen-Agent หรือไคลเอนต์ MCP อื่นที่ใช้โมเดล Qwen แบบ Bearer ด้วยโทเคนส่วนตัว' }],
+  },
+  {
+    name: 'Meta AI', kind: 'none', where: { ru: 'приложение Meta AI', en: 'Meta AI app', th: 'แอป Meta AI' },
+    steps: [],
+    note: { ru: 'Приложение Meta AI пока не подключает MCP-серверы. Модели Llama можно использовать через MCP-клиент с персональным токеном.', en: 'The Meta AI app does not connect MCP servers yet. Llama models can be used through an MCP client with a personal token.', th: 'แอป Meta AI ยังไม่รองรับเซิร์ฟเวอร์ MCP ใช้โมเดล Llama ผ่านไคลเอนต์ MCP พร้อมโทเคนส่วนตัวได้' },
+  },
+];
+
 
 /** Own-property check: `in` would also accept inherited names such as "constructor". */
 export const isLocale = (v: unknown): v is Locale => typeof v === 'string' && Object.hasOwn(LOCALES, v);
@@ -149,30 +209,18 @@ export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
         ? html`<p class="small">${fmt(m.connectedClients, { n: connected })} · <a href="/app/connections">${m.connectionsTitle}</a></p>`
         : html`<p class="notice warn small">${m.connectNotLoggedIn} <a href="/login?next=/connect">${m.navLogin}</a></p>`}
     </div>
-    ${client('Claude', tr(l, { ru: 'claude.ai, Desktop, мобильное приложение', en: 'claude.ai, Desktop, mobile', th: 'claude.ai, เดสก์ท็อป, มือถือ' }), html`
-      <p>${tr(l, {
-        ru: 'Нужен тариф Pro, Max, Team или Enterprise. На Team и Enterprise коннектор добавляет владелец организации, затем каждый пользователь подключается сам.',
-        en: 'Requires a Pro, Max, Team or Enterprise plan. On Team and Enterprise an owner adds the connector, then each user connects individually.',
-        th: 'ต้องใช้แพ็กเกจ Pro, Max, Team หรือ Enterprise สำหรับ Team และ Enterprise เจ้าขององค์กรเพิ่มคอนเนกเตอร์ก่อน แล้วผู้ใช้แต่ละคนจึงเชื่อมต่อเอง',
-      })}</p>
-      <ol class="mini-steps"><li>${tr(l, { ru: 'Настройки → Коннекторы → Добавить свой коннектор', en: 'Settings → Connectors → Add custom connector', th: 'Settings → Connectors → Add custom connector' })}</li>
-      <li>${tr(l, { ru: 'Вставьте адрес выше и нажмите «Подключить»', en: 'Paste the URL above and press Connect', th: 'วางที่อยู่ด้านบนแล้วกด Connect' })}</li>
-      <li>${tr(l, { ru: 'Войдите в Unyly и разрешите доступ', en: 'Sign in to Unyly and allow access', th: 'เข้าสู่ระบบ Unyly แล้วกดอนุญาต' })}</li></ol>
-      <p class="muted">${tr(l, { ru: 'Названия пунктов меню могут отличаться. Источник: support.claude.com, проверено 30.09.2026.', en: 'Menu labels may differ. Source: support.claude.com, checked 2026-09-30.', th: 'ชื่อเมนูอาจแตกต่างกัน แหล่งที่มา: support.claude.com ตรวจสอบเมื่อ 30.09.2026' })}</p>`, true)}
-    ${client('ChatGPT', tr(l, { ru: 'Developer mode', en: 'Developer mode', th: 'Developer mode' }), html`
-      <p>${tr(l, {
-        ru: 'Режим разработчика доступен на тарифах Plus, Pro, Business, Enterprise и Education в веб-версии; доступность зависит от политики аккаунта.',
-        en: 'Developer mode is available on Plus, Pro, Business, Enterprise and Education plans on the web; availability depends on account policy.',
-        th: 'Developer mode ใช้ได้กับแพ็กเกจ Plus, Pro, Business, Enterprise และ Education บนเว็บ ขึ้นอยู่กับนโยบายของบัญชี',
-      })}</p>
-      <ol class="mini-steps"><li>${tr(l, { ru: 'Включите Developer mode в настройках', en: 'Enable Developer mode in settings', th: 'เปิด Developer mode ในการตั้งค่า' })}</li>
-      <li>${tr(l, { ru: 'Создайте приложение с адресом выше, авторизация OAuth', en: 'Create an app with the URL above, OAuth authentication', th: 'สร้างแอปด้วยที่อยู่ด้านบน ใช้ OAuth' })}</li>
-      <li>${tr(l, { ru: 'ChatGPT спросит подтверждение перед действиями записи', en: 'ChatGPT asks before write actions by default', th: 'ChatGPT จะถามก่อนทำการเปลี่ยนแปลงข้อมูล' })}</li></ol>`)}
+    <h2 class="h3">${tr(l, { ru: 'Популярные ассистенты', en: 'Popular assistants', th: 'ผู้ช่วย AI ยอดนิยม' })}</h2>
+    ${ASSISTANTS.map((a, i) => client(a.name, tr(l, a.where), html`<p><span class="pill ${a.kind === 'none' ? 'bad' : a.kind === 'token' ? 'warn' : 'ok'}">${tr(l, KIND[a.kind])}</span></p>
+      ${a.steps.length ? html`<ol class="mini-steps">${a.steps.map((st) => html`<li>${tr(l, st)}</li>`)}</ol>` : ''}
+      ${a.note ? html`<p class="muted">${tr(l, a.note)}</p>` : ''}`, i === 0))}
+    <h2 class="h3">${tr(l, { ru: 'Для разработчиков', en: 'For developers', th: 'สำหรับนักพัฒนา' })}</h2>
     ${client('Claude Code', 'CLI', html`<p class="code" id="cc">claude mcp add --transport http unyly ${url}</p>
       <p>${tr(l, { ru: 'Затем выполните /mcp и выберите unyly, чтобы войти через браузер.', en: 'Then run /mcp and select unyly to sign in via the browser.', th: 'จากนั้นพิมพ์ /mcp แล้วเลือก unyly เพื่อเข้าสู่ระบบผ่านเบราว์เซอร์' })}</p>`)}
-    ${client('OpenAI Responses API', 'API', html`<p>${tr(l, { ru: 'Получите токен Unyly через OAuth и передайте его в поле authorization:', en: 'Obtain an Unyly token via OAuth and pass it in the authorization field:', th: 'รับโทเคน Unyly ผ่าน OAuth แล้วใส่ในช่อง authorization:' })}</p>
-      <pre class="code">{"type":"mcp","server_label":"unyly","server_url":"${url}","authorization":"&lt;token&gt;","require_approval":{"always":{"tool_names":["submit_order","cancel_order"]}}}</pre>`)}
-    ${client(tr(l, { ru: 'Любой MCP-клиент', en: 'Any MCP client', th: 'ไคลเอนต์ MCP อื่นๆ' }), 'Streamable HTTP', html`<p>${tr(l, { ru: 'Streamable HTTP, OAuth 2.1 с PKCE (S256), динамическая регистрация клиентов и Client ID Metadata Documents. Метаданные ресурса:', en: 'Streamable HTTP, OAuth 2.1 with PKCE (S256), dynamic client registration and Client ID Metadata Documents. Resource metadata:', th: 'Streamable HTTP, OAuth 2.1 พร้อม PKCE (S256) รองรับการลงทะเบียนไคลเอนต์แบบไดนามิกและ Client ID Metadata Documents ข้อมูลเมตาของทรัพยากร:' })}</p><p class="code">${prm}</p>`)}
+    ${client('OpenAI Responses API', 'API', html`<p>${tr(l, { ru: 'Передайте персональный токен Unyly в поле authorization:', en: 'Pass an Unyly personal token in the authorization field:', th: 'ใส่โทเคนส่วนตัวของ Unyly ในช่อง authorization:' })}</p>
+      <pre class="code">{"type":"mcp","server_label":"unyly","server_url":"${url}","authorization":"unyly_pat_…","require_approval":{"always":{"tool_names":["submit_order","cancel_order"]}}}</pre>`)}
+    ${client(tr(l, { ru: 'Любой MCP-клиент', en: 'Any MCP client', th: 'ไคลเอนต์ MCP อื่นๆ' }), 'Streamable HTTP', html`<p>${tr(l, { ru: 'Streamable HTTP. Вход: OAuth 2.1 с PKCE (S256), динамическая регистрация и Client ID Metadata Documents, или персональный токен в заголовке Authorization. Токен в адресе (query string) не принимается. Метаданные ресурса:', en: 'Streamable HTTP. Sign-in: OAuth 2.1 with PKCE (S256), dynamic client registration and Client ID Metadata Documents, or a personal token in the Authorization header. Tokens in the URL query are never accepted. Resource metadata:', th: 'Streamable HTTP ลงชื่อเข้าใช้ด้วย OAuth 2.1 พร้อม PKCE (S256) รองรับการลงทะเบียนแบบไดนามิกและ Client ID Metadata Documents หรือใช้โทเคนส่วนตัวในเฮดเดอร์ Authorization ไม่รับโทเคนใน URL ข้อมูลเมตาของทรัพยากร:' })}</p><p class="code">${prm}</p>
+      <pre class="code">{"mcpServers":{"unyly":{"url":"${url}","headers":{"Authorization":"Bearer unyly_pat_…"}}}}</pre>`)}
+    <p class="small muted">${tr(l, { ru: 'Названия пунктов меню и доступность по тарифам меняются; проверено по документации платформ 30.09.2026.', en: 'Menu labels and plan availability change; checked against each platform\'s documentation on 2026-09-30.', th: 'ชื่อเมนูและแพ็กเกจที่รองรับอาจเปลี่ยนแปลง ตรวจสอบจากเอกสารของแต่ละแพลตฟอร์มเมื่อ 30.09.2026' })}</p>
   </div>
   <aside class="stack">
     <div class="card tint stack">
@@ -692,7 +740,10 @@ ${data.notices.map((n) => html`<p class="notice warn" role="status">${n}</p>`)}
     let clientName = tr(l, { ru: 'ваш ассистент', en: 'your assistant', th: 'ผู้ช่วยของคุณ' });
     const fromTry = c.created_by === 'web';
     if (fromTry) clientName = tr(l, { ru: 'демо-ассистент Unyly', en: 'the Unyly demo assistant', th: 'ผู้ช่วยเดโมของ Unyly' });
-    if (c.created_by.startsWith('mcp:')) {
+    if (c.created_by.startsWith('mcp:pat:')) {
+      const t = await ctx.db.query('SELECT name FROM personal_tokens WHERE id::text = $1', [c.created_by.slice(8)]);
+      if (t.rows[0]) clientName = `${t.rows[0].name} (${tr(l, { ru: 'персональный токен', en: 'personal token', th: 'โทเคนส่วนตัว' })})`;
+    } else if (c.created_by.startsWith('mcp:')) {
       const g = await ctx.db.query('SELECT client_name FROM oauth_clients WHERE client_id=$1', [c.created_by.slice(4)]);
       if (g.rows[0]) clientName = `${g.rows[0].client_name} (${tr(l, { ru: 'имя указал сам клиент', en: 'name set by the client itself', th: 'ชื่อที่ไคลเอนต์ตั้งเอง' })})`;
     }
@@ -854,13 +905,38 @@ ${c.status === 'awaiting_user' ? html`<div class="stack" style="margin-top:16px"
   });
 
   // ---------------- Connections & data ----------------
-  app.get('/app/connections', async (req, reply) => {
-    const r = await authed(req, reply);
-    if (!r) return;
+  async function renderConnections(reply: FastifyReply, r: R & { s: WebSession }, fresh?: { token: string; expires_at: string }) {
     const m = r.m;
+    const l = r.l;
     const grants = (await ctx.db.query('SELECT * FROM oauth_grants WHERE user_id=$1 ORDER BY created_at DESC', [r.s.user.id])).rows;
+    const pats = (await ctx.db.query('SELECT * FROM personal_tokens WHERE user_id=$1 ORDER BY created_at DESC LIMIT 20', [r.s.user.id])).rows;
     const scopeName = (s: string) => (m as any)[`scope_${s.replace(':', '_')}`] ?? s;
     const u = r.s.user;
+    reply.header('cache-control', 'no-store');
+    const tokenSection = u.is_guest
+      ? ''
+      : html`<h2 id="tokens">${tr(l, { ru: 'Персональные токены', en: 'Personal tokens', th: 'โทเคนส่วนตัว' })}</h2>
+<p class="small muted">${tr(l, {
+        ru: 'Для ассистентов, которые принимают только токен (Bearer), а не вход через OAuth: Mistral Le Chat, Copilot Studio, Perplexity, API-интеграции. Токен даёт те же права, что и подключение по OAuth: каждый заказ всё равно подтверждаете вы на странице Unyly.',
+        en: 'For assistants that take a bearer token instead of OAuth sign-in: Mistral Le Chat, Copilot Studio, Perplexity, API integrations. A token has the same powers as an OAuth connection: you still confirm every order on an Unyly page.',
+        th: 'สำหรับผู้ช่วยที่รับโทเคน (Bearer) แทนการลงชื่อเข้าใช้ OAuth เช่น Mistral Le Chat, Copilot Studio, Perplexity และการเชื่อมต่อผ่าน API โทเคนมีสิทธิ์เท่ากับการเชื่อมต่อ OAuth และคุณยังต้องยืนยันทุกคำสั่งซื้อในหน้า Unyly',
+      })}</p>
+${fresh ? html`<div class="notice ok stack" role="status"><strong>${tr(l, { ru: 'Скопируйте токен сейчас: он больше не будет показан.', en: 'Copy the token now: it will not be shown again.', th: 'คัดลอกโทเคนตอนนี้ ระบบจะไม่แสดงอีก' })}</strong>
+  <div class="copyrow"><p class="code" id="pat">${fresh.token}</p><button class="btn secondary" type="button" data-copy="pat" data-copied="${m.copied}">${m.copy}</button></div>
+  <p class="small">${tr(l, { ru: 'Заголовок', en: 'Header', th: 'เฮดเดอร์' })}: <span class="mono">Authorization: Bearer &lt;token&gt;</span> · ${tr(l, { ru: 'Действует до', en: 'Valid until', th: 'ใช้ได้ถึง' })} ${dt(fresh.expires_at, l)}</p></div>` : ''}
+${pats.length ? html`<ul class="list card">${pats.map((t: any) => {
+        const dead = t.revoked_at || new Date(t.expires_at).getTime() < Date.now();
+        return html`<li><span><strong>${t.name}</strong> ${dead ? html`<span class="pill bad">${m.revoked}</span>` : ''}<br>
+<span class="small muted">${m.scopes}: ${t.scopes.map(scopeName).join('; ')}</span><br>
+<span class="small muted">${m.lastUsed}: ${t.last_used_at ? dt(t.last_used_at, l) : '-'} · ${tr(l, { ru: 'до', en: 'until', th: 'ถึง' })} ${dt(t.expires_at, l)}</span></span>
+${dead ? '' : html`<form method="post" action="/app/tokens/${t.id}/revoke">${csrfField(r.s)}<button class="btn secondary" type="submit">${m.revoke}</button></form>`}</li>`;
+      })}</ul>` : ''}
+<form class="card stack" method="post" action="/app/tokens">${csrfField(r.s)}
+  <div class="field"><label for="pat-name">${tr(l, { ru: 'Название', en: 'Name', th: 'ชื่อ' })}</label><input id="pat-name" name="name" maxlength="60" required placeholder="Le Chat"></div>
+  <fieldset class="field"><legend>${m.scopes}</legend>${SCOPES.map((sc) => html`<label class="check"><input type="checkbox" name="scope" value="${sc}" checked> ${scopeName(sc)}</label>`)}</fieldset>
+  <div class="field"><label for="pat-days">${tr(l, { ru: 'Срок, дней', en: 'Valid for, days', th: 'อายุ (วัน)' })}</label><select id="pat-days" name="days"><option>30</option><option selected>90</option><option>365</option></select></div>
+  <button class="btn" type="submit">${tr(l, { ru: 'Создать токен', en: 'Create token', th: 'สร้างโทเคน' })}</button>
+</form>`;
     return send(reply, r, m.connectionsTitle, html`<h1>${m.connectionsTitle}</h1>
 <h2>${m.aiClients}</h2>
 ${grants.length ? html`<ul class="list card">${grants.map((g: any) => html`<li><span><strong>${g.client_name}</strong> ${g.revoked_at ? html`<span class="pill bad">${m.revoked}</span>` : ''}<br>
@@ -868,7 +944,38 @@ ${grants.length ? html`<ul class="list card">${grants.map((g: any) => html`<li><
 <span class="small muted">${m.lastUsed}: ${g.last_used_at ? dt(g.last_used_at, r.l) : '-'}</span></span>
 ${g.revoked_at ? '' : html`<form method="post" action="/app/connections/${g.id}/revoke">${csrfField(r.s)}<button class="btn secondary" type="submit">${m.revoke}</button></form>`}</li>`)}</ul>` : html`<p class="muted">${m.noClients} <a href="/connect">${m.connectTitle}</a></p>`}
 <h2>${m.providers}</h2>
-<div class="card"><p><strong>${{ demo: m.modeDemo, handoff: m.modeHandoff, live: m.modeLive }[u.mode]}</strong></p><p class="muted">${{ demo: m.providerDemo, handoff: m.providerHandoff, live: m.providerLive }[u.mode]}</p><a href="/app/mode">${m.modeTitle}</a></div>`, { narrow: true });
+<div class="card"><p><strong>${{ demo: m.modeDemo, handoff: m.modeHandoff, live: m.modeLive }[u.mode]}</strong></p><p class="muted">${{ demo: m.providerDemo, handoff: m.providerHandoff, live: m.providerLive }[u.mode]}</p><a href="/app/mode">${m.modeTitle}</a></div>
+${tokenSection}`, { narrow: true });
+  }
+
+  app.get('/app/connections', async (req, reply) => {
+    const r = await authed(req, reply);
+    if (!r) return;
+    return renderConnections(reply, r);
+  });
+
+  app.post('/app/tokens', async (req, reply) => {
+    const r = await authed(req, reply);
+    if (!r) return;
+    checkCsrf(ctx, req, r.s);
+    if (r.s.user.is_guest) return reply.code(403).send('Guest accounts cannot create tokens');
+    const b = (req.body ?? {}) as any;
+    const scopes = (Array.isArray(b.scope) ? b.scope : b.scope ? [b.scope] : []).map(String) as Scope[];
+    try {
+      const t = await createPersonalToken(ctx, r.s.user.id, String(b.name ?? ''), scopes, Number(b.days) || 90);
+      return renderConnections(reply, r, t);
+    } catch (e: any) {
+      return send(reply, r, r.m.connectionsTitle, html`<div class="notice bad" role="alert">${e?.description ?? e?.message ?? 'Error'}</div><p><a href="/app/connections#tokens">${r.m.back}</a></p>`, { narrow: true, status: 400 });
+    }
+  });
+
+  app.post('/app/tokens/:id/revoke', async (req, reply) => {
+    const r = await authed(req, reply);
+    if (!r) return;
+    checkCsrf(ctx, req, r.s);
+    const id = (req.params as any).id;
+    if (UUID_RE.test(id)) await revokePersonalToken(ctx, r.s.user.id, id);
+    return reply.redirect('/app/connections#tokens');
   });
   app.post('/app/connections/:id/revoke', async (req, reply) => {
     const r = await authed(req, reply);
