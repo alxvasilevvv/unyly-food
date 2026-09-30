@@ -110,6 +110,9 @@ nav.main a.cta:hover { background: var(--brand-2); }
   nav.main a.cta { padding: 8px 12px; }
 }
 @media (max-width: 420px) { nav.main a.nav-help { display: none; } }
+nav.main a.cta { white-space: nowrap; }
+/* Small phones: the unicorn mark alone keeps room for the demo button in long-script languages. */
+@media (max-width: 380px) { .logo-word { display: none; } nav.main a.cta { padding: 8px 10px; font-size: 13.5px; } }
 
 .banner { padding: 9px 0; font-size: 14px; }
 .banner .wrap { display: flex; gap: 10px; align-items: center; }
@@ -190,6 +193,8 @@ table.lines tr.total td { border-bottom: 0; font: 800 20px var(--display); paddi
 .steps .num { counter-increment: s; width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; font-weight: 800; flex: none; font-size: 14px; }
 .steps .num::before { content: counter(s); }
 .steps .grow { flex: 1; }
+.steps .grow { min-width: 0; overflow-wrap: break-word; }
+.steps .pill { flex: none; max-width: 48%; white-space: normal; text-align: center; line-height: 1.3; }
 
 /* ---------- Hero ---------- */
 .hero { display: grid; gap: 40px; align-items: center; padding: 12px 0 8px; }
@@ -561,7 +566,7 @@ fieldset.card legend + * { clear: both; }
 .lang-menu { border: 0; padding: 0; background: none; border-radius: 0; }
 .lang-menu ul { max-height: calc(100dvh - 120px); overflow: auto; }
 .lang-menu .lang-code { font-size: 11px; font-weight: 800; width: 28px; flex: none; color: var(--muted); }
-.lang-menu li a[aria-current="true"] .lang-code { color: var(--lime, #c9f26b); }
+.lang-menu li a[aria-current="true"] .lang-code { color: inherit; }
 .lang-menu a:lang(km) .lang-name { font-family: "Noto Sans Khmer", system-ui, sans-serif; }
 .lang-menu a:lang(my) .lang-name { font-family: "Noto Sans Myanmar", system-ui, sans-serif; }
 .lang-menu a:lang(th) .lang-name { font-family: "Noto Sans Thai", system-ui, sans-serif; }

@@ -27,6 +27,12 @@ import { detectLocale, registerWebRoutes } from './web/routes.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
+/** Static files served from memory: exempt from the global per-IP request limit. */
+export const isStaticPath = (url: string) => {
+  const path = url.split('?')[0];
+  return path.startsWith('/static/') || path === '/favicon.ico' || path === '/manifest.webmanifest';
+};
+
 /**
  * Rate-limit key for a client IP. IPv6 is grouped by /64: one subscriber or VM usually owns a whole
  * /64, so per-address keys would be trivially rotated. IPv4-mapped IPv6 is folded back to IPv4.
@@ -129,6 +135,9 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     max: 300,
     timeWindow: '1 minute',
     keyGenerator: (req) => `ip:${ipKey(req.ip)}`,
+    // Static files (CSS, JS, fonts, icons) are cheap and cached. Counting them let one page view
+    // spend ~10 of the budget, so users behind a shared carrier IP (CGNAT) got unstyled pages.
+    allowList: (req) => isStaticPath(req.url),
   });
 
   const mcpPath = new URL(ctx.cfg.mcpResourceUrl).pathname || '/mcp';

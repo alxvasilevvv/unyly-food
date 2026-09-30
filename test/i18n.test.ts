@@ -81,6 +81,15 @@ describe('Pages in every language', () => {
     expect(zh.body).toContain(CATALOGS.zh['Connect your assistant'] ?? '');
   });
 
+  it('static files do not count toward the per-IP request limit', async () => {
+    const css = (await h.app.inject({ method: 'GET', url: '/' })).body.match(/\/static\/app\.css\?v=\w+/)![0];
+    for (let i = 0; i < 320; i++) {
+      const r = await h.app.inject({ method: 'GET', url: css });
+      expect(r.statusCode, `request ${i}`).toBe(200);
+    }
+    expect((await h.app.inject({ method: 'GET', url: '/contact' })).statusCode).toBe(200);
+  });
+
   it('a Khmer guest can order a taxi from the guided demo', async () => {
     const q = PACKS.km.examples[1];
     const start = await h.app.inject({ method: 'POST', url: '/try/start?lang=km', headers: { origin: 'http://localhost:3000' }, payload: { q } });
