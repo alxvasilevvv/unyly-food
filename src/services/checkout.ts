@@ -9,6 +9,7 @@ import { CartState, describeTrip, loadCart, loadCartVersion, locationFingerprint
 import { isTripService } from '../domain/regions.js';
 import { callProvider, requireCapability, submissionsEnabled, withTimeout } from './common.js';
 import { addressFingerprint, getAddress, maskedAddress, toDeliveryAddress } from './users.js';
+import { hasPasskey, verifyStepUp } from '../auth/passkeys.js';
 
 /**
  * How long the human has to press Confirm. Deliberately independent of the provider's quote validity
@@ -75,6 +76,24 @@ async function cartSubmissionBlock(q: Queryable, cartId: string, exceptCheckoutI
 
 export const confirmUrl = (ctx: Ctx, id: string) => `${ctx.cfg.webOrigin}/confirm/${id}`;
 
+/** Step-up threshold in minor units for this currency, or null when step-up is off or the currency has none. */
+export function stepUpThreshold(ctx: Ctx, currency: string): number | null {
+  if (!ctx.cfg.stepUp.enabled) return null;
+  return ctx.cfg.stepUp.thresholds[currency] ?? null;
+}
+
+/**
+ * Step-up policy for one checkout. `large`: the total is at or above the threshold. `required`: large and
+ * the user has a passkey, so approval needs a fresh passkey assertion. Users without a passkey (including
+ * demo guests) keep the plain confirmation and see a recommendation instead.
+ */
+export async function stepUpPolicy(ctx: Ctx, userId: string, c: Pick<CheckoutRow, 'total_minor' | 'currency'>) {
+  const threshold = stepUpThreshold(ctx, c.currency);
+  const large = threshold !== null && Number(c.total_minor) >= threshold;
+  const required = large && (await hasPasskey(ctx, userId));
+  return { large, required, threshold_minor: threshold };
+}
+
 async function loadCheckout(q: Queryable, userId: string, id: string, lock = false): Promise<CheckoutRow> {
   const r = await q.query<CheckoutRow>(`SELECT * FROM checkouts WHERE id = $1 AND user_id = $2 ${lock ? 'FOR UPDATE' : ''}`, [id, userId]);
   if (!r.rows[0]) throw new DomainError('NOT_FOUND', 'Checkout not found');
@@ -106,13 +125,15 @@ function reasonToError(reason: string): DomainError {
   return new DomainError('CONFIRMATION_INVALIDATED', `The confirmation is no longer valid (${reason}). Quote again and prepare a new checkout.`, { reason });
 }
 
-export async function prepareCheckout(ctx: Ctx, actor: Actor, args: { cart_id: string; quote_id: string }, opts: { createdBy?: string } = {}) {
+export async function prepareCheckout(
+  ctx: Ctx, actor: Actor, args: { cart_id: string; quote_id: string }, opts: { createdBy?: string } = {},
+): Promise<CheckoutRow & { step_up_required: boolean }> {
   const cart = await loadCart(ctx.db, actor.userId, args.cart_id);
   requireCapability(ctx, cart.mode, 'checkout');
   if (!(await submissionsEnabled(ctx, ctx.db, cart.mode))) {
     throw new DomainError('SUBMISSIONS_PAUSED', 'New orders are temporarily paused. Order status and history remain available.');
   }
-  return ctx.db.tx(async (q) => {
+  const row = await ctx.db.tx(async (q) => {
     const locked = await loadCart(q, actor.userId, args.cart_id, true);
     const blocked = await cartSubmissionBlock(q, locked.id);
     if (blocked) throw blocked;
@@ -139,6 +160,7 @@ export async function prepareCheckout(ctx: Ctx, actor: Actor, args: { cart_id: s
     await audit(q, { userId: actor.userId, actor: actorLabel(actor), action: 'checkout.prepared', mode: locked.mode, entity: 'checkout', entityId: r.rows[0].id, details: { total: qr.total_minor } });
     return r.rows[0];
   });
+  return { ...row, step_up_required: (await stepUpPolicy(ctx, actor.userId, row)).required };
 }
 
 /** Statuses from which the confirmation page may offer "refresh price". */
@@ -250,6 +272,7 @@ export async function checkoutStatus(ctx: Ctx, actor: Actor, id: string) {
     confirm_url: c.status === 'awaiting_user' ? confirmUrl(ctx, c.id) : null,
     submission: v.attempt ? describeAttempt(v.attempt) : null,
     order_id: v.order?.id ?? null,
+    step_up_required: (await stepUpPolicy(ctx, actor.userId, c)).required,
     summary: statusSummary(c, v.attempt ?? null),
   };
 }
@@ -295,8 +318,15 @@ async function repriceProblem(ctx: Ctx, c: CheckoutRow): Promise<string | null> 
  * provider's own validity, the same cart version is re-priced first. Same total: proceed. Different
  * total or a new blocking issue: the confirmation is invalidated with PRICE_CHANGED.
  */
-export async function approveCheckout(ctx: Ctx, userId: string, id: string) {
+export async function approveCheckout(ctx: Ctx, userId: string, id: string, opts: { stepUp?: unknown } = {}) {
   const pre = await loadCheckout(ctx.db, userId, id);
+  // Step-up: a large order from a user with a passkey is approved only with a fresh passkey assertion
+  // bound to this checkout. Checked before anything else; the challenge is consumed either way.
+  let steppedUp = false;
+  if (pre.status === 'awaiting_user' && (await stepUpPolicy(ctx, userId, pre)).required) {
+    await verifyStepUp(ctx, userId, id, opts.stepUp);
+    steppedUp = true;
+  }
   let staleQuoteProblem: string | null = null;
   let repriced = false;
   if (pre.status === 'awaiting_user' && new Date(pre.expires_at).getTime() > ctx.clock.now().getTime()) {
@@ -317,6 +347,7 @@ export async function approveCheckout(ctx: Ctx, userId: string, id: string) {
       return reasonToError(problem);
     }
     const r = await q.query<CheckoutRow>(`UPDATE checkouts SET status='approved', approved_at=$2, approved_via='web' WHERE id=$1 RETURNING *`, [c.id, ctx.clock.now()]);
+    if (steppedUp) await audit(q, { userId, actor: 'web', action: 'checkout.step_up', mode: c.mode, entity: 'checkout', entityId: c.id, details: { method: 'passkey' } });
     await audit(q, { userId, actor: 'web', action: 'checkout.approved', mode: c.mode, entity: 'checkout', entityId: c.id, details: repriced ? { repriced: true } : undefined });
     return r.rows[0];
   });

@@ -5,8 +5,8 @@ import { DomainError, isDomainError } from '../domain/errors.js';
 import { formatMinor, money } from '../domain/money.js';
 import { checkCsrf, loadSession, logout, requestLoginCode, safeNext, setSessionCookie, verifyLoginCode, WebSession } from '../auth/session.js';
 import { createPersonalToken, revokeGrantForUser, revokePersonalToken, Scope, SCOPES } from '../auth/oauth.js';
-import { authenticationOptions, deletePasskey, listPasskeys, registrationOptions, verifyAuthentication, verifyRegistration } from '../auth/passkeys.js';
-import { approveCheckout, checkoutView, declineCheckout, refreshCheckout, submitOrder } from '../services/checkout.js';
+import { authenticationOptions, deletePasskey, listPasskeys, registrationOptions, stepUpOptions, verifyAuthentication, verifyRegistration } from '../auth/passkeys.js';
+import { approveCheckout, checkoutView, declineCheckout, refreshCheckout, stepUpPolicy, submitOrder } from '../services/checkout.js';
 import {
   approveCancellation, cancelOrder, describeOrder, getOrderStatus, loadCancellation, loadOrder, prepareCancellation,
 } from '../services/orders.js';
@@ -23,8 +23,10 @@ import { isTripService, REGION_CODES, REGIONS, Service } from '../domain/regions
 import { ALLERGEN_NAMES, DIET_NAMES, dishName, t3 } from './copy.js';
 import { html, SafeHtml } from './html.js';
 import { page } from './layout.js';
+import { ASSET_VERSION } from './assets.js';
 import { fmt, intlLocale, Locale, LOCALES, Messages, msg, tr } from './messages.js';
 import { registerShowcase } from './showcase.js';
+import { registerDocsRoutes } from './docs-routes.js';
 import { CONTACT, instagramUrl, phoneLabel, whatsappUrl } from './contacts.js';
 
 const LANG_COOKIE = 'unyly_lang';
@@ -39,6 +41,39 @@ const KIND: Record<'oauth' | 'token' | 'both' | 'none', T3> = {
 const PASTE: T3 = { ru: 'Вставьте адрес MCP выше', en: 'Paste the MCP URL above', th: 'วางที่อยู่ MCP ด้านบน' };
 const SIGNIN: T3 = { ru: 'Войдите в Unyly и разрешите доступ', en: 'Sign in to Unyly and allow access', th: 'เข้าสู่ระบบ Unyly แล้วกดอนุญาต' };
 const TOKEN: T3 = { ru: 'Или создайте персональный токен в «Подключениях» и выберите авторизацию Bearer', en: 'Or create a personal token under Connections and choose Bearer auth', th: 'หรือสร้างโทเคนส่วนตัวในหน้าการเชื่อมต่อ แล้วเลือกแบบ Bearer' };
+/** Step-up confirmation copy (confirmation page for large totals). */
+const STEP_UP_COPY = {
+  label: { ru: 'Для заказов от {amount} нужен passkey', en: 'Passkey required for orders from {amount}', th: 'คำสั่งซื้อตั้งแต่ {amount} ต้องยืนยันด้วยพาสคีย์' },
+  labelOptional: { ru: 'если он добавлен в аккаунт', en: 'when one is added to the account', th: 'เมื่อเพิ่มพาสคีย์ในบัญชีแล้ว' },
+  recommend: {
+    ru: 'Крупный заказ. Для надёжной защиты добавьте passkey в настройках аккаунта: тогда такие заказы будут подтверждаться ещё и им.',
+    en: 'This is a large order. For stronger protection, add a passkey in your account settings: orders like this will then also need your passkey.',
+    th: 'คำสั่งซื้อนี้มียอดสูง เพื่อความปลอดภัยมากขึ้น ให้เพิ่มพาสคีย์ในการตั้งค่าบัญชี แล้วคำสั่งซื้อลักษณะนี้จะต้องยืนยันด้วยพาสคีย์ด้วย',
+  },
+  manage: { ru: 'Управление passkeys', en: 'Manage passkeys', th: 'จัดการพาสคีย์' },
+  createAccount: { ru: 'Создать аккаунт с passkey', en: 'Create an account with a passkey', th: 'สร้างบัญชีด้วยพาสคีย์' },
+  hint: { ru: 'После нажатия подтвердите заказ своим passkey.', en: 'After you press Confirm, approve with your passkey.', th: 'หลังจากกดยืนยัน ให้ยืนยันด้วยพาสคีย์ของคุณ' },
+  unsupported: {
+    ru: 'Этот браузер не умеет работать с passkeys. Откройте страницу на устройстве, где сохранён ваш passkey.',
+    en: 'This browser cannot use passkeys. Open this page on a device that has your passkey.',
+    th: 'เบราว์เซอร์นี้ใช้พาสคีย์ไม่ได้ เปิดหน้านี้บนอุปกรณ์ที่มีพาสคีย์ของคุณ',
+  },
+  cancelled: { ru: 'Проверка passkey отменена или время вышло. Ничего не заказано.', en: 'The passkey check was cancelled or timed out. Nothing was ordered.', th: 'การตรวจสอบพาสคีย์ถูกยกเลิกหรือหมดเวลา ยังไม่มีการสั่งซื้อ' },
+  notAllowed: {
+    ru: 'Это устройство не может использовать ваш passkey здесь. Попробуйте устройство, где он сохранён.',
+    en: 'This device cannot use your passkey here. Try a device that has your passkey.',
+    th: 'อุปกรณ์นี้ใช้พาสคีย์ของคุณที่นี่ไม่ได้ ลองใช้อุปกรณ์ที่มีพาสคีย์ของคุณ',
+  },
+  failed: { ru: 'Не удалось проверить passkey.', en: 'Passkey verification failed.', th: 'ตรวจสอบพาสคีย์ไม่สำเร็จ' },
+  missing: { ru: 'Для этого заказа нужен ваш passkey: нажмите «Подтвердить» и подтвердите на устройстве.', en: 'This order needs your passkey: press Confirm and approve on your device.', th: 'คำสั่งซื้อนี้ต้องใช้พาสคีย์ของคุณ กดยืนยันแล้วยืนยันบนอุปกรณ์' },
+  expired: { ru: 'Запрос passkey истёк. Нажмите «Подтвердить» ещё раз.', en: 'The passkey request expired. Press Confirm to try again.', th: 'คำขอพาสคีย์หมดอายุ กดยืนยันอีกครั้ง' },
+  mismatch: { ru: 'Это подтверждение passkey выдано для другого заказа.', en: 'This passkey approval was issued for a different order.', th: 'การยืนยันด้วยพาสคีย์นี้ออกให้สำหรับคำสั่งซื้ออื่น' },
+  nothingOrdered: { ru: 'Ничего не заказано.', en: 'Nothing was ordered.', th: 'ยังไม่มีการสั่งซื้อ' },
+} satisfies Record<string, T3>;
+const STEP_UP_REASON: Record<string, T3> = {
+  missing: STEP_UP_COPY.missing, expired: STEP_UP_COPY.expired, mismatch: STEP_UP_COPY.mismatch, failed: STEP_UP_COPY.failed,
+};
+
 /** The ten most used assistants and how each can reach Unyly today. */
 const ASSISTANTS: { name: string; where: T3; kind: keyof typeof KIND; steps: T3[]; note?: T3 }[] = [
   {
@@ -201,6 +236,7 @@ export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
   <span class="eyebrow">${icon('plug')} MCP · OAuth 2.1</span>
   <h1>${m.connectTitle}</h1>
   <p class="lead">${m.connectLead}</p>
+  <p class="small"><a href="/docs#connect">${icon('code')} ${tr(l, { ru: 'Пошаговое руководство и настройка OAuth в документации', en: 'Step-by-step guide and OAuth details in the docs', th: 'คู่มือทีละขั้นตอนและรายละเอียด OAuth ในเอกสาร' })} ${icon('arrow')}</a></p>
 </div>
 <div class="grid two-1">
   <div class="stack">
@@ -247,7 +283,7 @@ export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
       html`<article class="contact-card ${dark ? 'dark' : ''}"><span class="ico">${icon(ic)}</span><h2>${title}</h2><p>${lead}</p>${body}</article>`;
     return send(reply, r, tr(l, { ru: 'Контакты', en: 'Contacts', th: 'ติดต่อ' }), html`
 <div class="page-head contact-hero">
-  <span class="unicorn" aria-hidden="true"><img src="/static/brand/unicorn.png" width="64" height="64" alt=""></span>
+  <span class="unicorn" aria-hidden="true"><img src="/static/brand/unicorn.png?v=${ASSET_VERSION}" width="64" height="64" alt=""></span>
   <div><span class="eyebrow">${icon('chat')} Unyly</span><h1>${tr(l, { ru: 'Контакты', en: 'Contacts', th: 'ติดต่อ' })}</h1>
   <p class="lead">${tr(l, { ru: 'Пишите по партнёрству, вопросам и ошибкам. Отвечаем на английском, русском и тайском.', en: 'Reach us about partnerships, questions or bugs. We reply in English, Russian and Thai.', th: 'ติดต่อเราเรื่องความร่วมมือ คำถาม หรือข้อผิดพลาด เราตอบเป็นภาษาอังกฤษ รัสเซีย และไทย' })}</p></div>
 </div>
@@ -299,8 +335,9 @@ export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
         tr(l, { ru: 'Кабинет → Подключения → Отозвать доступ. Токен перестаёт работать сразу.', en: 'Dashboard → Connections → Revoke access. The token stops working immediately.', th: 'แดชบอร์ด → การเชื่อมต่อ → เพิกถอนสิทธิ์ โทเคนจะหยุดทำงานทันที' })],
     ];
     return send(reply, r, r.m.helpTitle, html`<div class="page-head"><h1>${r.m.helpTitle}</h1></div>
+<a class="card docs-promo" href="/docs"><span class="ico">${icon('code')}</span><span><strong>${tr(l, { ru: 'Документация', en: 'Documentation', th: 'เอกสาร' })}</strong><br><span class="small muted">${tr(l, { ru: 'Как всё устроено: подключение ассистентов, подтверждение, инструменты MCP, ошибки, лимиты и данные.', en: 'How everything works: connecting assistants, confirmation, MCP tools, errors, limits and your data.', th: 'ทุกอย่างทำงานอย่างไร: การเชื่อมต่อผู้ช่วย การยืนยัน เครื่องมือ MCP ข้อผิดพลาด ขีดจำกัด และข้อมูลของคุณ' })}</span></span>${icon('arrow')}</a>
 ${qa.map(([q, a]) => html`<details><summary>${q}</summary><p>${a}</p></details>`)}
-<div class="card tint stack" style="margin-top:28px"><h3>${r.m.support}</h3><p>${fmt(r.m.supportLead, { email: supportEmail })}</p></div>`, { narrow: true });
+<div class="card tint stack" style="margin-top:28px"><h2 class="h3">${r.m.support}</h2><p>${fmt(r.m.supportLead, { email: supportEmail })}</p></div>`, { narrow: true });
   });
 
   app.get('/privacy', async (req, reply) => {
@@ -813,6 +850,15 @@ ${data.notices.map((n) => html`<p class="notice warn" role="status">${n}</p>`)}
       return null;
     })();
     const actionable = c.status === 'awaiting_user' || (c.status === 'approved' && !v.attempt);
+    // Step-up for large totals: a passkey assertion bound to this checkout (only when approval is still pending).
+    const su = await stepUpPolicy(ctx, r.s.user.id, c);
+    const stepUp = c.status === 'awaiting_user' && su.required;
+    const stepUpLabel = su.large && su.threshold_minor !== null
+      ? html`<tr class="sub step-up"><td colspan="2">${icon('lock')} ${fmt(tr(l, STEP_UP_COPY.label), { amount: formatMinor(su.threshold_minor, c.currency, l) })}${su.required ? '' : ` (${tr(l, STEP_UP_COPY.labelOptional)})`}</td></tr>`
+      : '';
+    const stepUpNote = actionable && su.large && !su.required
+      ? html`<p class="notice small" role="note">${tr(l, STEP_UP_COPY.recommend)} <a href="${r.s.user.is_guest ? '/login' : '/app/data#passkeys'}">${r.s.user.is_guest ? tr(l, STEP_UP_COPY.createAccount) : tr(l, STEP_UP_COPY.manage)}</a></p>`
+      : '';
     const line = (label: string, mm: { amount_minor: number }, always = false) =>
       always || mm.amount_minor !== 0 ? html`<tr class="sub"><td>${label}</td><td class="num">${formatMinor(mm.amount_minor, c.currency, l)}</td></tr>` : '';
     const min = tr(l, { ru: 'мин', en: 'min', th: 'นาที' });
@@ -833,6 +879,7 @@ ${flash ?? ''}${state ?? ''}
     })}
     ${line(v.trip ? tr(l, { ru: 'Стоимость поездки', en: 'Fare', th: 'ค่าโดยสาร' }) : v.service === 'food' ? m.subtotal : tr(l, { ru: 'Товары', en: 'Items', th: 'สินค้า' }), b.items_subtotal, true)}${line(m.deliveryFee, b.delivery_fee, !v.trip)}${line(m.serviceFee, b.service_fee)}${line(m.smallOrderFee, b.small_order_fee)}${line(m.discount, b.discount)}
     <tr class="total"><td>${m.total}</td><td class="num">${formatMinor(b.total.amount_minor, c.currency, l)}</td></tr>
+    ${stepUpLabel}
   </tbody></table>
   <dl class="facts">
     ${v.trip
@@ -846,10 +893,14 @@ ${flash ?? ''}${state ?? ''}
   </dl>
   <p class="small muted">${fmt(m.priceSource, { src: v.price_source, time: dt(v.quote_fetched_at, l) })}</p>
 </div>
+${stepUpNote}
 ${actionable ? html`<div class="confirm-actions">
   <p class="small valid">${icon('clock')} ${fmt(m.validUntil, { time: dt(c.expires_at, l) })}</p>
-  <form method="post" action="/confirm/${c.id}">${csrfField(r.s)}<input type="hidden" name="total_minor" value="${c.total_minor}">
-    <button class="btn block lg" type="submit">${icon('lock')} ${fmt(m.confirmBtn, { total: formatMinor(b.total.amount_minor, c.currency, l) })}</button></form>
+  <form method="post" action="/confirm/${c.id}" ${stepUp
+    ? html`id="confirm-form" data-step-up="/confirm/${c.id}/step-up/options" data-csrf="${r.s.csrf}" data-msg-unsupported="${tr(l, STEP_UP_COPY.unsupported)}" data-msg-cancelled="${tr(l, STEP_UP_COPY.cancelled)}" data-msg-not-allowed="${tr(l, STEP_UP_COPY.notAllowed)}" data-msg-failed="${tr(l, STEP_UP_COPY.failed)}" data-msg-working="${m.pkWorking}"`
+    : ''}>${csrfField(r.s)}<input type="hidden" name="total_minor" value="${c.total_minor}">${stepUp ? html`<input type="hidden" name="step_up" value="">` : ''}
+    <button class="btn block lg" type="submit">${icon('lock')} ${fmt(m.confirmBtn, { total: formatMinor(b.total.amount_minor, c.currency, l) })}</button>
+    ${stepUp ? html`<p class="small muted center" id="step-up-status" role="status" aria-live="polite">${tr(l, STEP_UP_COPY.hint)}</p><noscript><p class="notice warn small">${tr(l, STEP_UP_COPY.unsupported)}</p></noscript>` : ''}</form>
   <form method="post" action="/confirm/${c.id}/decline">${csrfField(r.s)}<button class="btn ghost block" type="submit">${m.declineBtn}</button></form>
   <p class="small muted center">${tr(l, { ru: 'Эту кнопку можете нажать только вы. Ассистент не может подтвердить заказ за вас.', en: 'Only you can press this button. Your assistant cannot confirm for you.', th: 'มีเพียงคุณที่กดปุ่มนี้ได้ ผู้ช่วยยืนยันแทนคุณไม่ได้' })}</p>
 </div>` : ''}
@@ -874,7 +925,7 @@ ${fromTry ? html`<details class="trace"><summary>${icon('code')} ${tr(l, { ru: '
     try {
       const v = await checkoutView(ctx, r.s.user.id, id);
       if (!Number.isSafeInteger(seen) || seen !== Number(v.checkout.total_minor)) throw new DomainError('PRICE_CHANGED', 'The total changed; please review again.');
-      await approveCheckout(ctx, r.s.user.id, id);
+      await approveCheckout(ctx, r.s.user.id, id, { stepUp: (req.body as any)?.step_up });
       await submitOrder(ctx, { userId: r.s.user.id, via: 'web' }, id);
       const placed = (await ctx.db.query('SELECT id, provider_order_ref FROM orders WHERE checkout_id = $1 AND user_id = $2', [id, r.s.user.id])).rows[0];
       if (!placed) return reply.redirect(`/confirm/${id}`);
@@ -889,7 +940,29 @@ ${fromTry ? html`<details class="trace"><summary>${icon('code')} ${tr(l, { ru: '
     } catch (e) {
       if (isDomainError(e) && e.code === 'NOT_FOUND') return notFound(reply, r);
       if (isDomainError(e) && e.code === 'SUBMISSION_UNKNOWN') return reply.redirect(`/confirm/${id}`);
+      if (isDomainError(e) && e.code === 'STEP_UP_REQUIRED') {
+        const why = STEP_UP_REASON[String(e.details?.reason)] ?? STEP_UP_COPY.failed;
+        return renderConfirm(req, reply, r, id, html`<div class="notice bad" role="alert">${tr(r.l, why)} ${tr(r.l, STEP_UP_COPY.nothingOrdered)}</div>`, 403);
+      }
       return renderConfirm(req, reply, r, id, errorBox(e), 409);
+    }
+  });
+
+  // Passkey options for approving one large checkout (JSON, same-origin, session CSRF token in the body).
+  app.post('/confirm/:id/step-up/options', pkRate, async (req, reply) => {
+    if (!sameOrigin(req)) return reply.code(403).send({ error: 'forbidden' });
+    const s = await loadSession(ctx, req);
+    if (!s) return reply.code(401).send({ error: 'AUTH_REQUIRED', message: 'Sign in again' });
+    const id = (req.params as any).id;
+    try {
+      checkCsrf(ctx, req, s);
+      if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Checkout not found');
+      const v = await checkoutView(ctx, s.user.id, id);
+      if (v.checkout.status !== 'awaiting_user') throw new DomainError('CONFIRMATION_INVALIDATED', 'This confirmation is no longer pending.');
+      if (!(await stepUpPolicy(ctx, s.user.id, v.checkout)).required) throw new DomainError('VALIDATION_FAILED', 'This order does not need a passkey.');
+      return reply.header('cache-control', 'no-store').send(await stepUpOptions(ctx, s.user.id, id));
+    } catch (e) {
+      return pkError(reply, e);
     }
   });
 
@@ -1060,7 +1133,7 @@ ${tokenSection}`, { narrow: true });
     const pks = await listPasskeys(ctx, r.s.user.id);
     const added = (req.query as any)?.passkey === 'added';
     return send(reply, r, m.dataTitle, html`<h1>${m.dataTitle}</h1>
-<h2>${m.passkeysTitle}</h2>${added ? html`<p class="notice ok" role="status">${m.pkAdded}</p>` : ''}
+<h2 id="passkeys">${m.passkeysTitle}</h2>${added ? html`<p class="notice ok" role="status">${m.pkAdded}</p>` : ''}
 ${pks.length ? html`<ul class="list card">${pks.map((p: any) => html`<li><span><strong>${p.label || (p.device_type === 'multiDevice' ? 'Synced passkey' : 'Device passkey')}</strong><br><span class="small muted">${dt(p.created_at, r.l)}${p.last_used_at ? html` · ${m.lastUsed}: ${dt(p.last_used_at, r.l)}` : ''}</span></span>
 ${pks.length > 1 ? html`<form method="post" action="/app/passkeys/delete">${csrfField(r.s)}<input type="hidden" name="id" value="${p.id}"><button class="btn secondary" type="submit">${m.delete}</button></form>` : ''}</li>`)}</ul>` : html`<p class="muted">${m.noPasskeys}</p>`}
 ${r.s.user.is_guest ? '' : html`<div class="stack" id="pk-add-box" data-csrf="${r.s.csrf}" ${pkData(r)}><button class="btn secondary" type="button" id="pk-add">${m.addPasskey}</button><p class="small muted" id="pk-add-status" role="status" aria-live="polite"></p></div>`}
@@ -1099,6 +1172,7 @@ ${r.s.user.is_guest ? '' : html`<div class="stack" id="pk-add-box" data-csrf="${
   }
 
   registerShowcase(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });
+  registerDocsRoutes(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });
 
   app.setNotFoundHandler(async (req, reply) => {
     if (req.url.startsWith('/mcp') || req.url.startsWith('/oauth') || req.url.startsWith('/.well-known') || req.url.startsWith('/webhooks')) {

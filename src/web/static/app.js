@@ -132,6 +132,44 @@ document.addEventListener('submit', (e) => {
       }
     });
   }
+
+  // Step-up on the confirmation page: a large order is approved with a passkey assertion bound to this
+  // checkout. The assertion travels in the form (hidden step_up field) with the usual CSRF token.
+  const confirmForm = document.getElementById('confirm-form');
+  if (confirmForm && confirmForm.dataset.stepUp) {
+    const st = document.getElementById('step-up-status');
+    const field = confirmForm.querySelector('input[name=step_up]');
+    const reset = () => {
+      delete confirmForm.dataset.submitted;
+      confirmForm.querySelectorAll('button').forEach((b) => b.removeAttribute('aria-busy'));
+    };
+    confirmForm.addEventListener('submit', async (ev) => {
+      if (field.value) return; // assertion attached: let the form go
+      ev.preventDefault();
+      if (!supported()) {
+        setStatus(st, confirmForm, confirmForm.dataset.msgUnsupported);
+        setTimeout(reset);
+        return;
+      }
+      try {
+        setStatus(st, confirmForm, confirmForm.dataset.msgWorking);
+        const { challenge_id, options } = await post(confirmForm.dataset.stepUp, { _csrf: confirmForm.dataset.csrf });
+        const cred = await navigator.credentials.get({ publicKey: requestOptions(options) });
+        if (!cred) throw Object.assign(new Error('no credential'), { name: 'NotAllowedError' });
+        field.value = JSON.stringify({ challenge_id, response: credToJSON(cred) });
+        confirmForm.submit();
+      } catch (e) {
+        const name = e && e.name;
+        const msg = e && e.server ? confirmForm.dataset.msgFailed
+          : name === 'NotAllowedError' || name === 'AbortError' ? confirmForm.dataset.msgCancelled
+          : name === 'SecurityError' || name === 'InvalidStateError' || name === 'NotSupportedError' ? confirmForm.dataset.msgNotAllowed
+          : confirmForm.dataset.msgFailed;
+        setStatus(st, confirmForm, msg);
+        field.value = '';
+        reset();
+      }
+    });
+  }
 })();
 
 // ---------------- Guided demo: example chips fill the request box ----------------
@@ -198,3 +236,89 @@ for (const a of document.querySelectorAll('.lang-menu a[hreflang]')) {
   u.searchParams.set('lang', a.getAttribute('hreflang'));
   a.href = u.pathname + u.search + u.hash;
 }
+
+// ---------------- Docs: scroll-spy table of contents, section filter, copy heading links ----------------
+(() => {
+  const root = document.querySelector('[data-docs]');
+  if (!root) return;
+  const sections = [...root.querySelectorAll('section.doc-section')];
+  const tocLinks = [...document.querySelectorAll('.docs-toc a[href^="#"]')];
+  const linksFor = (id) => tocLinks.filter((a) => a.getAttribute('href') === `#${id}`);
+  let current = '';
+  const setActive = (id) => {
+    if (id === current) return;
+    current = id;
+    for (const a of tocLinks) {
+      if (a.getAttribute('href') === `#${id}`) a.setAttribute('aria-current', 'true');
+      else a.removeAttribute('aria-current');
+    }
+    const side = document.querySelector('.docs-side .docs-toc');
+    const act = side?.querySelector('a[aria-current]');
+    if (side && act && side.scrollHeight > side.clientHeight) {
+      const top = act.offsetTop - side.clientHeight / 2;
+      side.scrollTo({ top: Math.max(0, top) });
+    }
+  };
+  let ticking = false;
+  const spy = () => {
+    ticking = false;
+    const line = 130;
+    let id = '';
+    for (const s of sections) {
+      if (s.hidden) continue;
+      if (s.getBoundingClientRect().top - line <= 0) id = s.id;
+      else break;
+    }
+    if (!id) id = sections.find((s) => !s.hidden)?.id ?? '';
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) {
+      const vis = sections.filter((s) => !s.hidden);
+      if (vis.length) id = vis[vis.length - 1].id;
+    }
+    setActive(id);
+  };
+  addEventListener('scroll', () => {
+    if (!ticking) {
+      ticking = true;
+      requestAnimationFrame(spy);
+    }
+  }, { passive: true });
+  // First pass after the first frame: measuring now would force a layout of the whole page mid-script.
+  requestAnimationFrame(() => setTimeout(spy));
+
+  // The mobile "On this page" menu closes after a jump.
+  for (const a of document.querySelectorAll('.docs-toc-mobile a')) a.addEventListener('click', () => a.closest('details')?.removeAttribute('open'));
+
+  // Filter sections by text. Hidden until JavaScript runs, so it never shows a dead control.
+  const box = document.querySelector('.docs-search');
+  const input = document.getElementById('docs-search');
+  const empty = root.querySelector('.docs-empty');
+  if (box && input) {
+    box.hidden = false;
+    const norm = (s) => s.toLocaleLowerCase().replace(/\s+/g, ' ');
+    let texts = null; // built on first use: reading all section text up front slows the first load
+    input.addEventListener('input', () => {
+      texts ??= new Map(sections.map((s) => [s, norm(s.textContent || '')]));
+      const q = norm(input.value.trim());
+      let shown = 0;
+      for (const s of sections) {
+        const hit = !q || texts.get(s).includes(q);
+        s.hidden = !hit;
+        for (const a of linksFor(s.id)) a.parentElement.hidden = !hit;
+        if (hit) shown++;
+      }
+      if (empty) empty.hidden = shown > 0;
+      spy();
+    });
+  }
+
+  // Heading anchors: follow the link and copy the full URL.
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest?.('a.doc-anchor');
+    if (!a) return;
+    const url = location.origin + location.pathname + location.search + a.getAttribute('href');
+    navigator.clipboard?.writeText(url).then(() => {
+      a.classList.add('copied');
+      setTimeout(() => a.classList.remove('copied'), 1500);
+    }).catch(() => {});
+  });
+})();

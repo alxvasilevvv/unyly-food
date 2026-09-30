@@ -18,11 +18,13 @@ import {
 } from './auth/oauth.js';
 import { checkCsrf, loadSession, requireSameOrigin } from './auth/session.js';
 import { buildMcpServer } from './mcp/tools.js';
+import { registerServerCard } from './mcp/server-card.js';
 import { ingestWebhook } from './services/orders.js';
 import { ASSET_VERSION, loadStaticAssets } from './web/assets.js';
 import { html } from './web/html.js';
 import { page } from './web/layout.js';
 import { fmt, Locale, msg } from './web/messages.js';
+import { registerDiscoveryRoutes } from './web/discovery.js';
 import { detectLocale, registerWebRoutes } from './web/routes.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -190,7 +192,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     }
     if (isDomainError(err)) {
       if (req.headers.accept?.includes('text/html')) {
-        return reply.code(err.httpStatus).type('text/html').send(page({ title: 'Error', locale: detectLocale(req, null), loggedIn: false, body: html`<h1>${err.message}</h1><p><a href="/app">←</a></p>` }));
+        return reply.code(err.httpStatus).type('text/html').send(page({ title: 'Error', locale: detectLocale(req, null), loggedIn: false, noindex: true, body: html`<h1>${err.message}</h1><p><a href="/app">←</a></p>` }));
       }
       return reply.code(err.httpStatus).send({ error: err.code, message: err.message });
     }
@@ -206,9 +208,9 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     const key = String((req.params as any)['*'] ?? '');
     const a = /^[a-z0-9._/-]+$/i.test(key) && !key.includes('..') ? assets.get(key) : undefined;
     if (!a) return reply.code(404).send();
-    // Only css/js carry a content hash (?v=); fonts get a long but finite cache.
+    // Pages link css, js and images with the content hash (?v=); fonts (referenced from the CSS) get a long but finite cache.
     const versioned = (req.query as any)?.v === ASSET_VERSION;
-    const fontCache = key.startsWith('fonts/') ? 'public, max-age=2592000' : 'public, max-age=300';
+    const fontCache = key.startsWith('fonts/') ? 'public, max-age=2592000' : key.startsWith('brand/') ? 'public, max-age=86400' : 'public, max-age=300';
     return reply
       .header('content-type', a.type)
       .header('cache-control', versioned ? 'public, max-age=31536000, immutable' : fontCache)
@@ -232,6 +234,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   const prmPath = new URL(prMetadataUrl(ctx)).pathname;
   app.get('/.well-known/oauth-protected-resource', async () => prMetadata(ctx));
   if (prmPath !== '/.well-known/oauth-protected-resource') app.get(prmPath, async () => prMetadata(ctx));
+  registerServerCard(app, ctx);
 
   const oauthErr = (reply: FastifyReply, e: unknown) => {
     if (e instanceof OAuthError) return reply.code(e.status).header('cache-control', 'no-store').send({ error: e.error, error_description: e.description });
@@ -298,7 +301,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     } catch (e) {
       // Never redirect on an untrusted client/redirect_uri: show the error here.
       const desc = e instanceof OAuthError ? `${e.error}: ${e.description}` : 'invalid_request';
-      return reply.code(400).type('text/html').send(page({ title: m.errorTitle, locale: l, loggedIn: !!s, narrow: true, body: html`<h1>${m.errorTitle}</h1><p class="notice bad">${desc}</p>` }));
+      return reply.code(400).type('text/html').send(page({ title: m.errorTitle, locale: l, loggedIn: !!s, narrow: true, noindex: true, body: html`<h1>${m.errorTitle}</h1><p class="notice bad">${desc}</p>` }));
     }
     const scopeName = (sc: string) => (m as any)[`scope_${sc.replace(':', '_')}`] ?? sc;
     const redirectOrigin = new URL(areq.redirect_uri).origin;
@@ -306,7 +309,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     reply.header('content-security-policy', `default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'self' ${redirectOrigin}`);
     return reply.type('text/html').header('cache-control', 'no-store').send(
       page({
-        title: fmt(m.consentTitle, { client: areq.client.client_name }), locale: l, loggedIn: true, csrf: s.csrf, narrow: true, mode: s.user.mode,
+        title: fmt(m.consentTitle, { client: areq.client.client_name }), locale: l, loggedIn: true, noindex: true, csrf: s.csrf, narrow: true, mode: s.user.mode,
         body: html`<h1>${fmt(m.consentTitle, { client: areq.client.client_name })}</h1>
 <p class="lead">${m.consentLead}</p>
 <p class="notice warn small">${m.unverifiedClient}</p>
@@ -449,6 +452,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     });
   });
 
+  registerDiscoveryRoutes(app, ctx);
   registerWebRoutes(app, ctx);
   return app;
 }

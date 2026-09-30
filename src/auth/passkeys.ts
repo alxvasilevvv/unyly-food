@@ -18,10 +18,13 @@ const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 
 const rp = (ctx: Ctx) => ({ id: new URL(ctx.cfg.webOrigin).hostname, origin: ctx.cfg.webOrigin, name: 'Unyly' });
 
-async function storeChallenge(ctx: Ctx, purpose: 'register' | 'add' | 'login', challenge: string, extra: { email?: string; userId?: string; userHandle?: string } = {}) {
+async function storeChallenge(
+  ctx: Ctx, purpose: 'register' | 'add' | 'login' | 'step_up', challenge: string,
+  extra: { email?: string; userId?: string; userHandle?: string; checkoutId?: string; ttlMs?: number } = {},
+) {
   const r = await ctx.db.query(
-    'INSERT INTO webauthn_challenges (purpose, challenge, email, user_id, user_handle, expires_at) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id',
-    [purpose, challenge, extra.email ?? null, extra.userId ?? null, extra.userHandle ?? null, new Date(Date.now() + CHALLENGE_TTL_MS)],
+    'INSERT INTO webauthn_challenges (purpose, challenge, email, user_id, user_handle, checkout_id, expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
+    [purpose, challenge, extra.email ?? null, extra.userId ?? null, extra.userHandle ?? null, extra.checkoutId ?? null, new Date(Date.now() + (extra.ttlMs ?? CHALLENGE_TTL_MS))],
   );
   return r.rows[0].id as string;
 }
@@ -37,7 +40,7 @@ async function consumeChallenge(ctx: Ctx, id: unknown, purpose: string[]) {
        SELECT * FROM webauthn_challenges WHERE id = $1 AND consumed_at IS NULL AND expires_at > now() AND purpose = ANY($2) FOR UPDATE
      )
      UPDATE webauthn_challenges w SET consumed_at = now(), email = NULL FROM c WHERE w.id = c.id
-     RETURNING c.id, c.purpose, c.challenge, c.email, c.user_id, c.user_handle`,
+     RETURNING c.id, c.purpose, c.challenge, c.email, c.user_id, c.user_handle, c.checkout_id`,
     [id, purpose],
   );
   if (!r.rows[0]) throw new DomainError('AUTH_REQUIRED', 'The passkey request expired. Try again.');
@@ -161,4 +164,80 @@ export async function deletePasskey(ctx: Ctx, userId: string, credId: string) {
     await q.query('DELETE FROM webauthn_credentials WHERE id = $1 AND user_id = $2', [credId, userId]);
     await audit(q, { userId, actor: 'web', action: 'user.passkey_deleted' });
   });
+}
+
+// ---------------- Step-up for large orders ----------------
+/** A step-up challenge lives 2 minutes: long enough for one device prompt, short enough not to be stockpiled. */
+export const STEP_UP_TTL_MS = 2 * 60_000;
+
+export async function hasPasskey(ctx: Ctx, userId: string): Promise<boolean> {
+  return (await ctx.db.query('SELECT 1 FROM webauthn_credentials WHERE user_id = $1 LIMIT 1', [userId])).rowCount! > 0;
+}
+
+const stepUpError = (reason: 'missing' | 'expired' | 'mismatch' | 'failed', message: string) =>
+  new DomainError('STEP_UP_REQUIRED', message, { reason }, 'Ask the user to press Confirm again and approve with their passkey.');
+
+/**
+ * Options for a passkey assertion that approves one checkout. The challenge is stored server side,
+ * bound to (user, checkout), single use, and valid for STEP_UP_TTL_MS. User verification is required.
+ */
+export async function stepUpOptions(ctx: Ctx, userId: string, checkoutId: string) {
+  const creds = await ctx.db.query('SELECT id, transports FROM webauthn_credentials WHERE user_id = $1', [userId]);
+  if (!creds.rowCount) throw new DomainError('VALIDATION_FAILED', 'No passkey is registered for this account');
+  const options = await generateAuthenticationOptions({
+    rpID: rp(ctx).id,
+    userVerification: 'required',
+    timeout: STEP_UP_TTL_MS,
+    allowCredentials: creds.rows.map((c) => ({ id: c.id, transports: c.transports })),
+  });
+  const challengeId = await storeChallenge(ctx, 'step_up', options.challenge, { userId, checkoutId, ttlMs: STEP_UP_TTL_MS });
+  return { challenge_id: challengeId, options };
+}
+
+/**
+ * Verifies the assertion posted with the confirmation form (JSON: { challenge_id, response }).
+ * The challenge is consumed first, so a failed or replayed attempt cannot be retried with it, and it must
+ * have been issued for this user and this checkout. The credential must belong to this user.
+ */
+export async function verifyStepUp(ctx: Ctx, userId: string, checkoutId: string, raw: unknown): Promise<{ credentialId: string }> {
+  let body: any = raw;
+  if (typeof raw === 'string') {
+    if (!raw.trim()) body = null;
+    else {
+      try {
+        body = JSON.parse(raw);
+      } catch {
+        throw stepUpError('failed', 'The passkey response could not be read. Try again.');
+      }
+    }
+  }
+  if (!body || typeof body !== 'object' || !body.challenge_id || !body.response) {
+    throw stepUpError('missing', 'This order needs your passkey. Press Confirm and approve on your device.');
+  }
+  let ch;
+  try {
+    ch = await consumeChallenge(ctx, body.challenge_id, ['step_up']);
+  } catch {
+    throw stepUpError('expired', 'The passkey request expired. Press Confirm to try again.');
+  }
+  if (ch.user_id !== userId || ch.checkout_id !== checkoutId) throw stepUpError('mismatch', 'This passkey approval was issued for a different order.');
+  const credId = String(body.response?.id ?? '');
+  const c = (await ctx.db.query('SELECT * FROM webauthn_credentials WHERE id = $1 AND user_id = $2', [credId, userId])).rows[0];
+  if (!c) throw stepUpError('failed', 'This passkey is not registered to your account.');
+  let v;
+  try {
+    v = await verifyAuthenticationResponse({
+      response: body.response,
+      expectedChallenge: ch.challenge,
+      expectedOrigin: rp(ctx).origin,
+      expectedRPID: rp(ctx).id,
+      credential: { id: c.id, publicKey: new Uint8Array(c.public_key), counter: Number(c.counter), transports: c.transports },
+      requireUserVerification: true,
+    });
+  } catch {
+    throw stepUpError('failed', 'Passkey verification failed.');
+  }
+  if (!v.verified) throw stepUpError('failed', 'Passkey verification failed.');
+  await ctx.db.query('UPDATE webauthn_credentials SET counter = $2, last_used_at = now() WHERE id = $1', [c.id, v.authenticationInfo.newCounter]);
+  return { credentialId: c.id };
 }

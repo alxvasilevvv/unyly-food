@@ -619,11 +619,11 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
 </div>
 ${flash ?? ''}
 <div class="try-shell">
-  <div class="convo">${form}${convo}</div>
+  <div class="convo"><h2 class="sr-only">${tr(l, { ru: 'Диалог с демо-ассистентом', en: 'Conversation with the demo assistant', th: 'บทสนทนากับผู้ช่วยเดโม' })}</h2>${form}${convo}</div>
   <aside class="side stack">
-    <div class="card tool-card"><h3>${icon('code')} ${tr(l, { ru: 'Вызовы MCP', en: 'MCP calls', th: 'การเรียก MCP' })}</h3>${log}
+    <div class="card tool-card"><h2 class="h3">${icon('code')} ${tr(l, { ru: 'Вызовы MCP', en: 'MCP calls', th: 'การเรียก MCP' })}</h2>${log}
       <p class="small muted">${tr(l, { ru: 'Ассистент видит только название адреса и район.', en: 'The assistant only sees the address name and area.', th: 'ผู้ช่วยเห็นเพียงชื่อที่อยู่และเขตเท่านั้น' })}</p></div>
-    <div class="card"><h3>${tr(l, { ru: 'Как проходит демо', en: 'How the demo goes', th: 'ขั้นตอนของเดโม' })}</h3><ol class="steps">${steps.map((s) => html`<li><span class="num" aria-hidden="true"></span><span class="grow">${s}</span></li>`)}</ol></div>
+    <div class="card"><h2 class="h3">${tr(l, { ru: 'Как проходит демо', en: 'How the demo goes', th: 'ขั้นตอนของเดโม' })}</h2><ol class="steps">${steps.map((s) => html`<li><span class="num" aria-hidden="true"></span><span class="grow">${s}</span></li>`)}</ol></div>
   </aside>
 </div>`;
     return send(reply, r, tr(l, { ru: 'Демо', en: 'Live demo', th: 'เดโม' }), body, { status, noBanner: !r.s, description: tr(l, { ru: 'Попробуйте заказ через ИИ-ассистента в браузере.', en: 'Try ordering through an AI assistant in your browser.', th: 'ลองสั่งอาหารผ่านผู้ช่วย AI ในเบราว์เซอร์' }) });

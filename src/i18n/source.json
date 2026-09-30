@@ -26,7 +26,7 @@
  {
   "en": "14 days, then deleted",
   "where": [
-   "src/web/routes.ts:311"
+   "src/web/routes.ts:348"
   ]
  },
  {
@@ -78,6 +78,12 @@
   ]
  },
  {
+  "en": "About this demo",
+  "where": [
+   "src/web/layout.ts:103"
+  ]
+ },
+ {
   "en": "Accepted by restaurant",
   "where": [
    "src/web/messages.ts:389"
@@ -111,7 +117,7 @@
  {
   "en": "Add the URL above in Qwen-Agent or another MCP client running a Qwen model, with Bearer auth and a personal token.",
   "where": [
-   "src/web/routes.ts:83"
+   "src/web/routes.ts:118"
   ]
  },
  {
@@ -129,7 +135,7 @@
  {
   "en": "Addresses and gift recipients",
   "where": [
-   "src/web/routes.ts:316"
+   "src/web/routes.ts:353"
   ]
  },
  {
@@ -143,6 +149,12 @@
   "where": [
    "src/web/showcase.ts:471",
    "src/web/showcase.ts:598"
+  ]
+ },
+ {
+  "en": "After you press Confirm, approve with your passkey.",
+  "where": [
+   "src/web/routes.ts:55"
   ]
  },
  {
@@ -180,7 +192,7 @@
  {
   "en": "All contacts",
   "where": [
-   "src/web/layout.ts:120",
+   "src/web/layout.ts:156",
    "src/web/showcase.ts:298"
   ]
  },
@@ -205,7 +217,7 @@
  {
   "en": "Allergies and diet",
   "where": [
-   "src/web/routes.ts:318"
+   "src/web/routes.ts:355"
   ]
  },
  {
@@ -259,7 +271,7 @@
  {
   "en": "Any MCP client",
   "where": [
-   "src/web/routes.ts:223",
+   "src/web/routes.ts:259",
    "src/web/showcase.ts:169"
   ]
  },
@@ -272,7 +284,7 @@
  {
   "en": "Arrival",
   "where": [
-   "src/web/routes.ts:828"
+   "src/web/routes.ts:874"
   ]
  },
  {
@@ -308,7 +320,7 @@
  {
   "en": "Assistant connections (OAuth)",
   "where": [
-   "src/web/routes.ts:313"
+   "src/web/routes.ts:350"
   ]
  },
  {
@@ -322,7 +334,7 @@
  {
   "en": "Audit log",
   "where": [
-   "src/web/routes.ts:321"
+   "src/web/routes.ts:358"
   ]
  },
  {
@@ -469,7 +481,7 @@
  {
   "en": "Can the assistant order without me?",
   "where": [
-   "src/web/routes.ts:290"
+   "src/web/routes.ts:326"
   ]
  },
  {
@@ -524,7 +536,7 @@
  {
   "en": "Carts, quotes, orders",
   "where": [
-   "src/web/routes.ts:320"
+   "src/web/routes.ts:357"
   ]
  },
  {
@@ -591,7 +603,7 @@
  {
   "en": "claude.ai, Desktop, mobile",
   "where": [
-   "src/web/routes.ts:50"
+   "src/web/routes.ts:85"
   ]
  },
  {
@@ -627,13 +639,13 @@
  {
   "en": "Company",
   "where": [
-   "src/web/routes.ts:267"
+   "src/web/routes.ts:303"
   ]
  },
  {
   "en": "Concept demo built for a Grab partnership. Not affiliated with or endorsed by Grab.",
   "where": [
-   "src/web/layout.ts:73"
+   "src/web/layout.ts:107"
   ]
  },
  {
@@ -732,28 +744,34 @@
  {
   "en": "Connectors",
   "where": [
-   "src/web/routes.ts:65",
-   "src/web/routes.ts:69"
+   "src/web/routes.ts:100",
+   "src/web/routes.ts:104"
   ]
  },
  {
   "en": "Connectors, all plans",
   "where": [
-   "src/web/routes.ts:74"
+   "src/web/routes.ts:109"
   ]
  },
  {
   "en": "Contacts",
   "where": [
-   "src/web/layout.ts:114",
-   "src/web/routes.ts:248",
-   "src/web/routes.ts:251"
+   "src/web/layout.ts:150",
+   "src/web/routes.ts:284",
+   "src/web/routes.ts:287"
   ]
  },
  {
   "en": "convenience",
   "where": [
    "src/providers/demo/catalog.ts:160"
+  ]
+ },
+ {
+  "en": "Conversation with the demo assistant",
+  "where": [
+   "src/web/showcase.ts:622"
   ]
  },
  {
@@ -765,13 +783,13 @@
  {
   "en": "Copilot Studio",
   "where": [
-   "src/web/routes.ts:60"
+   "src/web/routes.ts:95"
   ]
  },
  {
   "en": "Copilot Studio → your agent → Tools → Add an MCP server",
   "where": [
-   "src/web/routes.ts:61"
+   "src/web/routes.ts:96"
   ]
  },
  {
@@ -781,9 +799,15 @@
   ]
  },
  {
+  "en": "Copy link",
+  "where": [
+   "src/web/docs-routes.ts:28"
+  ]
+ },
+ {
   "en": "Copy the token now: it will not be shown again.",
   "where": [
-   "src/web/routes.ts:991"
+   "src/web/routes.ts:1064"
   ]
  },
  {
@@ -817,15 +841,21 @@
   ]
  },
  {
+  "en": "Create an account with a passkey",
+  "where": [
+   "src/web/routes.ts:54"
+  ]
+ },
+ {
   "en": "Create an app, paste the MCP URL above, OAuth authentication",
   "where": [
-   "src/web/routes.ts:46"
+   "src/web/routes.ts:81"
   ]
  },
  {
   "en": "Create token",
   "where": [
-   "src/web/routes.ts:1005"
+   "src/web/routes.ts:1078"
   ]
  },
  {
@@ -870,7 +900,7 @@
  {
   "en": "Dashboard → Connections → Revoke access. The token stops working immediately.",
   "where": [
-   "src/web/routes.ts:299"
+   "src/web/routes.ts:335"
   ]
  },
  {
@@ -913,13 +943,13 @@
  {
   "en": "deleted after 1 day",
   "where": [
-   "src/web/routes.ts:310"
+   "src/web/routes.ts:347"
   ]
  },
  {
   "en": "deleted with all data after 24 hours",
   "where": [
-   "src/web/routes.ts:312"
+   "src/web/routes.ts:349"
   ]
  },
  {
@@ -1030,7 +1060,7 @@
  {
   "en": "Details",
   "where": [
-   "src/web/layout.ts:75",
+   "src/web/layout.ts:109",
    "src/web/messages.ts:376"
   ]
  },
@@ -1065,6 +1095,20 @@
   ]
  },
  {
+  "en": "Docs",
+  "where": [
+   "src/web/layout.ts:117"
+  ]
+ },
+ {
+  "en": "Documentation",
+  "where": [
+   "src/web/docs-routes.ts:46",
+   "src/web/layout.ts:142",
+   "src/web/routes.ts:338"
+  ]
+ },
+ {
   "en": "Documents and parcels up to 20 kg.",
   "where": [
    "src/providers/demo/catalog.ts:260"
@@ -1092,6 +1136,12 @@
   "en": "Download data (JSON)",
   "where": [
    "src/web/messages.ts:447"
+  ]
+ },
+ {
+  "en": "Download Markdown",
+  "where": [
+   "src/web/docs-routes.ts:34"
   ]
  },
  {
@@ -1135,7 +1185,7 @@
  {
   "en": "Drop-off",
   "where": [
-   "src/web/routes.ts:840"
+   "src/web/routes.ts:887"
   ]
  },
  {
@@ -1154,6 +1204,12 @@
   "en": "Email codes are disabled on this server. If you lost your passkey, contact support to receive a one-time code.",
   "where": [
    "src/web/messages.ts:289"
+  ]
+ },
+ {
+  "en": "English",
+  "where": [
+   "src/web/docs-routes.ts:10"
   ]
  },
  {
@@ -1214,7 +1270,7 @@
  {
   "en": "Fare",
   "where": [
-   "src/web/routes.ts:834"
+   "src/web/routes.ts:880"
   ]
  },
  {
@@ -1290,25 +1346,25 @@
  {
   "en": "For assistants that take a bearer token instead of OAuth sign-in: Mistral Le Chat, Copilot Studio, Perplexity, API integrations. A token has the same powers as an OAuth connection: you still confirm every order on an Unyly page.",
   "where": [
-   "src/web/routes.ts:988"
+   "src/web/routes.ts:1061"
   ]
  },
  {
   "en": "For developers",
   "where": [
-   "src/web/routes.ts:218"
+   "src/web/routes.ts:254"
   ]
  },
  {
   "en": "For Grab",
   "where": [
-   "src/web/layout.ts:81"
+   "src/web/layout.ts:115"
   ]
  },
  {
   "en": "for Grab · concept",
   "where": [
-   "src/web/layout.ts:78"
+   "src/web/layout.ts:112"
   ]
  },
  {
@@ -1406,25 +1462,25 @@
  {
   "en": "Gemini CLI: add the server to settings.json (httpUrl) and sign in via the browser",
   "where": [
-   "src/web/routes.ts:56"
+   "src/web/routes.ts:91"
   ]
  },
  {
   "en": "Gemini Enterprise and Gemini CLI",
   "where": [
-   "src/web/routes.ts:55"
+   "src/web/routes.ts:90"
   ]
  },
  {
   "en": "Gemini Enterprise: an admin adds an MCP server with the URL above (Streamable HTTP, OAuth)",
   "where": [
-   "src/web/routes.ts:56"
+   "src/web/routes.ts:91"
   ]
  },
  {
   "en": "General questions and press",
   "where": [
-   "src/web/routes.ts:263"
+   "src/web/routes.ts:299"
   ]
  },
  {
@@ -1576,25 +1632,25 @@
  {
   "en": "Guest demo account",
   "where": [
-   "src/web/routes.ts:497"
+   "src/web/routes.ts:534"
   ]
  },
  {
   "en": "Guest demo accounts",
   "where": [
-   "src/web/routes.ts:312"
+   "src/web/routes.ts:349"
   ]
  },
  {
   "en": "Guest IP hash",
   "where": [
-   "src/web/routes.ts:319"
+   "src/web/routes.ts:356"
   ]
  },
  {
   "en": "Guest sessions are deleted after 24 hours.",
   "where": [
-   "src/web/layout.ts:93"
+   "src/web/layout.ts:128"
   ]
  },
  {
@@ -1624,7 +1680,7 @@
  {
   "en": "Handoff; demo data is Bangkok",
   "where": [
-   "src/web/routes.ts:544"
+   "src/web/routes.ts:581"
   ]
  },
  {
@@ -1636,7 +1692,7 @@
  {
   "en": "Header",
   "where": [
-   "src/web/routes.ts:993"
+   "src/web/routes.ts:1066"
   ]
  },
  {
@@ -1686,7 +1742,7 @@
   "en": "Home",
   "where": [
    "src/web/messages.ts:339",
-   "src/web/routes.ts:1098"
+   "src/web/routes.ts:1171"
   ]
  },
  {
@@ -1743,13 +1799,19 @@
  {
   "en": "How accurate are allergens?",
   "where": [
-   "src/web/routes.ts:296"
+   "src/web/routes.ts:332"
   ]
  },
  {
   "en": "How do I disconnect an assistant?",
   "where": [
-   "src/web/routes.ts:298"
+   "src/web/routes.ts:334"
+  ]
+ },
+ {
+  "en": "How everything works: connecting assistants, confirmation, MCP tools, errors, limits and your data.",
+  "where": [
+   "src/web/routes.ts:338"
   ]
  },
  {
@@ -1823,7 +1885,7 @@
  {
   "en": "If your plan offers custom connectors.",
   "where": [
-   "src/web/routes.ts:71"
+   "src/web/routes.ts:106"
   ]
  },
  {
@@ -1847,7 +1909,7 @@
  {
   "en": "Intelligence → Connectors → Add connector → custom MCP",
   "where": [
-   "src/web/routes.ts:75"
+   "src/web/routes.ts:110"
   ]
  },
  {
@@ -1865,7 +1927,7 @@
  {
   "en": "Is this an official Grab service?",
   "where": [
-   "src/web/routes.ts:288"
+   "src/web/routes.ts:324"
   ]
  },
  {
@@ -1878,7 +1940,7 @@
   "en": "Items",
   "where": [
    "src/web/messages.ts:379",
-   "src/web/routes.ts:834"
+   "src/web/routes.ts:880"
   ]
  },
  {
@@ -1920,13 +1982,13 @@
  {
   "en": "kept with carts and orders",
   "where": [
-   "src/web/routes.ts:317"
+   "src/web/routes.ts:354"
   ]
  },
  {
   "en": "keyed hash for the guest limit, deleted after 24 hours",
   "where": [
-   "src/web/routes.ts:319"
+   "src/web/routes.ts:356"
   ]
  },
  {
@@ -1986,7 +2048,7 @@
  {
   "en": "Live demo",
   "where": [
-   "src/web/layout.ts:104",
+   "src/web/layout.ts:139",
    "src/web/showcase.ts:629"
   ]
  },
@@ -2017,7 +2079,7 @@
  {
   "en": "Main",
   "where": [
-   "src/web/layout.ts:79"
+   "src/web/layout.ts:113"
   ]
  },
  {
@@ -2032,6 +2094,12 @@
   "en": "Make default",
   "where": [
    "src/web/messages.ts:346"
+  ]
+ },
+ {
+  "en": "Manage passkeys",
+  "where": [
+   "src/web/routes.ts:53"
   ]
  },
  {
@@ -2092,13 +2160,13 @@
  {
   "en": "Meetings, the Grab pilot and API access.",
   "where": [
-   "src/web/routes.ts:255"
+   "src/web/routes.ts:291"
   ]
  },
  {
   "en": "Menu labels and plan availability change; checked against each platform's documentation on 2026-09-30.",
   "where": [
-   "src/web/routes.ts:225"
+   "src/web/routes.ts:261"
   ]
  },
  {
@@ -2110,7 +2178,7 @@
  {
   "en": "Meta AI app",
   "where": [
-   "src/web/routes.ts:86"
+   "src/web/routes.ts:121"
   ]
  },
  {
@@ -2134,7 +2202,7 @@
  {
   "en": "min",
   "where": [
-   "src/web/routes.ts:818",
+   "src/web/routes.ts:864",
    "src/web/showcase.ts:470",
    "src/web/showcase.ts:559"
   ]
@@ -2185,13 +2253,13 @@
   "en": "Name",
   "where": [
    "src/web/messages.ts:338",
-   "src/web/routes.ts:1002"
+   "src/web/routes.ts:1075"
   ]
  },
  {
   "en": "name set by the client itself",
   "where": [
-   "src/web/routes.ts:798"
+   "src/web/routes.ts:835"
   ]
  },
  {
@@ -2245,7 +2313,7 @@
  {
   "en": "No assistant at hand?",
   "where": [
-   "src/web/routes.ts:233"
+   "src/web/routes.ts:269"
   ]
  },
  {
@@ -2293,7 +2361,7 @@
  {
   "en": "No MCP yet",
   "where": [
-   "src/web/routes.ts:37"
+   "src/web/routes.ts:39"
   ]
  },
  {
@@ -2321,15 +2389,21 @@
   ]
  },
  {
+  "en": "No sections match. Try another word.",
+  "where": [
+   "src/web/docs-routes.ts:65"
+  ]
+ },
+ {
   "en": "No. Unyly is an independent concept prepared as a partnership proposal. Real Grab orders through Unyly are not available yet: Grab has no public API for ordering on behalf of a customer.",
   "where": [
-   "src/web/routes.ts:289"
+   "src/web/routes.ts:325"
   ]
  },
  {
   "en": "No. You confirm every order and cancellation on an Unyly page after signing in. The assistant cannot press that button.",
   "where": [
-   "src/web/routes.ts:291"
+   "src/web/routes.ts:327"
   ]
  },
  {
@@ -2383,6 +2457,12 @@
   ]
  },
  {
+  "en": "Nothing was ordered.",
+  "where": [
+   "src/web/routes.ts:71"
+  ]
+ },
+ {
   "en": "OAuth metadata",
   "where": [
    "src/web/showcase.ts:244"
@@ -2391,7 +2471,7 @@
  {
   "en": "OAuth or token",
   "where": [
-   "src/web/routes.ts:35"
+   "src/web/routes.ts:37"
   ]
  },
  {
@@ -2403,7 +2483,7 @@
  {
   "en": "OAuth sign-in",
   "where": [
-   "src/web/routes.ts:34"
+   "src/web/routes.ts:36"
   ]
  },
  {
@@ -2411,6 +2491,12 @@
   "where": [
    "src/domain/labels.ts:21",
    "src/domain/labels.ts:27"
+  ]
+ },
+ {
+  "en": "On this page",
+  "where": [
+   "src/web/docs-routes.ts:31"
   ]
  },
  {
@@ -2446,7 +2532,7 @@
  {
   "en": "only a hash is stored; deleted 30 days after revocation or expiry",
   "where": [
-   "src/web/routes.ts:314"
+   "src/web/routes.ts:351"
   ]
  },
  {
@@ -2459,13 +2545,13 @@
  {
   "en": "only after your confirmation",
   "where": [
-   "src/web/routes.ts:862"
+   "src/web/routes.ts:913"
   ]
  },
  {
   "en": "Only you can press this button. Your assistant cannot confirm for you.",
   "where": [
-   "src/web/routes.ts:854"
+   "src/web/routes.ts:905"
   ]
  },
  {
@@ -2483,8 +2569,8 @@
  {
   "en": "Open the demo",
   "where": [
-   "src/web/routes.ts:235",
-   "src/web/routes.ts:1098",
+   "src/web/routes.ts:271",
+   "src/web/routes.ts:1171",
    "src/web/showcase.ts:179"
   ]
  },
@@ -2497,7 +2583,7 @@
  {
   "en": "Or create a personal token under Connections and choose Bearer auth",
   "where": [
-   "src/web/routes.ts:41"
+   "src/web/routes.ts:43"
   ]
  },
  {
@@ -2601,7 +2687,7 @@
   "en": "Parcel",
   "where": [
    "src/domain/labels.ts:54",
-   "src/web/routes.ts:842",
+   "src/web/routes.ts:889",
    "src/web/showcase.ts:45"
   ]
  },
@@ -2645,7 +2731,7 @@
  {
   "en": "Partnership and direct contact",
   "where": [
-   "src/web/routes.ts:255"
+   "src/web/routes.ts:291"
   ]
  },
  {
@@ -2669,13 +2755,13 @@
  {
   "en": "Partnerships, press and security reports (answered within 24 hours).",
   "where": [
-   "src/web/routes.ts:263"
+   "src/web/routes.ts:299"
   ]
  },
  {
   "en": "Pass an Unyly personal token in the authorization field:",
   "where": [
-   "src/web/routes.ts:221"
+   "src/web/routes.ts:257"
   ]
  },
  {
@@ -2685,10 +2771,22 @@
   ]
  },
  {
+  "en": "Passkey required for orders from {amount}",
+  "where": [
+   "src/web/routes.ts:46"
+  ]
+ },
+ {
+  "en": "Passkey verification failed.",
+  "where": [
+   "src/web/routes.ts:67"
+  ]
+ },
+ {
   "en": "Passkeys",
   "where": [
    "src/web/messages.ts:291",
-   "src/web/routes.ts:315"
+   "src/web/routes.ts:352"
   ]
  },
  {
@@ -2700,7 +2798,7 @@
  {
   "en": "Paste the MCP URL above",
   "where": [
-   "src/web/routes.ts:39"
+   "src/web/routes.ts:41"
   ]
  },
  {
@@ -2769,7 +2867,7 @@
  {
   "en": "personal token",
   "where": [
-   "src/web/routes.ts:795"
+   "src/web/routes.ts:832"
   ]
  },
  {
@@ -2781,8 +2879,8 @@
  {
   "en": "Personal tokens",
   "where": [
-   "src/web/routes.ts:314",
-   "src/web/routes.ts:985"
+   "src/web/routes.ts:351",
+   "src/web/routes.ts:1058"
   ]
  },
  {
@@ -2831,7 +2929,7 @@
  {
   "en": "Pickup",
   "where": [
-   "src/web/routes.ts:839"
+   "src/web/routes.ts:886"
   ]
  },
  {
@@ -2879,7 +2977,7 @@
  {
   "en": "Popular assistants",
   "where": [
-   "src/web/routes.ts:214"
+   "src/web/routes.ts:250"
   ]
  },
  {
@@ -2922,13 +3020,13 @@
  {
   "en": "Product",
   "where": [
-   "src/web/layout.ts:102"
+   "src/web/layout.ts:137"
   ]
  },
  {
   "en": "Project",
   "where": [
-   "src/web/layout.ts:108"
+   "src/web/layout.ts:144"
   ]
  },
  {
@@ -2940,7 +3038,7 @@
  {
   "en": "Proposal for Grab",
   "where": [
-   "src/web/layout.ts:109",
+   "src/web/layout.ts:145",
    "src/web/showcase.ts:99",
    "src/web/showcase.ts:207"
   ]
@@ -2979,7 +3077,7 @@
  {
   "en": "public key only, until you remove it",
   "where": [
-   "src/web/routes.ts:315"
+   "src/web/routes.ts:352"
   ]
  },
  {
@@ -2991,13 +3089,13 @@
  {
   "en": "Qwen-Agent and MCP clients",
   "where": [
-   "src/web/routes.ts:82"
+   "src/web/routes.ts:117"
   ]
  },
  {
   "en": "Reach us about partnerships, questions or bugs. We reply in English, Russian and Thai.",
   "where": [
-   "src/web/routes.ts:252"
+   "src/web/routes.ts:288"
   ]
  },
  {
@@ -3034,7 +3132,7 @@
  {
   "en": "Refresh price",
   "where": [
-   "src/web/routes.ts:801"
+   "src/web/routes.ts:838"
   ]
  },
  {
@@ -3089,7 +3187,7 @@
  {
   "en": "Retention for Thailand (PDPA) must be reviewed by counsel before any Live launch.",
   "where": [
-   "src/web/routes.ts:330"
+   "src/web/routes.ts:367"
   ]
  },
  {
@@ -3168,7 +3266,7 @@
  {
   "en": "Route",
   "where": [
-   "src/web/routes.ts:841"
+   "src/web/routes.ts:888"
   ]
  },
  {
@@ -3234,6 +3332,13 @@
   ]
  },
  {
+  "en": "Search docs",
+  "where": [
+   "src/web/docs-routes.ts:60",
+   "src/web/docs-routes.ts:61"
+  ]
+ },
+ {
   "en": "Search, catalogue, pricing, order creation, status, cancellation",
   "where": [
    "src/web/showcase.ts:267"
@@ -3254,7 +3359,7 @@
  {
   "en": "Secure confirmation",
   "where": [
-   "src/web/routes.ts:821"
+   "src/web/routes.ts:867"
   ]
  },
  {
@@ -3315,25 +3420,25 @@
  {
   "en": "Settings → Apps → Advanced → Developer mode",
   "where": [
-   "src/web/routes.ts:46"
+   "src/web/routes.ts:81"
   ]
  },
  {
   "en": "Settings → Connectors → Add custom",
   "where": [
-   "src/web/routes.ts:70"
+   "src/web/routes.ts:105"
   ]
  },
  {
   "en": "Settings → Connectors → Add custom (remote MCP)",
   "where": [
-   "src/web/routes.ts:66"
+   "src/web/routes.ts:101"
   ]
  },
  {
   "en": "Settings → Connectors → Add custom connector",
   "where": [
-   "src/web/routes.ts:51"
+   "src/web/routes.ts:86"
   ]
  },
  {
@@ -3372,7 +3477,7 @@
  {
   "en": "Sign in to Unyly and allow access",
   "where": [
-   "src/web/routes.ts:40"
+   "src/web/routes.ts:42"
   ]
  },
  {
@@ -3408,7 +3513,7 @@
  {
   "en": "Sign-in codes",
   "where": [
-   "src/web/routes.ts:310"
+   "src/web/routes.ts:347"
   ]
  },
  {
@@ -3426,7 +3531,7 @@
  {
   "en": "Skip to content",
   "where": [
-   "src/web/layout.ts:68"
+   "src/web/layout.ts:102"
   ]
  },
  {
@@ -3469,7 +3574,7 @@
  {
   "en": "Source code",
   "where": [
-   "src/web/layout.ts:110"
+   "src/web/layout.ts:146"
   ]
  },
  {
@@ -3521,6 +3626,12 @@
   ]
  },
  {
+  "en": "Step-by-step guide and OAuth details in the docs",
+  "where": [
+   "src/web/routes.ts:239"
+  ]
+ },
+ {
   "en": "Stir-fried holy basil chicken.",
   "where": [
    "src/providers/demo/catalog.ts:69"
@@ -3547,7 +3658,7 @@
  {
   "en": "Streamable HTTP. Sign-in: OAuth 2.1 with PKCE (S256), dynamic client registration and Client ID Metadata Documents, or a personal token in the Authorization header. Tokens in the URL query are never accepted. Resource metadata:",
   "where": [
-   "src/web/routes.ts:223"
+   "src/web/routes.ts:259"
   ]
  },
  {
@@ -3596,6 +3707,12 @@
   "en": "Sweet Layers Cakes (Demo)",
   "where": [
    "src/providers/demo/catalog.ts:203"
+  ]
+ },
+ {
+  "en": "Table, scrolls horizontally",
+  "where": [
+   "src/web/docs-routes.ts:29"
   ]
  },
  {
@@ -3661,7 +3778,7 @@
  {
   "en": "The address is incomplete or ambiguous. Check:",
   "where": [
-   "src/web/routes.ts:609"
+   "src/web/routes.ts:646"
   ]
  },
  {
@@ -3703,25 +3820,25 @@
  {
   "en": "The confirmation stops being valid. The assistant re-quotes and you confirm the new total.",
   "where": [
-   "src/web/routes.ts:293"
+   "src/web/routes.ts:329"
   ]
  },
  {
   "en": "The connection to the provider dropped after sending. Unyly reconciles the status itself and never resends. Do not order the same food elsewhere until it resolves.",
   "where": [
-   "src/web/routes.ts:295"
+   "src/web/routes.ts:331"
   ]
  },
  {
   "en": "The consumer Copilot app does not connect custom MCP servers.",
   "where": [
-   "src/web/routes.ts:62"
+   "src/web/routes.ts:97"
   ]
  },
  {
   "en": "The consumer Gemini app does not yet connect third-party MCP servers in every country.",
   "where": [
-   "src/web/routes.ts:57"
+   "src/web/routes.ts:92"
   ]
  },
  {
@@ -3733,13 +3850,19 @@
  {
   "en": "The DeepSeek app does not connect MCP servers. Use a DeepSeek model inside an MCP-capable client (a desktop chat client or agent) with an Unyly personal token.",
   "where": [
-   "src/web/routes.ts:79"
+   "src/web/routes.ts:114"
   ]
  },
  {
   "en": "The demo provider is connected automatically.",
   "where": [
    "src/web/messages.ts:333"
+  ]
+ },
+ {
+  "en": "The documentation is available in English, Russian and Thai. The English version is shown below.",
+  "where": [
+   "src/web/docs-routes.ts:40"
   ]
  },
  {
@@ -3751,7 +3874,7 @@
  {
   "en": "The free plan allows one custom connector. On Team and Enterprise an owner adds the connector first.",
   "where": [
-   "src/web/routes.ts:52"
+   "src/web/routes.ts:87"
   ]
  },
  {
@@ -3769,7 +3892,7 @@
  {
   "en": "The Meta AI app does not connect MCP servers yet. Llama models can be used through an MCP client with a personal token.",
   "where": [
-   "src/web/routes.ts:88"
+   "src/web/routes.ts:123"
   ]
  },
  {
@@ -3797,6 +3920,18 @@
   ]
  },
  {
+  "en": "The passkey check was cancelled or timed out. Nothing was ordered.",
+  "where": [
+   "src/web/routes.ts:61"
+  ]
+ },
+ {
+  "en": "The passkey request expired. Press Confirm to try again.",
+  "where": [
+   "src/web/routes.ts:69"
+  ]
+ },
+ {
   "en": "the price changed",
   "where": [
    "src/web/messages.ts:423"
@@ -3817,13 +3952,13 @@
  {
   "en": "The Unyly community.",
   "where": [
-   "src/web/routes.ts:265"
+   "src/web/routes.ts:301"
   ]
  },
  {
   "en": "the Unyly demo assistant",
   "where": [
-   "src/web/routes.ts:792"
+   "src/web/routes.ts:829"
   ]
  },
  {
@@ -3835,13 +3970,19 @@
  {
   "en": "Then run /mcp and select unyly to sign in via the browser.",
   "where": [
-   "src/web/routes.ts:220"
+   "src/web/routes.ts:256"
   ]
  },
  {
   "en": "There are no public APIs for ordering food, Mart items or rides on behalf of a customer today, so live mode is off. We do not work around that. The GrabExpress Delivery API exists for businesses and could be the first live service.",
   "where": [
    "src/web/showcase.ts:265"
+  ]
+ },
+ {
+  "en": "This browser cannot use passkeys. Open this page on a device that has your passkey.",
+  "where": [
+   "src/web/routes.ts:58"
   ]
  },
  {
@@ -3863,9 +4004,21 @@
   ]
  },
  {
+  "en": "This device cannot use your passkey here. Try a device that has your passkey.",
+  "where": [
+   "src/web/routes.ts:64"
+  ]
+ },
+ {
   "en": "This is a guest account from the demo and it is deleted after 24 hours. To connect your own AI assistant, create an account with a passkey.",
   "where": [
-   "src/web/routes.ts:498"
+   "src/web/routes.ts:535"
+  ]
+ },
+ {
+  "en": "This is a large order. For stronger protection, add a passkey in your account settings: orders like this will then also need your passkey.",
+  "where": [
+   "src/web/routes.ts:50"
   ]
  },
  {
@@ -3881,9 +4034,21 @@
   ]
  },
  {
+  "en": "This order needs your passkey: press Confirm and approve on your device.",
+  "where": [
+   "src/web/routes.ts:68"
+  ]
+ },
+ {
+  "en": "This passkey approval was issued for a different order.",
+  "where": [
+   "src/web/routes.ts:70"
+  ]
+ },
+ {
   "en": "through an MCP client",
   "where": [
-   "src/web/routes.ts:78"
+   "src/web/routes.ts:113"
   ]
  },
  {
@@ -3907,7 +4072,7 @@
  {
   "en": "tokens are deleted on revocation or expiry",
   "where": [
-   "src/web/routes.ts:313"
+   "src/web/routes.ts:350"
   ]
  },
  {
@@ -3952,13 +4117,13 @@
  {
   "en": "Trip",
   "where": [
-   "src/web/routes.ts:515"
+   "src/web/routes.ts:552"
   ]
  },
  {
   "en": "Trips, item notes, parcel descriptions",
   "where": [
-   "src/web/routes.ts:317"
+   "src/web/routes.ts:354"
   ]
  },
  {
@@ -3970,7 +4135,7 @@
  {
   "en": "Try the demo",
   "where": [
-   "src/web/layout.ts:84"
+   "src/web/layout.ts:119"
   ]
  },
  {
@@ -3982,7 +4147,7 @@
  {
   "en": "Try the same flow in the browser: the demo calls the same tools an assistant would.",
   "where": [
-   "src/web/routes.ts:234"
+   "src/web/routes.ts:270"
   ]
  },
  {
@@ -4012,19 +4177,19 @@
  {
   "en": "unlinked from you and scrubbed when you delete the account",
   "where": [
-   "src/web/routes.ts:321"
+   "src/web/routes.ts:358"
   ]
  },
  {
   "en": "until",
   "where": [
-   "src/web/routes.ts:998"
+   "src/web/routes.ts:1071"
   ]
  },
  {
   "en": "until you delete them; deletion erases the address text",
   "where": [
-   "src/web/routes.ts:316"
+   "src/web/routes.ts:353"
   ]
  },
  {
@@ -4036,7 +4201,13 @@
  {
   "en": "Unyly contacts: partnerships, support, Telegram.",
   "where": [
-   "src/web/routes.ts:270"
+   "src/web/routes.ts:306"
+  ]
+ },
+ {
+  "en": "Unyly documentation",
+  "where": [
+   "src/web/docs-routes.ts:32"
   ]
  },
  {
@@ -4072,7 +4243,7 @@
  {
   "en": "Unyly is not affiliated with or endorsed by Grab. For questions about orders placed in Grab, contact Grab support.",
   "where": [
-   "src/web/routes.ts:270"
+   "src/web/routes.ts:306"
   ]
  },
  {
@@ -4102,7 +4273,7 @@
  {
   "en": "used only for filtering, until you change them",
   "where": [
-   "src/web/routes.ts:318"
+   "src/web/routes.ts:355"
   ]
  },
  {
@@ -4120,13 +4291,13 @@
  {
   "en": "Valid for, days",
   "where": [
-   "src/web/routes.ts:1004"
+   "src/web/routes.ts:1077"
   ]
  },
  {
   "en": "Valid until",
   "where": [
-   "src/web/routes.ts:993"
+   "src/web/routes.ts:1066"
   ]
  },
  {
@@ -4157,7 +4328,7 @@
  {
   "en": "Via token and an MCP client",
   "where": [
-   "src/web/routes.ts:36"
+   "src/web/routes.ts:38"
   ]
  },
  {
@@ -4211,7 +4382,7 @@
  {
   "en": "We only show what the restaurant declared. If there is no data we say so. Unyly never calls a dish safe.",
   "where": [
-   "src/web/routes.ts:297"
+   "src/web/routes.ts:333"
   ]
  },
  {
@@ -4223,7 +4394,7 @@
  {
   "en": "We store only what the service needs: email, passkeys, addresses, preferences, carts, trips and orders, assistant connections and an audit log. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area. You can download or delete everything under Data.",
   "where": [
-   "src/web/routes.ts:326"
+   "src/web/routes.ts:363"
   ]
  },
  {
@@ -4235,13 +4406,13 @@
  {
   "en": "web, developer mode",
   "where": [
-   "src/web/routes.ts:45"
+   "src/web/routes.ts:80"
   ]
  },
  {
   "en": "Website sessions",
   "where": [
-   "src/web/routes.ts:311"
+   "src/web/routes.ts:348"
   ]
  },
  {
@@ -4259,19 +4430,19 @@
  {
   "en": "What does \"outcome unknown\" mean?",
   "where": [
-   "src/web/routes.ts:294"
+   "src/web/routes.ts:330"
   ]
  },
  {
   "en": "What if the price changes?",
   "where": [
-   "src/web/routes.ts:292"
+   "src/web/routes.ts:328"
   ]
  },
  {
   "en": "What the assistant did (MCP calls)",
   "where": [
-   "src/web/routes.ts:856"
+   "src/web/routes.ts:907"
   ]
  },
  {
@@ -4299,6 +4470,12 @@
   ]
  },
  {
+  "en": "when one is added to the account",
+  "where": [
+   "src/web/routes.ts:47"
+  ]
+ },
+ {
   "en": "Which one do you mean?",
   "where": [
    "src/web/showcase.ts:387"
@@ -4307,7 +4484,7 @@
  {
   "en": "while the account exists (order history)",
   "where": [
-   "src/web/routes.ts:320"
+   "src/web/routes.ts:357"
   ]
  },
  {
@@ -4369,7 +4546,7 @@
  {
   "en": "Write actions (placing orders) are not available on every plan; account policy decides.",
   "where": [
-   "src/web/routes.ts:47"
+   "src/web/routes.ts:82"
   ]
  },
  {
@@ -4393,7 +4570,7 @@
  {
   "en": "You are in a guest demo. Signing in or creating an account replaces the guest session.",
   "where": [
-   "src/web/routes.ts:347"
+   "src/web/routes.ts:384"
   ]
  },
  {
@@ -4418,7 +4595,7 @@
  {
   "en": "You: confirm on this page",
   "where": [
-   "src/web/routes.ts:861"
+   "src/web/routes.ts:912"
   ]
  },
  {
@@ -4442,7 +4619,7 @@
  {
   "en": "your assistant",
   "where": [
-   "src/web/routes.ts:790"
+   "src/web/routes.ts:827"
   ]
  },
  {

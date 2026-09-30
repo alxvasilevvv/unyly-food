@@ -35,6 +35,12 @@ export interface Config {
   accessTokenTtlSec: number;
   refreshTokenTtlSec: number;
   runJobs: boolean;
+  /**
+   * Step-up confirmation: orders whose total is at or above the threshold for their currency need a
+   * fresh passkey assertion on the confirmation page (only for users who have a passkey).
+   * Thresholds are in the currency's minor unit. STEP_UP=off disables the check entirely.
+   */
+  stepUp: { enabled: boolean; thresholds: Record<string, number> };
 }
 
 function bool(v: string | undefined, d: boolean): boolean {
@@ -76,6 +82,37 @@ export function parseTrustProxy(v: string | undefined, d: Config['trustProxy']):
   return list;
 }
 
+/**
+ * Default step-up thresholds, roughly 2,000 THB (about 55 USD) in each Grab market currency, in minor
+ * units (ISO 4217 exponent: 2 for all of these except VND, which has none). Cambodia uses USD.
+ * Override one with STEP_UP_THRESHOLD_<CUR>=<minor units>.
+ */
+export const DEFAULT_STEP_UP_THRESHOLDS: Readonly<Record<string, number>> = {
+  THB: 200_000, // 2,000.00 THB
+  SGD: 7_500, // 75.00 SGD
+  MYR: 25_000, // 250.00 MYR
+  IDR: 90_000_000, // 900,000.00 IDR
+  VND: 1_400_000, // 1,400,000 VND (no minor unit)
+  PHP: 320_000, // 3,200.00 PHP
+  USD: 5_500, // 55.00 USD (Cambodia)
+  MMK: 20_000_000, // 200,000.00 MMK (between the official and market rate)
+};
+
+/** STEP_UP: on (default) or off. Anything else is a typo and refused, so the check is never disabled by accident. */
+function stepUpEnabled(): boolean {
+  const v = (process.env.STEP_UP ?? '').trim().toLowerCase();
+  if (v === '') return true;
+  if (['1', 'true', 'yes', 'on'].includes(v)) return true;
+  if (['0', 'false', 'no', 'off'].includes(v)) return false;
+  throw new Error(`STEP_UP must be on or off, got "${process.env.STEP_UP}"`);
+}
+
+function stepUpThresholds(): Record<string, number> {
+  const out: Record<string, number> = { ...DEFAULT_STEP_UP_THRESHOLDS };
+  for (const cur of Object.keys(out)) out[cur] = num(`STEP_UP_THRESHOLD_${cur}`, out[cur], { int: true, positive: true });
+  return out;
+}
+
 const weakSecret = (s: string) => s.length < 32 || /change[_-]?me|dev-only/i.test(s);
 
 export function loadConfig(overrides: Partial<Config> = {}): Config {
@@ -109,11 +146,15 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     accessTokenTtlSec: num('ACCESS_TOKEN_TTL_SEC', 3600, { int: true, positive: true }),
     refreshTokenTtlSec: num('REFRESH_TOKEN_TTL_SEC', 30 * 24 * 3600, { int: true, positive: true }),
     runJobs: bool(process.env.RUN_JOBS, true),
+    stepUp: { enabled: stepUpEnabled(), thresholds: stepUpThresholds() },
     ...overrides,
   };
   // Also checked here so that overrides (tests, CLI) cannot smuggle in an invalid value.
   if (!(MAIL_MODES as readonly string[]).includes(cfg.mail.mode)) throw new Error(`MAIL_MODE must be one of ${MAIL_MODES.join(', ')}`);
   if (!(Number.isFinite(cfg.demoTimeScale) && cfg.demoTimeScale > 0)) throw new Error('DEMO_TIME_SCALE must be greater than 0');
+  for (const [cur, v] of Object.entries(cfg.stepUp.thresholds)) {
+    if (!(Number.isSafeInteger(v) && v > 0)) throw new Error(`STEP_UP_THRESHOLD_${cur} must be a positive integer in minor units`);
+  }
   if (cfg.env === 'production') {
     if (!process.env.DATABASE_URL && !overrides.databaseUrl) throw new Error('DATABASE_URL must be set in production');
     if (/CHANGE_ME/i.test(cfg.databaseUrl)) throw new Error('DATABASE_URL still contains a placeholder password');

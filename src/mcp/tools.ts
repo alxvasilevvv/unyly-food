@@ -13,6 +13,7 @@ import { createHandoff, getCapabilities } from '../services/handoff.js';
 import { cancelConfirmUrl, cancelOrder, describeCancellation, getOrderStatus, listOrders, prepareCancellation, reorder } from '../services/orders.js';
 import { getUser } from '../services/users.js';
 import { DEMO_DISTRICTS } from '../providers/demo/catalog.js';
+import { registerPrompts } from './prompts.js';
 
 const uuid = () => z.string().regex(UUID_RE, 'must be a UUID');
 const providerId = () => z.string().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/);
@@ -102,12 +103,14 @@ function quoteView(qr: QuoteRow, cart: Pick<CartState, 'service' | 'trip'>) {
   return q;
 }
 
-function checkoutView(ctx: Ctx, c: CheckoutRow) {
+function checkoutView(ctx: Ctx, c: CheckoutRow & { step_up_required?: boolean }) {
   return {
     checkout_id: c.id,
     status: c.status,
     confirm_url: confirmUrl(ctx, c.id),
     expires_at: new Date(c.expires_at).toISOString(),
+    /** Large total and the user has a passkey: Confirm will ask for it. */
+    step_up_required: !!c.step_up_required,
     total: money(Number(c.total_minor), c.currency),
     payment_method: c.payment_method_label,
     cancellation_terms: c.cancellation_terms,
@@ -202,8 +205,28 @@ function enrich(ctx: Ctx, tool: string, e: DomainError): { err: DomainError; nex
   return { err, next };
 }
 
+export const SERVER_VERSION = '1.0.0';
+export const SERVER_DESCRIPTION = 'Prepare Grab orders (food, groceries, flowers, pharmacy, cakes, rides, parcels) from an AI assistant. A human confirms every order on the Unyly page.';
+
+/** MCP implementation info (initialize serverInfo), also used by the server card. */
+export function serverInfo(ctx: Ctx) {
+  const base = ctx.cfg.webOrigin;
+  return {
+    name: 'unyly',
+    title: 'Unyly',
+    version: SERVER_VERSION,
+    description: SERVER_DESCRIPTION,
+    websiteUrl: base,
+    icons: [
+      { src: `${base}/static/brand/icon-192.png`, mimeType: 'image/png', sizes: ['192x192'] },
+      { src: `${base}/static/brand/icon-512.png`, mimeType: 'image/png', sizes: ['512x512'] },
+    ],
+  };
+}
+
 export function buildMcpServer(ctx: Ctx, actor: Actor): McpServer {
-  const server = new McpServer({ name: 'unyly', title: 'Unyly', version: '0.1.0' }, { instructions: SERVER_INSTRUCTIONS });
+  const server = new McpServer(serverInfo(ctx), { instructions: SERVER_INSTRUCTIONS });
+  registerPrompts(server);
   // The SDK validates arguments with the tool's strict object schema. Dropping null-valued keys first makes
   // null equivalent to "omitted" while unknown keys are still rejected and the listed JSON Schema stays plain.
   const sdk = server as unknown as { validateToolInput: (tool: unknown, args: unknown, name: string) => Promise<unknown> };

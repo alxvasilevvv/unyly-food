@@ -19,7 +19,7 @@ export interface Asset {
   immutable: boolean;
 }
 
-/** Content hash of css+js, appended as ?v= so browsers can cache assets for a long time. */
+/** Content hash of every static file, appended as ?v= so browsers can cache assets for a long time. */
 export let ASSET_VERSION = 'dev';
 
 export async function loadStaticAssets(dir: string): Promise<Map<string, Asset>> {
@@ -38,7 +38,7 @@ export async function loadStaticAssets(dir: string): Promise<Map<string, Asset>>
   };
   await walk(dir);
   const h = createHash('sha256');
-  for (const k of ['app.css', 'app.js']) h.update(out.get(k)?.body ?? '');
+  for (const k of [...out.keys()].sort()) h.update(k).update(out.get(k)!.body);
   ASSET_VERSION = h.digest('hex').slice(0, 10);
   return out;
 }

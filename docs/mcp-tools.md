@@ -1,6 +1,6 @@
 # MCP-инструменты Unyly
 
-Точные JSON Schema и аннотации всех инструментов лежат в [`mcp-tools.schema.json`](mcp-tools.schema.json). Файл генерируется командой `npx tsx scripts/dump-tools.ts`.
+Точные JSON Schema и аннотации всех инструментов, список промптов и `serverInfo` лежат в [`mcp-tools.schema.json`](mcp-tools.schema.json). Файл генерируется командой `npx tsx scripts/dump-tools.ts`.
 
 Это **внутренние инструменты Unyly**. Из их наличия не следует, что у Grab есть API с такими же операциями.
 
@@ -47,6 +47,7 @@
 
 - Подтверждение живёт до 15 минут (`CHECKOUT_MAX_TTL_MS`) независимо от срока расчёта провайдера (в Demo 5 минут).
 - Если в момент нажатия расчёт старше своего срока, `approveCheckout` заново считает у провайдера **ту же версию корзины** (товары, адрес или поездка). Итог тот же и нет блокирующих проблем: заказ идёт дальше (в аудите `checkout.approved {repriced:true}`). Итог другой или появилась проблема: подтверждение аннулируется с причиной `PRICE_CHANGED`, ничего не заказывается.
+- **Step-up для крупных сумм.** `checkout.step_up_required` (в `create_cart`, `update_cart`, `prepare_checkout`) и `step_up_required` в `get_checkout_status` равны `true`, если итог не меньше порога валюты и у пользователя есть passkey. Тогда «Подтвердить» на странице попросит passkey; ассистенту стоит заранее сказать об этом пользователю. Без подписи страница отвечает 403 и ничего не заказывается; через MCP этот шаг не обходится.
 - `refreshCheckout(ctx, userId, checkoutId)` в `src/services/checkout.ts` для кнопки «обновить цену» на странице: пересчитывает ту же версию корзины и создаёт новое подтверждение (старое становится `SUPERSEDED`), возвращает `{ checkout_id, confirm_url, total_minor, previous_total_minor, currency, price_changed, expires_at }`. Разрешено для `awaiting_user`, `expired`, `invalidated` с причиной `EXPIRED`/`PRICE_CHANGED` и для `consumed`, если провайдер явно отказал (не `NOT_RECEIVED_BY_PROVIDER`). Если корзина изменилась, уже оформлена или подтверждение использовано, возвращает ошибку; подтверждать всё равно должен человек.
 - Заказ записывается по версии корзины из подтверждения (`checkouts.cart_version`), а не по текущей. `update_cart` запрещён, пока у корзины есть отправка в статусе `in_flight`/`unknown` (`SUBMISSION_UNKNOWN`) или принятый заказ (`CART_NOT_OPEN`).
 
@@ -66,13 +67,43 @@
 | `update_cart` | orders:prepare | операции `add_item`, `set_quantity`, `remove_item`, `set_address`, `set_trip` (новые `pickup`, `dropoff`, вес посылки). Версия +1, ожидающие подтверждения **аннулируются**; по умолчанию новый расчёт и новый `confirm_url`. Запрещено при отправке в процессе или после заказа | destructive, openWorld |
 | `quote_cart` | orders:prepare | сохраняет расчёт с TTL. Не `readOnly`: пишет запись расчёта, к которой привязывается подтверждение; видимых пользователю эффектов нет | openWorld |
 | `prepare_checkout` | orders:prepare | создаёт одноразовое подтверждение и `confirm_url` (до 15 минут) | - |
-| `get_checkout_status` | orders:read | нет. `status`, `submission`, `order_id`, `summary` | readOnly |
+| `get_checkout_status` | orders:read | нет. `status`, `submission`, `order_id`, `step_up_required`, `summary` | readOnly |
 | `submit_order` | orders:submit | **необратимо**: отправляет заказ, если человек уже подтвердил его на сайте и заказ ещё не ушёл (обычно его уже отправило нажатие на странице). Идемпотентно: повтор для того же checkout возвращает ту же отправку и никогда не создаёт второй заказ. При `SUBMISSION_UNKNOWN` подождать и смотреть `get_checkout_status`, новый заказ не создавать | destructive, idempotent, openWorld |
 | `get_order_status` | orders:read | может обновить статус у провайдера; `status_label` по сервису («Driver assigned», «Parcel in transit») | readOnly, openWorld |
 | `list_orders` | orders:read | нет. Заказы, поездки и посылки, плюс недавние Handoff-списки | readOnly |
 | `prepare_cancellation` | orders:cancel | запрашивает условия отмены у провайдера и создаёт страницу подтверждения | openWorld |
 | `cancel_order` | orders:cancel | **необратимо**: выполняет отмену, если человек подтвердил её на сайте | destructive, idempotent, openWorld |
 | `create_handoff` | orders:prepare | сохраняет список (товары или откуда и куда) и ссылку Grab для сервиса и рынка (`link_verified`). Заказ **не создаётся**. `create_cart` в Handoff уже делает это | - |
+
+## Промпты (slash-команды)
+
+Сервер объявляет capability `prompts`. Claude Desktop, VS Code, Cursor и другие клиенты показывают промпты как slash-команды. Определения лежат в `src/mcp/prompts.ts`. Каждый промпт возвращает одно сообщение `user` на английском: просьбу пользователя с его аргументами, короткий безопасный путь по инструментам и общие правила (`CONFIRM_RULES`): пользоваться инструментами Unyly, показать полную цену (товары, все сборы, итог, валюта) и дать `confirm_url`, заказ оформляет только человек кнопкой на странице Unyly, согласие в чате подтверждением не считается, не говорить, что заказ оформлен, пока этого не покажет `get_checkout_status`, в Demo сказать, что это демо, в Handoff отдать ссылку Grab и чек-лист.
+
+| Промпт | Аргументы | Путь |
+|---|---|---|
+| `order_food` | `request`, `budget?`, `people?`, `avoid?` | `search_stores` (food) → `create_cart`; аллергены передаются как есть, «безопасным» блюдо не называется |
+| `buy_groceries` | `items` | `search_stores` (mart, supermarket/convenience) → `create_cart` |
+| `send_flowers` | `what`, `recipient`, `card_text?` | `search_stores` (mart, flowers) → `create_cart` с `note` и `deliver_to`; недостающие данные получателя спросить |
+| `pharmacy` | `need` | `search_stores` (mart, pharmacy) → `create_cart`; только бытовые средства, без рецептурных и без советов по дозировке сверх инструкции |
+| `order_cake` | `occasion`, `inscription?` | `search_stores` (mart, cakes) → `create_cart`, надпись в `note` |
+| `book_ride` | `from?`, `to`, `passengers?` | `estimate_trip` (ride) → `create_cart`; без `from` ассистент спрашивает место посадки |
+| `send_parcel` | `from?`, `to`, `weight_kg` | `estimate_trip` (express, `parcel_weight_kg`) → `create_cart` |
+| `track_orders` | - | `list_orders`, `get_order_status`, `get_checkout_status`; ничего не создаёт и не отменяет |
+
+- Аргументы промптов в MCP всегда строки. Проверка через zod: обязательные не пустые, у всех есть лимит длины, `weight_kg` только число (до двух знаков после точки или запятой). Ошибка проверки или неизвестное имя возвращают JSON-RPC `-32602`.
+- Пустая строка в необязательном аргументе равна его отсутствию (некоторые клиенты присылают `""` для незаполненных полей).
+- Отдельного scope промпты не требуют: `prompts/list` и `prompts/get` работают с любым действующим токеном. Scope проверяется только при `tools/call`.
+
+## Server info и Server Card
+
+`initialize` возвращает `serverInfo { name: "unyly", title: "Unyly", version: "1.0.0", description, websiteUrl, icons }`. `websiteUrl` равен `WEB_ORIGIN`, `icons` содержит абсолютные ссылки на `/static/brand/icon-192.png` и `/static/brand/icon-512.png` (`image/png`, `sizes`). Собирается функцией `serverInfo(ctx)` в `src/mcp/tools.ts`.
+
+Для обнаружения сервера без подключения есть карточка в духе черновика MCP Server Card (SEP-1649):
+
+- `GET /.well-known/mcp/server-card.json`
+- `GET /.well-known/mcp.json` (то же самое)
+
+Публичная, без авторизации и без cookies, `Cache-Control: public, max-age=3600`, `Access-Control-Allow-Origin: *`. Код в `src/mcp/server-card.ts`. Поля: `version: "1.0"`, `protocolVersion` (`LATEST_PROTOCOL_VERSION` из SDK), `serverInfo`, `description`, `documentationUrl` (`WEB_ORIGIN/docs`), `transport { type: "streamable-http", endpoint }` (абсолютный `MCP_RESOURCE_URL`), `capabilities { tools, prompts }`, `authentication { required: true, schemes: ["oauth2"], oauth2 { protectedResourceMetadata, authorizationServer, scopes } }`, `tools[] { name, title, description }`, `prompts[] { name, title, description, arguments }`, `disclaimer`. Списки инструментов и промптов не копируются руками: при первом запросе сервер строит тот же `McpServer`, что и для `/mcp`, выполняет `tools/list` и `prompts/list` через in-memory транспорт и кэширует результат, поэтому карточка не может разойтись с тем, что реально отдаёт `/mcp`.
 
 ## Доменные ошибки
 
