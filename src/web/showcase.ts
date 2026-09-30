@@ -182,6 +182,13 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
 <section class="section">
   <div class="section-head"><span class="eyebrow">${icon('code')} ${tr(l, { ru: 'Архитектура', en: 'How it fits', th: 'โครงสร้างการทำงาน' })}</span><h2>${tr(l, { ru: 'Ассистент готовит, человек подтверждает, Grab доставляет', en: 'The assistant prepares, a human confirms, Grab delivers', th: 'ผู้ช่วยเตรียม คนยืนยัน Grab จัดส่ง' })}</h2></div>
   <div class="diagram">${diagram}</div>
+  <ol class="diagram-mobile" aria-hidden="true">
+    <li><strong>${tr(l, { ru: 'Покупатель', en: 'Customer', th: 'ลูกค้า' })}</strong><span>${tr(l, { ru: 'пишет ассистенту обычными словами', en: 'types a request in plain words', th: 'พิมพ์คำขอเป็นภาษาปกติ' })}</span></li>
+    <li><strong>${tr(l, { ru: 'ИИ-ассистент', en: 'AI assistant', th: 'ผู้ช่วย AI' })}</strong><span>ChatGPT · Claude · MCP</span></li>
+    <li class="brand"><strong>Unyly</strong><span>${tr(l, { ru: 'MCP-сервер и защита', en: 'MCP server + safety layer', th: 'เซิร์ฟเวอร์ MCP + ความปลอดภัย' })}</span></li>
+    <li class="lime"><strong>${tr(l, { ru: 'Страница подтверждения', en: 'Confirmation page', th: 'หน้ายืนยัน' })}</strong><span>${tr(l, { ru: 'покупатель нажимает одну кнопку', en: 'the customer taps once to confirm', th: 'ลูกค้ากดยืนยันครั้งเดียว' })}</span></li>
+    <li class="dash"><strong>GrabFood</strong><span>${tr(l, { ru: 'партнёрский API (нужен)', en: 'partner API (needed)', th: 'API พันธมิตร (ที่ต้องการ)' })}</span></li>
+  </ol>
 </section>
 
 <section class="section">

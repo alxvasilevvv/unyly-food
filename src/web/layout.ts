@@ -66,7 +66,7 @@ export function page(o: PageOpts): string {
     </span>
   </nav>
 </div></header>
-${!o.noBanner && o.mode === 'demo' ? html`<div class="banner demo" role="status"><div class="wrap"><span class="pill warn">DEMO</span><span>${m.demoBanner}${o.guest ? html` ${tr(l, { ru: 'Гостевой сеанс удаляется через 24 часа.', en: 'Guest sessions are deleted after 24 hours.', th: 'เซสชันผู้เยี่ยมชมจะถูกลบหลัง 24 ชั่วโมง' })}` : ''}</span></div></div>` : ''}
+${!o.noBanner && o.mode === 'demo' ? html`<div class="banner demo" role="status"><div class="wrap"><span class="pill warn">DEMO</span><span>${m.demoBanner}${o.guest ? html` <span class="guest-note">${tr(l, { ru: 'Гостевой сеанс удаляется через 24 часа.', en: 'Guest sessions are deleted after 24 hours.', th: 'เซสชันผู้เยี่ยมชมจะถูกลบหลัง 24 ชั่วโมง' })}</span>` : ''}</span></div></div>` : ''}
 ${!o.noBanner && o.mode === 'handoff' ? html`<div class="banner handoff" role="status"><div class="wrap">${m.handoffBanner}</div></div>` : ''}
 <main id="main"><div class="wrap ${o.narrow ? 'narrow' : ''}">${o.body}</div></main>
 <footer class="site"><div class="wrap">
