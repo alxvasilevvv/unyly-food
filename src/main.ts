@@ -6,7 +6,14 @@ import { migrate } from './db/migrate.js';
 import { startJobs } from './jobs/worker.js';
 
 const cfg = loadConfig();
-const db = createDb(cfg.databaseUrl);
+// DATABASE_URL may list several candidates separated by "|" (e.g. two pooler hosts); the first reachable one is used.
+const candidates = cfg.databaseUrl.split('|').map((s) => s.trim()).filter(Boolean);
+let db = createDb(candidates[0]);
+for (let i = 0; !(await db.ping()) && i < candidates.length - 1; i++) {
+  await db.close().catch(() => {});
+  console.warn(`[db] candidate ${i + 1} unreachable, trying next`);
+  db = createDb(candidates[i + 1]);
+}
 await migrate(db, (m) => console.log(`[migrate] ${m}`));
 const ctx = createCtx(cfg, db, new OffsetClock());
 const app = await buildApp(ctx);
