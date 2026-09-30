@@ -4,16 +4,18 @@ import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import Fastify, { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { IncomingMessage } from 'node:http';
+import { isIP } from 'node:net';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Ctx } from './context.js';
 import { sha256 } from './domain/crypto.js';
 import { isDomainError } from './domain/errors.js';
 import {
-  asMetadata, issueCode, OAuthError, parseAuthzRequest, prMetadata, prMetadataUrl, redirectWith, registerClient, revokeToken,
-  Scope, SCOPES, tokenEndpoint, verifyAccessToken,
+  asMetadata, clientIdFrom, issueCode, OAuthError, oauthParams, parseAuthzRequest, prMetadata, prMetadataUrl, redirectWith, registerClient, revokeToken,
+  Scope, SCOPES, TokenInfo, tokenEndpoint, verifyAccessToken,
 } from './auth/oauth.js';
-import { checkCsrf, loadSession } from './auth/session.js';
+import { checkCsrf, loadSession, requireSameOrigin } from './auth/session.js';
 import { buildMcpServer } from './mcp/tools.js';
 import { ingestWebhook } from './services/orders.js';
 import { ASSET_VERSION, loadStaticAssets } from './web/assets.js';
@@ -24,10 +26,72 @@ import { detectLocale, registerWebRoutes } from './web/routes.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Rate-limit key for a client IP. IPv6 is grouped by /64: one subscriber or VM usually owns a whole
+ * /64, so per-address keys would be trivially rotated. IPv4-mapped IPv6 is folded back to IPv4.
+ */
+export function ipKey(ipRaw: string | undefined): string {
+  const ip = String(ipRaw ?? '').split('%')[0];
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(ip);
+  if (mapped) return mapped[1];
+  if (isIP(ip) !== 6) return ip;
+  const expand = (part: string) => (part ? part.split(':') : []).flatMap((g) => (g.includes('.') ? ['0', '0'] : [g]));
+  const [head, tail] = ip.split('::');
+  const h = expand(head);
+  const t = tail === undefined ? [] : expand(tail);
+  const groups = tail === undefined ? h : [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t];
+  return `${groups.slice(0, 4).map((g) => parseInt(g || '0', 16).toString(16)).join(':')}::/64`;
+}
+
+/**
+ * Fastify's trustProxy. A hop count is turned into a trust function (trust the nearest N hops):
+ * Fastify 5.12 deliberately fails closed on a plain number (req.ip would always be the proxy, so
+ * every client would share one rate-limit bucket). Prefer a CIDR list where the proxy IPs are known.
+ */
+function fastifyTrustProxy(tp: Ctx['cfg']['trustProxy']) {
+  if (typeof tp === 'number') return tp > 0 ? (_addr: string, i: number) => i < tp : false;
+  return tp;
+}
+
+// Scope needed per tool, duplicated from scopeFor() in src/mcp/tools.ts (keep in sync; tools.ts
+// still enforces it per call). Used to answer tools/call with HTTP 403 insufficient_scope up front,
+// so that clients can step up authorization (MCP authorization spec, scope challenge handling).
+const TOOL_SCOPE: Record<string, Scope> = {
+  create_cart: 'orders:prepare', update_cart: 'orders:prepare', quote_cart: 'orders:prepare', prepare_checkout: 'orders:prepare', create_handoff: 'orders:prepare',
+  submit_order: 'orders:submit',
+  prepare_cancellation: 'orders:cancel', cancel_order: 'orders:cancel',
+};
+const toolScope = (name: string): Scope => TOOL_SCOPE[name] ?? 'orders:read';
+
+/** RFC 7235: the auth scheme is case-insensitive. */
+const bearerToken = (h: string | undefined): string | undefined => /^bearer[ \t]+(\S+)[ \t]*$/i.exec(h ?? '')?.[1];
+
+/** Rewrites a header on the raw request, including rawHeaders (the MCP SDK's Node adapter reads those). */
+function setRawHeader(raw: IncomingMessage, name: string, value: string) {
+  raw.headers[name] = value;
+  const rh = raw.rawHeaders;
+  let found = false;
+  for (let i = 0; i < rh.length; i += 2) {
+    if (rh[i].toLowerCase() === name) {
+      if (found) {
+        rh.splice(i, 2);
+        i -= 2;
+      } else {
+        rh[i + 1] = value;
+        found = true;
+      }
+    }
+  }
+  if (!found) rh.push(name, value);
+}
+
+type McpRequest = FastifyRequest & { mcpAuth?: TokenInfo | null; mcpTokenKey?: string };
+
 export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   const app = Fastify({
     logger: ctx.cfg.env === 'test' ? false : { level: 'info', redact: ['req.headers.authorization', 'req.headers.cookie'] },
-    trustProxy: ctx.cfg.trustProxy,
+    // TRUST_PROXY: hop count or CIDR list (see config.ts). Default 1 in production (Caddy in front).
+    trustProxy: fastifyTrustProxy(ctx.cfg.trustProxy) as any,
     bodyLimit: 256 * 1024,
     requestTimeout: 30_000,
   });
@@ -54,17 +118,64 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     // 'no-referrer' makes browsers send `Origin: null` on same-site form posts, which our CSRF origin check rejects.
     referrerPolicy: { policy: 'same-origin' },
   });
+  // Keyed by client IP everywhere. A client-supplied header (e.g. any Bearer value) must never pick
+  // the bucket: that gave every request its own fresh limit. The MCP route keys by token only after
+  // the token is verified, and the token endpoint by client_id + IP (see below).
   await app.register(rateLimit, {
     global: true,
     max: 300,
     timeWindow: '1 minute',
-    keyGenerator: (req) => {
-      const auth = req.headers.authorization;
-      return auth?.startsWith('Bearer ') ? `t:${sha256(auth.slice(7)).slice(0, 16)}` : `ip:${req.ip}`;
-    },
+    keyGenerator: (req) => `ip:${ipKey(req.ip)}`,
+  });
+
+  const mcpPath = new URL(ctx.cfg.mcpResourceUrl).pathname || '/mcp';
+  const mcpPaths = mcpPath === '/' ? ['/'] : [mcpPath, `${mcpPath}/`];
+  const pathOf = (url: string) => url.split('?')[0];
+  const isMcpPath = (url: string) => mcpPaths.includes(pathOf(url));
+
+  // ---------------- CORS (public OAuth/MCP endpoints only) ----------------
+  // Browser-based MCP clients (inspectors, web IDEs) call these cross-origin with a bearer token,
+  // never with cookies, so a wildcard origin is safe here. Cookie pages and /oauth/authorize never
+  // get CORS headers.
+  const CORS_EXACT = new Set(['/oauth/register', '/oauth/token', '/oauth/revoke', ...mcpPaths]);
+  const isCorsPath = (url: string) => {
+    const path = pathOf(url);
+    return path.startsWith('/.well-known/') || CORS_EXACT.has(path);
+  };
+  const CORS_HEADERS = {
+    'access-control-allow-origin': '*',
+    'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS',
+    'access-control-allow-headers': 'authorization, content-type, mcp-protocol-version, mcp-session-id, last-event-id',
+    'access-control-expose-headers': 'WWW-Authenticate, Mcp-Session-Id',
+    'access-control-max-age': '86400',
+    'cross-origin-resource-policy': 'cross-origin',
+  };
+  app.addHook('onRequest', async (req, reply) => {
+    if (isCorsPath(req.url)) reply.headers(CORS_HEADERS);
+  });
+  // onSend runs after helmet's headers, so the CORP override sticks.
+  app.addHook('onSend', async (req, reply, payload) => {
+    if (isCorsPath(req.url)) reply.header('cross-origin-resource-policy', 'cross-origin');
+    return payload;
+  });
+  const preflight = async (_req: FastifyRequest, reply: FastifyReply) => reply.code(204).headers(CORS_HEADERS).send();
+  for (const p of ['/.well-known/*', '/oauth/register', '/oauth/token', '/oauth/revoke', ...mcpPaths]) app.options(p, preflight);
+
+  // ---------------- Login CSRF ----------------
+  // The sign-in forms have no session (hence no CSRF token) yet: require a same-origin Origin or
+  // Referer so another site cannot sign a victim into the attacker's account. Requests with neither
+  // header come from non-browser clients (which cannot mount login CSRF); they are refused in
+  // production and allowed elsewhere for scripts and the test harness.
+  app.addHook('onRequest', async (req) => {
+    if (req.method === 'POST' && (req.routeOptions.url === '/login' || req.routeOptions.url === '/login/verify')) {
+      requireSameOrigin(ctx, req, { allowMissing: false });
+    }
   });
 
   app.setErrorHandler((err: any, req, reply) => {
+    if ((err.code === 'FST_ERR_CTP_INVALID_JSON_BODY' || err.code === 'FST_ERR_CTP_EMPTY_JSON_BODY') && isMcpPath(req.url)) {
+      return reply.code(400).send({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error: invalid JSON' }, id: null });
+    }
     if (isDomainError(err)) {
       if (req.headers.accept?.includes('text/html')) {
         return reply.code(err.httpStatus).type('text/html').send(page({ title: 'Error', locale: detectLocale(req, null), loggedIn: false, body: html`<h1>${err.message}</h1><p><a href="/app">←</a></p>` }));
@@ -104,7 +215,8 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
 
   // ---------------- OAuth metadata ----------------
   app.get('/.well-known/oauth-authorization-server', async () => asMetadata(ctx));
-  app.get('/.well-known/openid-configuration', async () => asMetadata(ctx));
+  // No /.well-known/openid-configuration: this is not an OpenID Provider (no id_token, jwks_uri,
+  // subject types), and a non-compliant OIDC document makes some clients fail harder than a 404.
   const prmPath = new URL(prMetadataUrl(ctx)).pathname;
   app.get('/.well-known/oauth-protected-resource', async () => prMetadata(ctx));
   if (prmPath !== '/.well-known/oauth-protected-resource') app.get(prmPath, async () => prMetadata(ctx));
@@ -114,7 +226,9 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     throw e;
   };
 
-  app.post('/oauth/register', { config: { rateLimit: { max: 20, timeWindow: '1 hour' } } }, async (req, reply) => {
+  // DCR per IP: assistant platforms register from shared egress IPs, so the limit is generous.
+  // Unused registrations are garbage-collected by ops (clients without grants older than N days).
+  app.post('/oauth/register', { config: { rateLimit: { max: 200, timeWindow: '1 hour' } } }, async (req, reply) => {
     try {
       const c = await registerClient(ctx, req.body);
       return reply.code(201).send({
@@ -126,9 +240,20 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     }
   });
 
-  app.post('/oauth/token', { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } }, async (req, reply) => {
+  // Keyed by client_id + IP (the body is parsed by then: preHandler): many users of one assistant
+  // platform refresh from the same egress IPs.
+  const tokenRateKey = (req: FastifyRequest) => {
+    let cid = '';
     try {
-      const t = await tokenEndpoint(ctx, (req.body ?? {}) as Record<string, string>);
+      cid = clientIdFrom(oauthParams(req.body), req.headers.authorization) ?? '';
+    } catch {
+      /* malformed: rejected by the handler */
+    }
+    return `tok:${sha256(cid).slice(0, 16)}:${ipKey(req.ip)}`;
+  };
+  app.post('/oauth/token', { config: { rateLimit: { hook: 'preHandler', max: 300, timeWindow: '1 minute', keyGenerator: tokenRateKey } } }, async (req, reply) => {
+    try {
+      const t = await tokenEndpoint(ctx, req.body ?? {}, { authorization: req.headers.authorization });
       return reply.header('cache-control', 'no-store').send(t);
     } catch (e) {
       return oauthErr(reply, e);
@@ -136,27 +261,33 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   });
 
   app.post('/oauth/revoke', async (req, reply) => {
-    await revokeToken(ctx, (req.body as any)?.token);
+    try {
+      await revokeToken(ctx, req.body);
+    } catch (e) {
+      return oauthErr(reply, e);
+    }
     return reply.code(200).send({});
   });
 
   const authorizeLocale = (req: FastifyRequest, s: Awaited<ReturnType<typeof loadSession>>): Locale => detectLocale(req, s);
 
   app.get('/oauth/authorize', async (req, reply) => {
-    const p = req.query as Record<string, string>;
     const s = await loadSession(ctx, req);
+    // Sign-in first (the query is kept in next): anonymous visitors never trigger a client metadata
+    // fetch. Guest demo sessions cannot grant assistant access: a real account is required.
+    if (!s || s.user.is_guest) return reply.redirect(`/login?next=${encodeURIComponent(req.url)}`);
     const l = authorizeLocale(req, s);
     const m = msg(l);
+    let p: Record<string, string | undefined>;
     let areq;
     try {
+      p = oauthParams(req.query);
       areq = await parseAuthzRequest(ctx, p);
     } catch (e) {
       // Never redirect on an untrusted client/redirect_uri: show the error here.
       const desc = e instanceof OAuthError ? `${e.error}: ${e.description}` : 'invalid_request';
       return reply.code(400).type('text/html').send(page({ title: m.errorTitle, locale: l, loggedIn: !!s, narrow: true, body: html`<h1>${m.errorTitle}</h1><p class="notice bad">${desc}</p>` }));
     }
-    // Guest demo sessions cannot grant assistant access: a real account is required.
-    if (!s || s.user.is_guest) return reply.redirect(`/login?next=${encodeURIComponent(req.url)}`);
     const scopeName = (sc: string) => (m as any)[`scope_${sc.replace(':', '_')}`] ?? sc;
     const redirectOrigin = new URL(areq.redirect_uri).origin;
     // Allow the consent form's redirect target explicitly (form-action applies to redirects in some browsers).
@@ -203,33 +334,93 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   });
 
   // ---------------- MCP (Streamable HTTP, stateless) ----------------
-  const unauthorized = (reply: FastifyReply, error = 'invalid_token') =>
+  const challenge = (extra = '') => `Bearer resource_metadata="${prMetadataUrl(ctx)}"${extra}, scope="${SCOPES.join(' ')}"`;
+  // RFC 6750 3.1: no error code when the request carried no credentials at all.
+  const unauthorized = (reply: FastifyReply, error?: 'invalid_request' | 'invalid_token') =>
     reply
       .code(401)
-      .header('www-authenticate', `Bearer resource_metadata="${prMetadataUrl(ctx)}", error="${error}", scope="${SCOPES.join(' ')}"`)
-      .send({ error, error_description: 'Authorization required' });
+      .header('www-authenticate', challenge(error ? `, error="${error}"` : ''))
+      .send({ error: error ?? 'unauthorized', error_description: 'Authorization required' });
+  const rpcError = (reply: FastifyReply, status: number, code: number, message: string, id: unknown = null) =>
+    reply.code(status).send({ jsonrpc: '2.0', error: { code, message }, id: id ?? null });
 
-  const mcpPath = new URL(ctx.cfg.mcpResourceUrl).pathname || '/mcp';
-  app.post(mcpPath, { config: { rateLimit: { max: 120, timeWindow: '1 minute' } } }, async (req, reply) => {
-    const auth = req.headers.authorization;
-    if (!auth?.startsWith('Bearer ')) return unauthorized(reply, 'invalid_request');
-    const info = await verifyAccessToken(ctx, auth.slice(7).trim());
-    if (!info) return unauthorized(reply);
+  // Verifies the token before rate limiting, so that the MCP limit is keyed by the verified token
+  // (per user and client) and never by a value the caller can vary freely; unverified callers are
+  // keyed by IP. The 401 itself is sent by the handler, after the limiter ran.
+  const mcpAuth = async (req: FastifyRequest) => {
+    const r = req as McpRequest;
+    const token = bearerToken(req.headers.authorization);
+    r.mcpAuth = token ? await verifyAccessToken(ctx, token) : null;
+    if (r.mcpAuth && token) r.mcpTokenKey = sha256(token).slice(0, 32);
+  };
+  const mcpRoute = {
+    preHandler: mcpAuth,
+    config: {
+      rateLimit: {
+        hook: 'preHandler' as const,
+        max: 120,
+        timeWindow: '1 minute',
+        keyGenerator: (req: FastifyRequest) => {
+          const k = (req as McpRequest).mcpTokenKey;
+          return k ? `mcp:t:${k}` : `mcp:ip:${ipKey(req.ip)}`;
+        },
+      },
+    },
+  };
+  const mcpHandler = async (req: FastifyRequest, reply: FastifyReply) => {
+    const info = (req as McpRequest).mcpAuth;
+    if (!info) {
+      const h = req.headers.authorization;
+      return unauthorized(reply, h === undefined || h === '' ? undefined : bearerToken(h) ? 'invalid_token' : 'invalid_request');
+    }
+    const body = req.body as any;
+    // JSON-RPC batching was removed from MCP in protocol 2025-06-18; accepting batches would also let
+    // one HTTP request carry many tool calls past the per-request rate limit. Reject them outright.
+    if (Array.isArray(body)) return rpcError(reply, 400, -32600, 'Invalid Request: JSON-RPC batches are not supported');
+    if (!body || typeof body !== 'object') return rpcError(reply, 400, -32600, 'Invalid Request');
+    if (body.method === 'tools/call') {
+      if (body.params === undefined || body.params === null) body.params = {};
+      // Some clients omit arguments for tools without parameters; the SDK would reject that.
+      if (body.params && typeof body.params === 'object' && (body.params.arguments === undefined || body.params.arguments === null)) body.params.arguments = {};
+      const name = body.params?.name;
+      // OAuth tokens only: a client can answer 403 insufficient_scope by re-authorizing with more
+      // scopes. Personal tokens cannot step up, so they keep the in-band INSUFFICIENT_SCOPE tool
+      // error from tools.ts, which the assistant can explain to the user.
+      if (typeof name === 'string' && !info.clientId.startsWith('pat:')) {
+        const need = toolScope(name);
+        if (!info.scopes.includes(need)) {
+          const want = [...new Set([...info.scopes, need])].join(' ');
+          return reply
+            .code(403)
+            .header('www-authenticate', `Bearer error="insufficient_scope", scope="${want}", resource_metadata="${prMetadataUrl(ctx)}", error_description="This action needs the ${need} permission"`)
+            .send({ jsonrpc: '2.0', id: body.id ?? null, error: { code: -32003, message: `Insufficient scope: this action needs the "${need}" permission. Reconnect Unyly and grant it.`, data: { error: 'insufficient_scope', required_scope: need } } });
+        }
+      }
+    }
+    // Responses are plain JSON (enableJsonResponse), so a client that accepts only application/json,
+    // */* or sends no Accept header is served too: the SDK insists on seeing both types.
+    const accept = String(req.headers.accept ?? '');
+    if (!(accept.includes('application/json') && accept.includes('text/event-stream'))) setRawHeader(req.raw, 'accept', 'application/json, text/event-stream');
     const server = buildMcpServer(ctx, { userId: info.userId, via: 'mcp', clientId: info.clientId, scopes: info.scopes });
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     reply.hijack();
+    // The reply is hijacked: write the CORS headers onto the raw response ourselves.
+    for (const [k, v] of Object.entries(CORS_HEADERS)) reply.raw.setHeader(k, v);
     reply.raw.on('close', () => {
       // Closing the HTTP request never cancels a real order: submissions run to completion server-side.
       transport.close().catch(() => {});
       server.close().catch(() => {});
     });
     await server.connect(transport);
-    await transport.handleRequest(req.raw, reply.raw, req.body);
-  });
+    await transport.handleRequest(req.raw, reply.raw, body);
+  };
   const methodNotAllowed = async (_req: FastifyRequest, reply: FastifyReply) =>
     reply.code(405).header('allow', 'POST').send({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed: this server is stateless (POST only).' }, id: null });
-  app.get(mcpPath, methodNotAllowed);
-  app.delete(mcpPath, methodNotAllowed);
+  for (const p of mcpPaths) {
+    app.post(p, mcpRoute, mcpHandler);
+    app.get(p, methodNotAllowed);
+    app.delete(p, methodNotAllowed);
+  }
 
   // ---------------- Webhooks (raw body for signature verification) ----------------
   await app.register(async (scope) => {

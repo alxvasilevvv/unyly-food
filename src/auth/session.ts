@@ -6,6 +6,7 @@ import type { Queryable } from '../db/db.js';
 import { audit } from '../context.js';
 import { randomToken, safeEqual, sha256 } from '../domain/crypto.js';
 import { DomainError } from '../domain/errors.js';
+import { lookup } from '../i18n/index.js';
 import { findOrCreateUserByEmail, getUser, UserRow } from '../services/users.js';
 
 export const SESSION_COOKIE = 'unyly_session';
@@ -16,6 +17,31 @@ const MAX_ATTEMPTS = 5;
 
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 
+// Sign-in email. English is the base text (and the i18n catalog key); ru and th are written here,
+// the other languages come from the catalogs via lookup() and fall back to English.
+// The code is never in the subject line: subjects end up in notification previews and logs.
+const LOGIN_MAIL_EN = {
+  subject: 'Your Unyly sign-in code',
+  body: 'Your code: {code}\nIt is valid for 10 minutes. If you did not try to sign in, ignore this email.',
+};
+const LOGIN_MAIL: Partial<Record<Locale, typeof LOGIN_MAIL_EN>> = {
+  ru: {
+    subject: 'Код входа в Unyly',
+    body: 'Ваш код: {code}\nОн действует 10 минут. Если вы не запрашивали вход, просто проигнорируйте письмо.',
+  },
+  th: {
+    subject: 'รหัสเข้าสู่ระบบ Unyly ของคุณ',
+    body: 'รหัสของคุณ: {code}\nรหัสนี้ใช้ได้ 10 นาที หากคุณไม่ได้พยายามเข้าสู่ระบบ โปรดเพิกเฉยต่ออีเมลนี้',
+  },
+};
+
+export function loginMail(locale: Locale, code: string): { subject: string; text: string } {
+  const own = LOGIN_MAIL[locale];
+  const subject = own?.subject ?? lookup(locale, LOGIN_MAIL_EN.subject) ?? LOGIN_MAIL_EN.subject;
+  const body = own?.body ?? lookup(locale, LOGIN_MAIL_EN.body) ?? LOGIN_MAIL_EN.body;
+  return { subject, text: body.replace('{code}', code) };
+}
+
 export async function requestLoginCode(ctx: Ctx, emailRaw: string, locale: Locale): Promise<{ devCode?: string }> {
   const email = emailRaw.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) throw new DomainError('VALIDATION_FAILED', 'Invalid email');
@@ -24,13 +50,29 @@ export async function requestLoginCode(ctx: Ctx, emailRaw: string, locale: Local
   if (recent.rows[0].n >= MAX_CODES_PER_HOUR) throw new DomainError('RATE_LIMITED', 'Too many codes requested. Try again later.');
   const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
   await ctx.db.query('INSERT INTO login_codes (email, code_hash, expires_at) VALUES ($1,$2,$3)', [email, sha256(`${email}:${code}`), new Date(Date.now() + CODE_TTL_MS)]);
-  const subject = locale === 'ru' ? `Код входа в Unyly: ${code}` : `Your Unyly sign-in code: ${code}`;
-  const text =
-    locale === 'ru'
-      ? `Ваш код: ${code}\nОн действует 10 минут. Если вы не запрашивали вход, просто проигнорируйте письмо.`
-      : `Your code: ${code}\nIt is valid for 10 minutes. If you did not try to sign in, ignore this email.`;
-  await ctx.mailer.send(email, subject, text);
+  const mail = loginMail(locale, code);
+  await ctx.mailer.send(email, mail.subject, mail.text);
   return ctx.cfg.devEchoLoginCode ? { devCode: code } : {};
+}
+
+/**
+ * First proof of email ownership for an account that was created without one (passkey
+ * registration). Whoever registered it may not own the mailbox (account pre-hijacking), so every
+ * credential attached so far is revoked before the verified owner is signed in: passkeys, web
+ * sessions, pending passkey challenges, OAuth grants with their codes and tokens, personal tokens.
+ * Runs inside the sign-in transaction, before the new session is created.
+ */
+async function verifyEmailOwnership(q: Queryable, userId: string) {
+  const first = await q.query('UPDATE users SET email_verified_at = now() WHERE id = $1 AND email_verified_at IS NULL RETURNING id', [userId]);
+  if (!first.rowCount) return;
+  const passkeys = (await q.query('DELETE FROM webauthn_credentials WHERE user_id = $1', [userId])).rowCount ?? 0;
+  const sessions = (await q.query('DELETE FROM web_sessions WHERE user_id = $1', [userId])).rowCount ?? 0;
+  await q.query('DELETE FROM webauthn_challenges WHERE user_id = $1', [userId]);
+  const grants = (await q.query('UPDATE oauth_grants SET revoked_at = COALESCE(revoked_at, now()) WHERE user_id = $1 AND revoked_at IS NULL RETURNING id', [userId])).rowCount ?? 0;
+  await q.query('DELETE FROM oauth_tokens WHERE grant_id IN (SELECT id FROM oauth_grants WHERE user_id = $1)', [userId]);
+  await q.query('DELETE FROM oauth_codes WHERE grant_id IN (SELECT id FROM oauth_grants WHERE user_id = $1)', [userId]);
+  const pats = (await q.query('UPDATE personal_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL', [userId])).rowCount ?? 0;
+  await audit(q, { userId, actor: 'web', action: 'user.email_verified', details: { first_verification: true, revoked: { passkeys, sessions, oauth_grants: grants, personal_tokens: pats } } });
 }
 
 export async function verifyLoginCode(ctx: Ctx, emailRaw: string, code: string, locale: Locale) {
@@ -48,7 +90,8 @@ export async function verifyLoginCode(ctx: Ctx, emailRaw: string, code: string, 
       return new DomainError('AUTH_REQUIRED', 'Wrong code');
     }
     await q.query('UPDATE login_codes SET consumed_at = now() WHERE id = $1', [row.id]);
-    const user = await findOrCreateUserByEmail(q, email, locale);
+    const user = await findOrCreateUserByEmail(q, email, locale, { verified: true });
+    if (!user.email_verified_at) await verifyEmailOwnership(q, user.id);
     const token = await createSession(q, user.id);
     await audit(q, { userId: user.id, actor: 'web', action: 'user.login', details: { method: 'email_code' } });
     return { user, token };
@@ -126,9 +169,48 @@ export function checkCsrf(ctx: Ctx, req: FastifyRequest, s: WebSession) {
   if (!body._csrf || !safeEqual(String(body._csrf), s.csrf)) throw new DomainError('AUTH_REQUIRED', 'Invalid form token; reload the page');
 }
 
-/** Only allow same-site relative redirects (prevents open redirects). */
+/**
+ * Same-origin check for state-changing requests that have no session yet (sign-in forms, passkey
+ * endpoints): the Origin header, or the Referer when Origin is absent, must equal webOrigin.
+ * `Origin: null` (sandboxed frames, some privacy modes) is rejected. `allowMissing` accepts requests
+ * that carry neither header (non-browser clients cannot perform login CSRF: that needs a victim's browser).
+ */
+export function isSameOrigin(ctx: Ctx, req: FastifyRequest, opts: { allowMissing?: boolean } = {}): boolean {
+  const origin = req.headers.origin;
+  const referer = req.headers.referer;
+  const src = typeof origin === 'string' ? origin : typeof referer === 'string' ? referer : undefined;
+  if (src === undefined) return !!opts.allowMissing;
+  try {
+    return new URL(src).origin === ctx.cfg.webOrigin;
+  } catch {
+    return false;
+  }
+}
+
+/** Throwing variant for the sign-in forms (login CSRF defence). */
+export function requireSameOrigin(ctx: Ctx, req: FastifyRequest, opts: { allowMissing?: boolean } = {}) {
+  if (!isSameOrigin(ctx, req, opts)) throw new DomainError('AUTH_REQUIRED', 'Cross-site request blocked');
+}
+
+const SAFE_NEXT_BASE = 'https://unyly-next.invalid';
+
+/**
+ * Only allow same-origin relative redirects (prevents open redirects). The value is resolved
+ * against a fixed base: anything that lands on another origin (protocol-relative, backslash or scheme URLs) or
+ * contains whitespace, control characters or backslashes falls back. Returns path + query + hash.
+ */
 export function safeNext(next: unknown, fallback = '/app'): string {
-  if (typeof next !== 'string') return fallback;
-  if (!next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\') || /[\r\n]/.test(next)) return fallback;
-  return next.slice(0, 2000);
+  if (typeof next !== 'string' || !next.startsWith('/') || next.length > 4096) return fallback;
+  if (/[\u0000-\u0020\u007f-\u009f\\\u00a0\u1680\u2000-\u200f\u2028\u2029\u202f\u205f\u3000\ufeff]/.test(next)) return fallback;
+  let u: URL;
+  try {
+    u = new URL(next, SAFE_NEXT_BASE);
+  } catch {
+    return fallback;
+  }
+  if (u.origin !== SAFE_NEXT_BASE) return fallback;
+  const out = u.pathname + u.search + u.hash;
+  // Dot segments can normalise "/.//evil.example" into a protocol-relative path.
+  if (!out.startsWith('/') || out.startsWith('//')) return fallback;
+  return out;
 }

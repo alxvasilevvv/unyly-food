@@ -204,7 +204,14 @@ export class DemoProvider implements Provider {
       if (r.service === 'express') {
         if (!trip?.parcel) issues.push({ code: 'TRIP_REQUIRED', message: 'Parcel weight is required' });
         else if (it.vehicle.max_weight_kg !== undefined && trip.parcel.weight_kg > it.vehicle.max_weight_kg) {
-          issues.push({ code: 'WEIGHT_LIMIT', message: `${it.name} carries up to ${it.vehicle.max_weight_kg} kg; parcel is ${trip.parcel.weight_kg} kg`, line_id: l.line_id });
+          const w = trip.parcel.weight_kg;
+          const fit = r.items
+            .filter((x) => x.available && x.vehicle?.max_weight_kg !== undefined && x.vehicle.max_weight_kg >= w)
+            .sort((a, b) => a.vehicle!.max_weight_kg! - b.vehicle!.max_weight_kg!)[0];
+          const hint = fit
+            ? ` Smallest vehicle that fits: ${fit.name} (item_id ${fit.id}, up to ${fit.vehicle!.max_weight_kg} kg).`
+            : ' No vehicle type carries this weight.';
+          issues.push({ code: 'WEIGHT_LIMIT', message: `${it.name} carries up to ${it.vehicle.max_weight_kg} kg; parcel is ${w} kg.${hint}`, line_id: l.line_id });
         }
       }
       const unit = (trip && demoFare(it, trip)) ?? 0;

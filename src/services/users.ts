@@ -28,14 +28,19 @@ export async function getUser(q: Queryable, id: string): Promise<UserRow> {
   return r.rows[0];
 }
 
-export async function findOrCreateUserByEmail(q: Queryable, email: string, locale: Locale): Promise<UserRow> {
+/**
+ * `verified`: the caller has just proven ownership of the email (email-code sign-in). Accounts
+ * created without that proof (passkey registration) start with email_verified_at = NULL.
+ * An existing account is returned as is: verifying it is the caller's job (see verifyLoginCode).
+ */
+export async function findOrCreateUserByEmail(q: Queryable, email: string, locale: Locale, opts: { verified?: boolean } = {}): Promise<UserRow & { email_verified_at?: string | null }> {
   const e = email.trim().toLowerCase();
   const found = await q.query<UserRow>('SELECT * FROM users WHERE lower(email) = $1 AND deleted_at IS NULL', [e]);
   if (found.rows[0]) return found.rows[0];
   const r = await q.query<UserRow>(
-    `INSERT INTO users (email, locale) VALUES ($1, $2)
+    `INSERT INTO users (email, locale, email_verified_at) VALUES ($1, $2, CASE WHEN $3::boolean THEN now() END)
      ON CONFLICT (lower(email)) WHERE deleted_at IS NULL DO UPDATE SET email = EXCLUDED.email RETURNING *`,
-    [e, locale],
+    [e, locale, !!opts.verified],
   );
   await q.query('INSERT INTO preferences (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [r.rows[0].id]);
   await q.query(`INSERT INTO provider_connections (user_id, provider, mode, status) VALUES ($1,'demo','demo','connected') ON CONFLICT DO NOTHING`, [r.rows[0].id]);
@@ -141,11 +146,19 @@ export async function addAddress(ctx: Ctx, userId: string, input: Parameters<typ
   });
 }
 
-/** Addresses are immutable once created (carts and checkouts reference them); deleting soft-deletes and scrubs the text. */
+/**
+ * Addresses are immutable once created (carts and checkouts reference them); deleting soft-deletes and scrubs
+ * every free-text field: label, street, district, city and instructions become '[deleted]' / NULL. Only country
+ * is kept (NOT NULL, two-letter region code). This is safe for history: cart_versions.address_id is ON DELETE
+ * SET NULL and the row is kept anyway, checkouts store only an address fingerprint (open ones are invalidated
+ * below), and orders keep their own address_label copy taken at acceptance. A submission accepted late (found
+ * by reconciliation after the address was deleted) records '[deleted]' as its label, which is intended.
+ */
 export async function deleteAddress(ctx: Ctx, userId: string, id: string) {
   await ctx.db.tx(async (q) => {
     const r = await q.query(
-      `UPDATE addresses SET deleted_at = now(), is_default = false, line1 = '[deleted]', instructions = NULL WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL RETURNING id`,
+      `UPDATE addresses SET deleted_at = now(), is_default = false, label = '[deleted]', line1 = '[deleted]', district = '[deleted]', city = '[deleted]', instructions = NULL
+       WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL RETURNING id`,
       [id, userId],
     );
     if (!r.rowCount) throw new DomainError('NOT_FOUND', 'Address not found');
@@ -191,16 +204,52 @@ export async function savePreferences(q: Queryable, userId: string, p: Preferenc
 
 // ---------------- Data rights ----------------
 export async function exportUserData(q: Queryable, userId: string) {
+  // Every value below is plain JSON (text, numbers, booleans, jsonb, timestamps); no bytea/public keys, no token hashes.
   const one = async (sql: string) => (await q.query(sql, [userId])).rows;
   return {
     exported_at: new Date().toISOString(),
-    user: (await one('SELECT id, email, locale, region, mode, created_at FROM users WHERE id = $1'))[0],
-    preferences: (await one('SELECT dietary, allergies, default_party_size FROM preferences WHERE user_id = $1'))[0],
-    addresses: await one('SELECT label, line1, district, city, country, instructions, created_at FROM addresses WHERE user_id = $1 AND deleted_at IS NULL'),
-    orders: await one('SELECT id, mode, service, restaurant_name, address_label, items, total_minor, currency, fulfillment_status, created_at FROM orders WHERE user_id = $1'),
-    ai_connections: await one('SELECT client_name, scopes, created_at, revoked_at FROM oauth_grants WHERE user_id = $1'),
-    personal_tokens: await one('SELECT name, scopes, created_at, expires_at, last_used_at, revoked_at FROM personal_tokens WHERE user_id = $1'),
-    handoffs: await one('SELECT url, checklist, created_at FROM handoffs WHERE user_id = $1'),
+    user: (await one('SELECT id, email, locale, region, mode, onboarded_at, created_at FROM users WHERE id = $1'))[0],
+    preferences: (await one('SELECT dietary, allergies, default_party_size, updated_at FROM preferences WHERE user_id = $1'))[0] ?? null,
+    addresses: await one('SELECT label, line1, district, city, country, instructions, is_default, created_at FROM addresses WHERE user_id = $1 AND deleted_at IS NULL ORDER BY created_at'),
+    passkeys: await one(
+      `SELECT left(id, 8) || '…' AS credential_id_prefix, label, device_type, backed_up, created_at, last_used_at
+       FROM webauthn_credentials WHERE user_id = $1 ORDER BY created_at`,
+    ),
+    provider_connections: await one('SELECT provider, mode, status, created_at, revoked_at FROM provider_connections WHERE user_id = $1 ORDER BY created_at'),
+    carts: await one(
+      `SELECT k.id, k.mode, k.service, k.restaurant_name, k.status, k.created_at, k.updated_at,
+         COALESCE((SELECT json_agg(json_build_object('version', v.version, 'items', v.items, 'trip', v.trip, 'created_at', v.created_at) ORDER BY v.version)
+                   FROM cart_versions v WHERE v.cart_id = k.id), '[]'::json) AS versions
+       FROM carts k WHERE k.user_id = $1 ORDER BY k.created_at`,
+    ),
+    quotes: await one(
+      `SELECT id, cart_id, cart_version, mode, currency, lines, subtotal_minor, delivery_fee_minor, service_fee_minor, small_order_fee_minor,
+         discount_minor, total_minor, eta_min_minutes, eta_max_minutes, price_source, checkout_allowed, fetched_at, expires_at, created_at
+       FROM quotes WHERE user_id = $1 ORDER BY created_at`,
+    ),
+    checkouts: await one(
+      `SELECT id, cart_id, cart_version, quote_id, mode, total_minor, currency, payment_method_label, status, invalid_reason,
+         expires_at, approved_at, approved_via, consumed_at, created_by, created_at
+       FROM checkouts WHERE user_id = $1 ORDER BY created_at`,
+    ),
+    submissions: await one(
+      `SELECT id, checkout_id, mode, status, provider_order_ref, error_code, started_at, finished_at
+       FROM submission_attempts WHERE user_id = $1 ORDER BY started_at`,
+    ),
+    orders: await one(
+      `SELECT o.id, o.mode, o.service, o.provider, o.provider_order_ref, o.restaurant_name, o.address_label,
+         CASE WHEN o.service IN ('ride','express') THEN o.address_label END AS trip_label,
+         o.items, o.total_minor, o.currency, o.fulfillment_status, o.payment_status, o.eta_at, o.created_at
+       FROM orders o WHERE o.user_id = $1 ORDER BY o.created_at`,
+    ),
+    cancellation_requests: await one(
+      `SELECT id, order_id, fee_minor, currency, terms, status, error_code, expires_at, approved_at, executed_at, created_at
+       FROM cancellation_requests WHERE user_id = $1 ORDER BY created_at`,
+    ),
+    handoffs: await one('SELECT cart_id, cart_version, url, checklist, created_at FROM handoffs WHERE user_id = $1 ORDER BY created_at'),
+    ai_connections: await one('SELECT client_name, scopes, created_at, last_used_at, revoked_at FROM oauth_grants WHERE user_id = $1 ORDER BY created_at'),
+    personal_tokens: await one('SELECT name, scopes, created_at, expires_at, last_used_at, revoked_at FROM personal_tokens WHERE user_id = $1 ORDER BY created_at'),
+    activity: await one('SELECT action, actor, mode, entity, created_at FROM audit_log WHERE user_id = $1 ORDER BY created_at'),
   };
 }
 

@@ -9,6 +9,8 @@ export interface Mailer {
 
 export function createMailer(cfg: Config): Mailer {
   const outbox: Mailer['outbox'] = [];
+  // loadConfig validates MAIL_MODE; this guards configs built by hand (a typo must never fall through to console).
+  if (!['smtp', 'disabled', 'console'].includes(cfg.mail.mode)) throw new Error(`Unknown MAIL_MODE "${cfg.mail.mode}" (expected smtp, disabled or console)`);
   if (cfg.mail.mode === 'disabled') {
     return { outbox, async send() { throw new Error('mail disabled'); } };
   }
@@ -27,7 +29,10 @@ export function createMailer(cfg: Config): Mailer {
     async send(to, subject, text) {
       outbox.push({ to, subject, text });
       if (outbox.length > 50) outbox.shift();
-      if (cfg.env !== 'test') console.log(`[mail:console] to=${to.replace(/(.).+@/, '$1***@')} subject="${subject}"`);
+      // Never log message content: subjects and bodies can carry sign-in codes. Only local development
+      // gets the subject (the code itself is never in the subject; see loginMail).
+      if (cfg.env === 'development') console.log(`[mail:console] to=${to.replace(/(.).+@/, '$1***@')} subject="${subject}"`);
+      else if (cfg.env !== 'test') console.log(`[mail:console] to=${to.replace(/(.).+@/, '$1***@')} (content not logged)`);
     },
   };
 }

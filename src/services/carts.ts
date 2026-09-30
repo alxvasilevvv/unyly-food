@@ -8,6 +8,7 @@ import { money } from '../domain/money.js';
 import { validateModifiers } from '../providers/demo/provider.js';
 import { isTripService, Service, SERVICE_LABEL } from '../domain/regions.js';
 import { buildTrip } from '../providers/demo/places.js';
+import { DEMO_CITY, DEMO_DISTRICTS } from '../providers/demo/catalog.js';
 import type { CartLine, Mode, Place, SelectedModifier, Trip } from '../providers/types.js';
 import { callProvider, newLineId, requireCapability } from './common.js';
 import { AddressRow, addressFingerprint, getAddress, getDefaultAddress, getUser, listAddresses, maskedAddress, toDeliveryAddress } from './users.js';
@@ -63,6 +64,27 @@ export async function loadCart(q: Queryable, userId: string, cartId: string, loc
   if (!cart) throw new DomainError('NOT_FOUND', 'Cart not found');
   const v = await q.query('SELECT items, address_id, trip FROM cart_versions WHERE cart_id = $1 AND version = $2', [cartId, cart.version]);
   return { ...cart, items: v.rows[0].items, address_id: v.rows[0].address_id, trip: v.rows[0].trip ?? null };
+}
+
+/** The exact contents of one cart version (what a checkout was approved for), independent of later edits. */
+export async function loadCartVersion(q: Queryable, cartId: string, version: number): Promise<{ items: CartLine[]; address_id: string | null; trip: Trip | null }> {
+  const v = await q.query('SELECT items, address_id, trip FROM cart_versions WHERE cart_id = $1 AND version = $2', [cartId, version]);
+  if (!v.rows[0]) throw new DomainError('NOT_FOUND', 'Cart version not found');
+  return { items: v.rows[0].items, address_id: v.rows[0].address_id, trip: v.rows[0].trip ?? null };
+}
+
+/**
+ * A cart whose submission is pending (in_flight/unknown) or accepted must not change: the provider may
+ * already hold (or be about to hold) an order for its current contents.
+ */
+async function cartSubmissionState(q: Queryable, cartId: string): Promise<'pending' | 'accepted' | null> {
+  const r = await q.query<{ status: string }>(
+    `SELECT a.status FROM submission_attempts a JOIN checkouts c ON c.id = a.checkout_id
+     WHERE c.cart_id = $1 AND a.status IN ('in_flight','unknown','accepted') ORDER BY (a.status = 'accepted') DESC LIMIT 1`,
+    [cartId],
+  );
+  const s = r.rows[0]?.status;
+  return s === 'accepted' ? 'accepted' : s ? 'pending' : null;
 }
 
 /** What the human approves as "where": the delivery address, or the trip for ride/express. */
@@ -140,15 +162,21 @@ async function resolveLines(ctx: Ctx, mode: Mode, restaurantId: string | null, i
     if (!it) throw new DomainError('ITEM_NOT_FOUND', `Item ${i.item_id} not found in this restaurant`);
     if (!it.available) throw new DomainError('OUT_OF_STOCK', `${it.name} is out of stock`, { item_id: it.id });
     if (it.max_quantity && i.quantity > it.max_quantity) {
-      throw new DomainError('QUANTITY_LIMIT', `At most ${it.max_quantity} of ${it.name} per order`, { item_id: it.id, max_quantity: it.max_quantity });
+      throw new DomainError('QUANTITY_LIMIT', `At most ${it.max_quantity} of ${it.name} per order`, { item_id: it.id, max_quantity: it.max_quantity },
+        `Tell the user the store allows at most ${it.max_quantity} of ${it.name} per order and ask whether to order ${it.max_quantity}.`);
     }
     const mods = i.modifiers ?? [];
     const problem = validateModifiers(it, mods);
     if (problem) {
+      const groups = it.modifier_groups.filter((g) => g.min_select > 0);
       throw new DomainError('MODIFIERS_INVALID', problem, {
         item_id: it.id,
-        required_groups: it.modifier_groups.filter((g) => g.min_select > 0).map((g) => ({ group_id: g.id, name: g.name, options: g.options.map((o) => o.id) })),
-      });
+        item_name: it.name,
+        required_groups: groups.map((g) => ({
+          group_id: g.id, name: g.name, min_select: g.min_select, max_select: g.max_select,
+          options: g.options.filter((o) => o.available).map((o) => ({ option_id: o.id, name: o.name })),
+        })),
+      }, `Ask the user to choose ${groups.map((g) => `"${g.name}" (${g.options.filter((o) => o.available).map((o) => o.name).join(' / ')})`).join(' and ') || 'valid options'} for ${it.name}, then pass modifiers: [{ group_id, option_ids: [option_id] }] for that item.`);
     }
     for (const sel of mods) {
       const g = it.modifier_groups.find((x) => x.id === sel.group_id)!;
@@ -175,12 +203,84 @@ function checkTripLines(lines: CartLine[]) {
   }
 }
 
+/** A one-off delivery address for a gift: someone else receives the order. */
+export interface RecipientInput {
+  name: string;
+  phone: string;
+  address_line: string;
+  district: string;
+  city: string;
+}
+
+export const RECIPIENT_LABEL_PREFIX = 'Recipient: ';
+const MAX_ADDRESSES_WITH_RECIPIENTS = 30;
+
+/** Strict validation of a gift recipient. Demo delivers only inside the Bangkok demo districts. */
+export function validateRecipient(mode: Mode, region: string, r: RecipientInput) {
+  const bad = (field: string, message: string, extra?: Record<string, unknown>) =>
+    new DomainError('VALIDATION_FAILED', `deliver_to.${field}: ${message}`, { field: `deliver_to.${field}`, ...extra },
+      'Ask the user for the missing or unclear recipient detail. Do not guess it.');
+  const ctl = /[\u0000-\u001f\u007f]/;
+  const name = (r.name ?? '').trim().replace(/\s+/g, ' ');
+  if (name.length < 1 || name.length > 60 || ctl.test(name)) throw bad('name', 'recipient name is required (1-60 characters)');
+  const phone = (r.phone ?? '').trim();
+  const digits = phone.replace(/[\s().-]/g, '');
+  if (!/^\+?\d{8,15}$/.test(digits)) throw bad('phone', 'a reachable phone number with 8-15 digits is required, e.g. +66 81 234 5678');
+  const line1 = (r.address_line ?? '').trim().replace(/\s+/g, ' ');
+  if (line1.length < 5 || line1.length > 200 || !/\d/.test(line1) || ctl.test(line1)) throw bad('address_line', 'street address with a house or building number is required');
+  let district = (r.district ?? '').trim().replace(/\s+/g, ' ');
+  let city = (r.city ?? '').trim().replace(/\s+/g, ' ');
+  let country = region;
+  if (mode === 'demo') {
+    if (city.toLowerCase() !== DEMO_CITY.toLowerCase()) throw bad('city', `demo delivery covers ${DEMO_CITY} only`, { allowed: [DEMO_CITY] });
+    const d = DEMO_DISTRICTS.find((x) => x.toLowerCase() === district.toLowerCase());
+    if (!d) throw bad('district', `not a demo delivery district`, { allowed: DEMO_DISTRICTS });
+    district = d;
+    city = DEMO_CITY;
+    country = 'TH';
+  } else {
+    if (district.length < 2 || district.length > 80) throw bad('district', 'district is required');
+    if (city.length < 2 || city.length > 80) throw bad('city', 'city is required');
+  }
+  return {
+    label: `${RECIPIENT_LABEL_PREFIX}${name}`,
+    line1,
+    district,
+    city,
+    country,
+    instructions: `Gift delivery. Recipient: ${name}, phone ${phone.replace(/\s+/g, ' ')}`,
+  };
+}
+
+/** Reuse an identical recipient row, else create one (never the default). Runs inside the cart transaction. */
+async function saveRecipientAddress(q: Queryable, userId: string, a: ReturnType<typeof validateRecipient>): Promise<AddressRow> {
+  const same = await q.query<AddressRow>(
+    `SELECT * FROM addresses WHERE user_id = $1 AND deleted_at IS NULL AND label = $2 AND line1 = $3 AND district = $4 AND city = $5 AND country = $6
+       AND instructions IS NOT DISTINCT FROM $7 LIMIT 1`,
+    [userId, a.label, a.line1, a.district, a.city, a.country, a.instructions],
+  );
+  if (same.rows[0]) return same.rows[0];
+  const n = (await q.query('SELECT count(*)::int AS n FROM addresses WHERE user_id = $1 AND deleted_at IS NULL', [userId])).rows[0].n;
+  if (n >= MAX_ADDRESSES_WITH_RECIPIENTS) {
+    throw new DomainError('VALIDATION_FAILED', 'Too many saved addresses; the user should delete old recipient addresses first', undefined,
+      'Ask the user to remove unused addresses on the Unyly website (Addresses page).');
+  }
+  const r = await q.query<AddressRow>(
+    `INSERT INTO addresses (user_id, label, line1, district, city, country, instructions, is_default) VALUES ($1,$2,$3,$4,$5,$6,$7,false) RETURNING *`,
+    [userId, a.label, a.line1, a.district, a.city, a.country, a.instructions],
+  );
+  await audit(q, { userId, actor: 'system', action: 'address.added', entity: 'address', entityId: r.rows[0].id, details: { one_off: true } });
+  return r.rows[0];
+}
+
 export interface CreateCartArgs extends TripInput {
   service?: Service;
   restaurant_id?: string;
   restaurant_name?: string;
   items: NewItem[];
   address_id?: string;
+  /** Gift: deliver this food/mart cart to someone else (a one-off address owned by the user). */
+  deliver_to?: RecipientInput;
   /** Reorder: reuse the exact trip of the earlier order instead of re-resolving names. */
   reuse_trip?: Trip | null;
 }
@@ -196,6 +296,14 @@ export async function createCart(ctx: Ctx, actor: Actor, args: CreateCartArgs): 
   let restaurantId: string | null = null;
   let address: AddressRow | null = null;
   let items = args.items;
+  if (args.deliver_to && args.address_id) throw new DomainError('VALIDATION_FAILED', 'Use either address_id or deliver_to, not both', { field: 'deliver_to' });
+  if (args.deliver_to && user.mode === 'handoff') {
+    throw new DomainError('VALIDATION_FAILED', 'In Handoff mode the recipient is entered in Grab; omit deliver_to', { field: 'deliver_to' });
+  }
+  if (args.deliver_to && args.service && isTripService(args.service)) {
+    throw new DomainError('VALIDATION_FAILED', 'deliver_to is for food and mart orders; for rides and parcels use pickup and dropoff', { field: 'deliver_to' });
+  }
+  const recipient = args.deliver_to ? validateRecipient(user.mode, user.region, args.deliver_to) : null;
   if (user.mode === 'handoff') {
     restaurantName = (args.restaurant_name ?? '').trim().slice(0, 120) || (isTripService(service) ? SERVICE_LABEL[service] : '');
     if (!restaurantName) throw new DomainError('VALIDATION_FAILED', 'store_name is required in Handoff mode');
@@ -207,14 +315,20 @@ export async function createCart(ctx: Ctx, actor: Actor, args: CreateCartArgs): 
       if (!storeId) throw new DomainError('CAPABILITY_UNAVAILABLE', `${service} is not available in this area`);
     }
     if (!storeId) throw new DomainError('VALIDATION_FAILED', 'store_id is required (from search_stores)');
-    if (!isTripService(service) || args.restaurant_id) {
+    if (recipient) {
+      // Not saved yet: the row is written in the cart transaction below, so a rejected cart leaves no address behind.
+      address = { id: '', user_id: actor.userId, is_default: false, ...recipient };
+    } else if (!isTripService(service) || args.restaurant_id) {
       address = args.address_id ? await getAddress(ctx.db, actor.userId, args.address_id) : await getDefaultAddress(ctx.db, actor.userId);
     }
     const menu = await callProvider(() => provider.getMenu(storeId!, address ? toDeliveryAddress(address) : null));
     restaurantId = menu.restaurant.id;
     restaurantName = menu.restaurant.name;
     service = menu.restaurant.service;
-    if (isTripService(service)) address = null;
+    if (isTripService(service)) {
+      if (recipient) throw new DomainError('VALIDATION_FAILED', 'deliver_to is for food and mart orders; for rides and parcels use pickup and dropoff', { field: 'deliver_to' });
+      address = null;
+    }
   }
   const trip = isTripService(service) ? args.reuse_trip ?? (await resolveTrip(ctx, user.mode, actor.userId, service, args)) : null;
   const lines = await resolveLines(ctx, user.mode, restaurantId, items, address);
@@ -224,11 +338,15 @@ export async function createCart(ctx: Ctx, actor: Actor, args: CreateCartArgs): 
     const menu = await callProvider(() => ctx.provider(user.mode).getMenu(restaurantId!, address ? toDeliveryAddress(address) : null));
     for (const [id, n] of perItem) {
       const it = menu.items.find((m) => m.id === id);
-      if (it?.max_quantity && n > it.max_quantity) throw new DomainError('QUANTITY_LIMIT', `At most ${it.max_quantity} of ${it.name} per order`, { item_id: id, max_quantity: it.max_quantity });
+      if (it?.max_quantity && n > it.max_quantity) {
+        throw new DomainError('QUANTITY_LIMIT', `At most ${it.max_quantity} of ${it.name} per order (all lines together)`, { item_id: id, max_quantity: it.max_quantity },
+          `Tell the user the store allows at most ${it.max_quantity} of ${it.name} per order and ask whether to order ${it.max_quantity}.`);
+      }
     }
   }
   if (trip) checkTripLines(lines);
   return ctx.db.tx(async (q) => {
+    if (recipient && address) address = await saveRecipientAddress(q, actor.userId, recipient);
     const c = await q.query<CartRow>(
       'INSERT INTO carts (user_id, mode, service, restaurant_id, restaurant_name) VALUES ($1,$2,$3,$4,$5) RETURNING *',
       [actor.userId, user.mode, service, restaurantId, restaurantName],
@@ -258,6 +376,13 @@ export async function updateCart(ctx: Ctx, actor: Actor, cartId: string, expecte
   return ctx.db.tx(async (q) => {
     const cart = await loadCart(q, actor.userId, cartId, true);
     if (cart.status !== 'open') throw new DomainError('CART_NOT_OPEN', `Cart is ${cart.status}; create a new cart`);
+    // Checked under the cart lock: submitOrder takes the same lock before it records an attempt.
+    const sub = await cartSubmissionState(q, cartId);
+    if (sub === 'accepted') throw new DomainError('CART_NOT_OPEN', 'This cart has already been ordered. Create a new cart to order again.');
+    if (sub === 'pending') {
+      throw new DomainError('SUBMISSION_UNKNOWN', 'An order for this cart is still being confirmed with the provider, so the cart cannot change.', undefined,
+        'Do not change or re-order this cart. Call get_checkout_status on its checkout later and report the result.');
+    }
     if (cart.version !== expectedVersion) {
       throw new DomainError('CART_VERSION_CONFLICT', 'Cart changed since you last read it', { current_version: cart.version });
     }

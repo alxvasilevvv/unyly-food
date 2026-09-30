@@ -7,11 +7,13 @@ import { randomBytes } from 'node:crypto';
 import type { Ctx } from '../context.js';
 import { audit } from '../context.js';
 import { UUID_RE } from '../domain/crypto.js';
+import { isLocaleCode } from '../domain/locales.js';
 import { DomainError } from '../domain/errors.js';
 import { findOrCreateUserByEmail } from '../services/users.js';
 import { createSession } from './session.js';
 
 const CHALLENGE_TTL_MS = 5 * 60_000;
+const REGISTER_REFUSED = 'Could not create an account with this email. If you already have one, sign in with your passkey or an email code, then add a new passkey.';
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 
 const rp = (ctx: Ctx) => ({ id: new URL(ctx.cfg.webOrigin).hostname, origin: ctx.cfg.webOrigin, name: 'Unyly' });
@@ -24,11 +26,18 @@ async function storeChallenge(ctx: Ctx, purpose: 'register' | 'add' | 'login', c
   return r.rows[0].id as string;
 }
 
-/** Single-use challenge: consumed atomically, so a replayed response fails. */
+/**
+ * Single-use challenge: consumed atomically, so a replayed response fails. The email is cleared in
+ * the same statement (the row keeps no personal data once used); the old value is returned.
+ */
 async function consumeChallenge(ctx: Ctx, id: unknown, purpose: string[]) {
   if (typeof id !== 'string' || !UUID_RE.test(id)) throw new DomainError('VALIDATION_FAILED', 'Invalid challenge');
   const r = await ctx.db.query(
-    `UPDATE webauthn_challenges SET consumed_at = now() WHERE id = $1 AND consumed_at IS NULL AND expires_at > now() AND purpose = ANY($2) RETURNING *`,
+    `WITH c AS (
+       SELECT * FROM webauthn_challenges WHERE id = $1 AND consumed_at IS NULL AND expires_at > now() AND purpose = ANY($2) FOR UPDATE
+     )
+     UPDATE webauthn_challenges w SET consumed_at = now(), email = NULL FROM c WHERE w.id = c.id
+     RETURNING c.id, c.purpose, c.challenge, c.email, c.user_id, c.user_handle`,
     [id, purpose],
   );
   if (!r.rows[0]) throw new DomainError('AUTH_REQUIRED', 'The passkey request expired. Try again.');
@@ -48,11 +57,8 @@ export async function registrationOptions(ctx: Ctx, args: { email?: string; sess
   } else {
     email = String(args.email ?? '').trim().toLowerCase();
     if (!EMAIL_RE.test(email)) throw new DomainError('VALIDATION_FAILED', 'Enter a valid email');
-    const existing = await ctx.db.query('SELECT id FROM users WHERE lower(email) = $1 AND deleted_at IS NULL', [email]);
-    if (existing.rows[0]) {
-      // Never let someone attach a passkey to an existing account without signing in first.
-      throw new DomainError('VALIDATION_FAILED', 'An account with this email already exists. Sign in with your passkey, or with a code, then add a new passkey.');
-    }
+    // No lookup here: answering differently for an existing email would let anyone enumerate
+    // accounts. Existing accounts are refused in verifyRegistration, after a full WebAuthn ceremony.
   }
   const userHandle = randomBytes(32);
   const options = await generateRegistrationOptions({
@@ -89,9 +95,14 @@ export async function verifyRegistration(ctx: Ctx, body: any, sessionUserId?: st
   return ctx.db.tx(async (q) => {
     let userId = ch.user_id as string | null;
     if (ch.purpose === 'register') {
+      // Never attach a passkey to an existing account without signing in first. The message is the
+      // same generic one whatever the reason, and only reachable after a real authenticator ceremony.
+      if (!ch.email) throw new DomainError('AUTH_REQUIRED', 'The passkey request expired. Try again.');
       const taken = await q.query('SELECT 1 FROM users WHERE lower(email) = $1 AND deleted_at IS NULL', [ch.email]);
-      if (taken.rowCount) throw new DomainError('VALIDATION_FAILED', 'An account with this email already exists');
-      userId = (await findOrCreateUserByEmail(q, ch.email, (['en', 'th'].includes(body?.locale) ? body.locale : 'ru'))).id;
+      if (taken.rowCount) throw new DomainError('VALIDATION_FAILED', REGISTER_REFUSED);
+      // Created unverified: a passkey proves nothing about the email. The first email-code sign-in
+      // verifies it and revokes whatever was attached before (see verifyLoginCode).
+      userId = (await findOrCreateUserByEmail(q, ch.email, isLocaleCode(body?.locale) ? body.locale : 'ru', { verified: false })).id;
     }
     await q.query(
       `INSERT INTO webauthn_credentials (id, user_id, public_key, counter, transports, device_type, backed_up, label) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,

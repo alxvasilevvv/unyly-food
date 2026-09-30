@@ -85,3 +85,24 @@ export function createDb(connectionString: string, max = Number(process.env.DATA
     },
   };
 }
+
+/**
+ * DATABASE_URL may list several candidates separated by "|" (e.g. two pooler hosts); the first
+ * reachable one is used. With a single candidate this is just createDb (no ping, so startup errors
+ * surface from the first real query as before).
+ */
+export async function createDbFromCandidates(
+  databaseUrl: string,
+  max?: number,
+  warn: (m: string) => void = (m) => console.warn(m),
+): Promise<Db> {
+  const candidates = databaseUrl.split('|').map((s) => s.trim()).filter(Boolean);
+  if (!candidates.length) throw new Error('DATABASE_URL is empty');
+  let db = createDb(candidates[0], max);
+  for (let i = 0; i < candidates.length - 1 && !(await db.ping()); i++) {
+    await db.close().catch(() => {});
+    warn(`[db] candidate ${i + 1} unreachable, trying next`);
+    db = createDb(candidates[i + 1], max);
+  }
+  return db;
+}

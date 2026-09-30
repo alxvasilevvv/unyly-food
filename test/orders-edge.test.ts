@@ -110,7 +110,8 @@ describe('Handoff and Live modes', () => {
     const m = await mcpClient(h, tok.access_token);
     const caps = await m.call('get_capabilities');
     expect(caps.mode).toBe('handoff');
-    expect(caps.result.current.capabilities.search_restaurants.available).toBe(false);
+    expect(caps.result.capabilities.available).not.toContain('search_restaurants');
+    expect(caps.result.capabilities.unavailable.search_restaurants).toBeTruthy();
     const search = await m.call('search_stores', { query: 'thai' });
     expect(search.error.code).toBe('CAPABILITY_UNAVAILABLE');
     const cart = await m.call('create_cart', { store_name: 'My favourite Thai place', items: [{ name: 'Pad thai', quantity: 2 }, { name: 'Green curry', quantity: 1, note: 'not spicy' }] });

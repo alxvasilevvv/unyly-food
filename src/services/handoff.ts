@@ -2,7 +2,6 @@ import type { Actor, Ctx } from '../context.js';
 import { actorLabel, audit } from '../context.js';
 import { DomainError } from '../domain/errors.js';
 import { isTripService, REGION_CODES, REGIONS, regionOf, Service, SERVICE_LABEL, SERVICES } from '../domain/regions.js';
-import { MODES, Mode } from '../providers/types.js';
 import { describeTrip, loadCart } from './carts.js';
 import { requireCapability, submissionsEnabled } from './common.js';
 import { getDefaultAddress, getUser, maskedAddress } from './users.js';
@@ -60,38 +59,44 @@ export async function createHandoff(ctx: Ctx, actor: Actor, cartId: string) {
   };
 }
 
+/**
+ * Compact capability report. The envelope already carries the mode, so it is not repeated here;
+ * capabilities are grouped (available list, unavailable with reasons) with one shared source string.
+ */
 export async function getCapabilities(ctx: Ctx, actor: Actor) {
   const user = await getUser(ctx.db, actor.userId);
   const addr = await getDefaultAddress(ctx.db, actor.userId);
-  const modes: Record<string, unknown> = {};
-  for (const m of MODES) {
-    modes[m] = { capabilities: ctx.provider(m).capabilities(), submissions_enabled: await submissionsEnabled(ctx, ctx.db, m) };
-  }
-  const current = modes[user.mode] as any;
+  const caps = ctx.provider(user.mode).capabilities();
+  const available = Object.entries(caps).filter(([, c]) => c.available).map(([k]) => k);
+  const unavailable = Object.fromEntries(Object.entries(caps).filter(([, c]) => !c.available).map(([k, c]) => [k, c.reason ?? 'not available']));
+  const sources = [...new Set(Object.values(caps).map((c) => c.source).filter(Boolean))];
   const region = regionOf(user.region);
   const demoHere = user.mode === 'demo';
   return {
     region: region.code,
     region_name: region.name,
-    region_note:
-      'No live Grab access has been granted in any market. Demo data covers Bangkok only; Handoff links work in every Grab market ' +
-      '(Thailand links checked page by page, others open the Grab country site).',
-    current_mode: user.mode as Mode,
+    region_note: 'No live Grab access in any market. Demo data covers Bangkok only; Handoff links work in every Grab market.',
     mode_explanations: {
       demo: 'Synthetic stores, fares and orders in Bangkok. No real food, ride, delivery or payment.',
-      handoff: 'Unyly prepares a checklist; you order or book and pay inside Grab yourself.',
-      live: 'Real Grab orders placed by Unyly. Not available: requires a Grab partner agreement.',
+      handoff: 'Unyly prepares a checklist; the user orders and pays inside Grab.',
+      live: 'Real Grab orders. Not available: requires a Grab partner agreement.',
     },
+    capabilities: { available, unavailable, source: sources.length === 1 ? sources[0] : sources.length ? sources : undefined },
+    submissions_enabled: await submissionsEnabled(ctx, ctx.db, user.mode),
     services: SERVICES.map((s) => ({
       service: s,
       label: SERVICE_LABEL[s],
       how: isTripService(s)
-        ? demoHere ? 'estimate_trip, then create_cart with pickup, dropoff and item_id of the vehicle' : 'create_cart with service, pickup and dropoff, then create_handoff'
-        : demoHere ? 'search_stores, get_store, then create_cart with store_id and items' : 'create_cart with service, store_name and item names, then create_handoff',
+        ? demoHere ? 'estimate_trip, then create_cart { service, pickup, dropoff, items: [{ item_id: vehicle, quantity: 1 }] }' : 'create_cart { service, pickup, dropoff } returns the Grab link'
+        : demoHere ? 'search_stores, then create_cart { store_id, items }' : 'create_cart { service, store_name, items: [{ name, quantity }] } returns the Grab link',
       examples: SERVICE_EXAMPLES[s],
     })),
-    markets: REGION_CODES.map((c) => ({ region: c, name: REGIONS[c].name, currency: REGIONS[c].currency, demo_catalog: REGIONS[c].demo_city, handoff_links_verified: REGIONS[c].links.food.verified })),
-    current: current,
+    markets: REGION_CODES.map((c) => ({
+      region: c,
+      currency: REGIONS[c].currency,
+      ...(REGIONS[c].demo_city ? { demo_city: REGIONS[c].demo_city } : {}),
+      links_verified: REGIONS[c].links.food.verified,
+    })),
     delivery_address: maskedAddress(addr),
     unyly_scopes_granted: actor.scopes ?? null,
     settings_url: `${ctx.cfg.webOrigin}/app`,

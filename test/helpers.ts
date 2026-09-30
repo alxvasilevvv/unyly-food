@@ -61,10 +61,10 @@ export async function startHarness(opts: { fresh?: boolean; cfg?: Partial<Config
 
 /** Sign in through the real web flow (email code), returns the session cookie. */
 export async function webLogin(h: Harness, email: string): Promise<{ cookie: string; userId: string; csrf: string }> {
-  const r1 = await h.app.inject({ method: 'POST', url: '/login', payload: { email, next: '/app' } });
+  const r1 = await h.app.inject({ method: 'POST', url: '/login', headers: { origin: 'http://localhost:3000' }, payload: { email, next: '/app' } });
   const code = /код (\d{6})|code (\d{6})/.exec(r1.body);
   if (!code) throw new Error('no dev code in page');
-  const r2 = await h.app.inject({ method: 'POST', url: '/login/verify', payload: { email, code: code[1] ?? code[2], next: '/app' } });
+  const r2 = await h.app.inject({ method: 'POST', url: '/login/verify', headers: { origin: 'http://localhost:3000' }, payload: { email, code: code[1] ?? code[2], next: '/app' } });
   const setCookie = String(r2.headers['set-cookie']);
   const cookie = setCookie.split(';')[0];
   const u = await h.db.query('SELECT id FROM users WHERE lower(email) = $1', [email.toLowerCase()]);

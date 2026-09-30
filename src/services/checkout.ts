@@ -5,12 +5,17 @@ import type { Queryable } from '../db/db.js';
 import { DomainError } from '../domain/errors.js';
 import { money } from '../domain/money.js';
 import { ProviderOutcomeUnknownError, ProviderUnavailableError, SubmitResult } from '../providers/types.js';
-import { describeTrip, loadCart, locationFingerprint, QuoteRow, tripLabel } from './carts.js';
+import { CartState, describeTrip, loadCart, loadCartVersion, locationFingerprint, quoteCart, QuoteRow, tripLabel } from './carts.js';
 import { isTripService } from '../domain/regions.js';
-import { requireCapability, submissionsEnabled, withTimeout } from './common.js';
+import { callProvider, requireCapability, submissionsEnabled, withTimeout } from './common.js';
 import { addressFingerprint, getAddress, maskedAddress, toDeliveryAddress } from './users.js';
 
-export const CHECKOUT_MAX_TTL_MS = 10 * 60 * 1000;
+/**
+ * How long the human has to press Confirm. Deliberately independent of the provider's quote validity
+ * (5 minutes in Demo): if the quote has gone stale by the time the user confirms, approveCheckout
+ * re-prices the exact approved cart version and proceeds only if the total is unchanged.
+ */
+export const CHECKOUT_MAX_TTL_MS = 15 * 60 * 1000;
 
 export interface CheckoutRow {
   id: string;
@@ -101,7 +106,7 @@ function reasonToError(reason: string): DomainError {
   return new DomainError('CONFIRMATION_INVALIDATED', `The confirmation is no longer valid (${reason}). Quote again and prepare a new checkout.`, { reason });
 }
 
-export async function prepareCheckout(ctx: Ctx, actor: Actor, args: { cart_id: string; quote_id: string }) {
+export async function prepareCheckout(ctx: Ctx, actor: Actor, args: { cart_id: string; quote_id: string }, opts: { createdBy?: string } = {}) {
   const cart = await loadCart(ctx.db, actor.userId, args.cart_id);
   requireCapability(ctx, cart.mode, 'checkout');
   if (!(await submissionsEnabled(ctx, ctx.db, cart.mode))) {
@@ -125,15 +130,75 @@ export async function prepareCheckout(ctx: Ctx, actor: Actor, args: { cart_id: s
     if (!fp || fp !== qr.address_fingerprint) throw new DomainError('QUOTE_EXPIRED', 'Delivery address or trip changed; quote again');
     // Only one pending confirmation per cart.
     await q.query(`UPDATE checkouts SET status='invalidated', invalid_reason='SUPERSEDED' WHERE cart_id = $1 AND status IN ('awaiting_user','approved')`, [locked.id]);
-    const expires = new Date(Math.min(new Date(qr.expires_at).getTime(), now.getTime() + CHECKOUT_MAX_TTL_MS));
+    const expires = new Date(now.getTime() + CHECKOUT_MAX_TTL_MS);
     const r = await q.query<CheckoutRow>(
       `INSERT INTO checkouts (user_id, cart_id, cart_version, quote_id, mode, address_fingerprint, total_minor, currency, payment_method_label, cancellation_terms, status, expires_at, created_by)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'awaiting_user',$11,$12) RETURNING *`,
-      [actor.userId, locked.id, locked.version, qr.id, locked.mode, qr.address_fingerprint, qr.total_minor, qr.currency, qr.payment_method_label, qr.cancellation_terms, expires, actorLabel(actor)],
+      [actor.userId, locked.id, locked.version, qr.id, locked.mode, qr.address_fingerprint, qr.total_minor, qr.currency, qr.payment_method_label, qr.cancellation_terms, expires, opts.createdBy ?? actorLabel(actor)],
     );
     await audit(q, { userId: actor.userId, actor: actorLabel(actor), action: 'checkout.prepared', mode: locked.mode, entity: 'checkout', entityId: r.rows[0].id, details: { total: qr.total_minor } });
     return r.rows[0];
   });
+}
+
+/** Statuses from which the confirmation page may offer "refresh price". */
+const REFRESHABLE = new Set(['EXPIRED', 'PRICE_CHANGED']);
+
+/**
+ * "Refresh price" on the confirmation page: re-quote the SAME cart version the checkout was prepared for
+ * and create a new one-time confirmation for it (the old one is superseded). The human still has to
+ * review and press Confirm on the new page; this never approves or submits anything.
+ * Refused when the cart changed, was ordered, or has a pending submission, and when the checkout is
+ * approved or consumed.
+ */
+export async function refreshCheckout(ctx: Ctx, userId: string, checkoutId: string): Promise<{
+  checkout_id: string;
+  confirm_url: string;
+  total_minor: number;
+  previous_total_minor: number;
+  currency: string;
+  price_changed: boolean;
+  expires_at: string;
+}> {
+  const old = await loadCheckout(ctx.db, userId, checkoutId);
+  const attempt = (await ctx.db.query<AttemptRow>('SELECT * FROM submission_attempts WHERE checkout_id = $1', [old.id])).rows[0];
+  // A submission the provider definitely refused (e.g. PRICE_CHANGED at submit) ordered nothing and may be retried
+  // with a fresh confirmation. "Not received" is excluded: the provider may still create that order late.
+  const refusedByProvider = old.status === 'consumed' && attempt?.status === 'rejected' && attempt.error_code !== 'NOT_RECEIVED_BY_PROVIDER';
+  const refreshable =
+    old.status === 'awaiting_user' ||
+    old.status === 'expired' ||
+    refusedByProvider ||
+    (old.status === 'invalidated' && REFRESHABLE.has(old.invalid_reason ?? ''));
+  if (!refreshable) {
+    if (old.status === 'approved' || old.status === 'consumed') {
+      throw new DomainError('CONFIRMATION_INVALIDATED', 'This confirmation was already used; it cannot be refreshed.', { reason: old.status.toUpperCase() });
+    }
+    throw reasonToError(old.invalid_reason ?? old.status.toUpperCase());
+  }
+  const cart = await loadCart(ctx.db, userId, old.cart_id);
+  if (cart.status !== 'open') throw new DomainError('CART_NOT_OPEN', `Cart is ${cart.status}`);
+  const changed = () =>
+    new DomainError('CONFIRMATION_INVALIDATED', 'The cart changed since this confirmation was prepared. Ask your assistant to prepare a new one.', { reason: 'CART_CHANGED' });
+  if (cart.version !== old.cart_version) throw changed();
+  const actor: Actor = { userId, via: 'web' };
+  const { quote } = await quoteCart(ctx, actor, old.cart_id);
+  if (quote.cart_version !== old.cart_version) throw changed();
+  if (!quote.checkout_allowed) {
+    const first = quote.issues[0];
+    throw new DomainError((first?.code as any) ?? 'VALIDATION_FAILED', first?.message ?? 'The order cannot be placed as it is', { issues: quote.issues });
+  }
+  const fresh = await prepareCheckout(ctx, actor, { cart_id: old.cart_id, quote_id: quote.id }, { createdBy: old.created_by });
+  await audit(ctx.db, { userId, actor: 'web', action: 'checkout.refreshed', mode: fresh.mode, entity: 'checkout', entityId: fresh.id, details: { from: old.id, total: fresh.total_minor } });
+  return {
+    checkout_id: fresh.id,
+    confirm_url: confirmUrl(ctx, fresh.id),
+    total_minor: Number(fresh.total_minor),
+    previous_total_minor: Number(old.total_minor),
+    currency: fresh.currency,
+    price_changed: Number(fresh.total_minor) !== Number(old.total_minor) || fresh.currency !== old.currency,
+    expires_at: new Date(fresh.expires_at).toISOString(),
+  };
 }
 
 /** Full, human-readable view of what is being approved. Used by the confirmation page and get_checkout_status. */
@@ -185,22 +250,74 @@ export async function checkoutStatus(ctx: Ctx, actor: Actor, id: string) {
     confirm_url: c.status === 'awaiting_user' ? confirmUrl(ctx, c.id) : null,
     submission: v.attempt ? describeAttempt(v.attempt) : null,
     order_id: v.order?.id ?? null,
+    summary: statusSummary(c, v.attempt ?? null),
   };
 }
 
-/** Human approval. Only callable from an authenticated web session (never from MCP). */
+/** One sentence the assistant can relay as is. */
+function statusSummary(c: CheckoutRow, a: AttemptRow | null): string {
+  if (a) return describeAttempt(a).message;
+  switch (c.status) {
+    case 'awaiting_user':
+      return 'Waiting for the user to open confirm_url and press Confirm. Pressing Confirm places the order.';
+    case 'approved':
+      return 'The user confirmed but the order was not sent yet (for example, new orders were paused). submit_order sends it.';
+    case 'declined':
+      return 'The user declined on the confirmation page. Nothing was ordered.';
+    case 'expired':
+      return 'The confirmation expired before the user confirmed. Nothing was ordered.';
+    case 'invalidated':
+      return `The confirmation is no longer valid (${c.invalid_reason ?? 'changed'}). Nothing was ordered.`;
+    default:
+      return 'Nothing was ordered with this confirmation.';
+  }
+}
+
+/**
+ * Re-price the exact cart version a checkout was prepared for (items, address or trip) with the provider.
+ * Returns null when the provider would charge the same total with no blocking issues.
+ */
+async function repriceProblem(ctx: Ctx, c: CheckoutRow): Promise<string | null> {
+  const cart = await loadCart(ctx.db, c.user_id, c.cart_id);
+  const v = await loadCartVersion(ctx.db, c.cart_id, c.cart_version);
+  const addr = v.address_id ? await getAddress(ctx.db, c.user_id, v.address_id).catch(() => null) : null;
+  if (v.address_id && !addr) return 'ADDRESS_CHANGED';
+  const pq = await callProvider(() =>
+    ctx.provider(c.mode).quote({ restaurant_id: cart.restaurant_id!, lines: v.items, address: addr ? toDeliveryAddress(addr) : null, trip: v.trip }),
+  );
+  if (pq.issues.length || pq.total_minor !== Number(c.total_minor) || pq.currency !== c.currency) return 'PRICE_CHANGED';
+  return null;
+}
+
+/**
+ * Human approval. Only callable from an authenticated web session (never from MCP).
+ * The confirmation lives up to CHECKOUT_MAX_TTL_MS; if the provider quote behind it is older than the
+ * provider's own validity, the same cart version is re-priced first. Same total: proceed. Different
+ * total or a new blocking issue: the confirmation is invalidated with PRICE_CHANGED.
+ */
 export async function approveCheckout(ctx: Ctx, userId: string, id: string) {
+  const pre = await loadCheckout(ctx.db, userId, id);
+  let staleQuoteProblem: string | null = null;
+  let repriced = false;
+  if (pre.status === 'awaiting_user' && new Date(pre.expires_at).getTime() > ctx.clock.now().getTime()) {
+    const qr = (await ctx.db.query<QuoteRow>('SELECT expires_at FROM quotes WHERE id = $1', [pre.quote_id])).rows[0];
+    if (!qr || new Date(qr.expires_at).getTime() <= ctx.clock.now().getTime()) {
+      // Provider call outside the transaction; the cart version and location are re-checked under the lock below.
+      staleQuoteProblem = await repriceProblem(ctx, pre);
+      repriced = true;
+    }
+  }
   const out = await ctx.db.tx(async (q) => {
     const c = await loadCheckout(q, userId, id, true);
     if (c.status === 'approved' || c.status === 'consumed') return c; // double click
     if (c.status !== 'awaiting_user') throw reasonToError(c.invalid_reason ?? c.status.toUpperCase());
-    const problem = await validityProblem(ctx, q, c);
+    const problem = (await validityProblem(ctx, q, c)) ?? (c.quote_id === pre.quote_id ? staleQuoteProblem : null);
     if (problem) {
       await markInvalid(q, c.id, problem); // committed, then reported
       return reasonToError(problem);
     }
     const r = await q.query<CheckoutRow>(`UPDATE checkouts SET status='approved', approved_at=$2, approved_via='web' WHERE id=$1 RETURNING *`, [c.id, ctx.clock.now()]);
-    await audit(q, { userId, actor: 'web', action: 'checkout.approved', mode: c.mode, entity: 'checkout', entityId: c.id });
+    await audit(q, { userId, actor: 'web', action: 'checkout.approved', mode: c.mode, entity: 'checkout', entityId: c.id, details: repriced ? { repriced: true } : undefined });
     return r.rows[0];
   });
   if (out instanceof DomainError) throw out;
@@ -277,7 +394,10 @@ export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string) {
        VALUES ($1,$2,$3,$4,'in_flight',$5,$6) RETURNING *`,
       [c.id, actor.userId, c.mode, `unyly-${c.id}`, new Date(now.getTime() + ctx.cfg.providerTimeoutMs + 5000), now],
     );
-    const cart = await loadCart(q, actor.userId, c.cart_id);
+    // Send exactly the approved cart version (validityProblem above guarantees it is also the current one).
+    const cartRow = await loadCart(q, actor.userId, c.cart_id);
+    const v = await loadCartVersion(q, c.cart_id, c.cart_version);
+    const cart: CartState = { ...cartRow, items: v.items, address_id: v.address_id, trip: v.trip };
     const addr = isTripService(cart.service) ? null : await getAddress(q, actor.userId, cart.address_id!);
     await audit(q, { userId: actor.userId, actor: actorLabel(actor), action: 'submission.started', mode: c.mode, entity: 'checkout', entityId: c.id });
     return { attempt: a.rows[0], checkout: c, cart, addr };
@@ -361,9 +481,11 @@ export async function recordAccepted(ctx: Ctx, attemptId: string, ref: string, s
     );
     const c = (await q.query<CheckoutRow>('SELECT * FROM checkouts WHERE id = $1', [a.checkout_id])).rows[0];
     const cart = await loadCart(q, a.user_id, c.cart_id);
+    // The order is what the human approved: the checkout's cart version, never whatever the cart holds now.
+    const v = await loadCartVersion(q, c.cart_id, c.cart_version);
     const qr = (await q.query<QuoteRow>('SELECT * FROM quotes WHERE id = $1', [c.quote_id])).rows[0];
-    const addr = cart.address_id ? (await q.query('SELECT * FROM addresses WHERE id = $1', [cart.address_id])).rows[0] : null;
-    const where = isTripService(cart.service) ? tripLabel(cart.trip) ?? 'trip' : maskedAddress(addr)?.label ?? 'address';
+    const addr = v.address_id ? (await q.query('SELECT * FROM addresses WHERE id = $1', [v.address_id])).rows[0] : null;
+    const where = isTripService(cart.service) ? tripLabel(v.trip) ?? 'trip' : maskedAddress(addr)?.label ?? 'address';
     const ins = await q.query(
       `INSERT INTO orders (user_id, checkout_id, submission_id, cart_id, mode, provider, provider_order_ref, restaurant_id, restaurant_name, items, address_label,
          total_minor, currency, fulfillment_status, payment_status, status_version, eta_at, service)

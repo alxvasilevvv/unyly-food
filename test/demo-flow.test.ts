@@ -38,7 +38,12 @@ describe('Demo: full vertical flow over real MCP + OAuth', () => {
     expect(r.ok).toBe(true);
     expect(r.mode).toBe('demo');
     expect(r.notices[0]).toMatch(/DEMO MODE/);
-    expect(r.result.current.capabilities.submit_order.available).toBe(true);
+    expect(r.result.capabilities.available).toContain('submit_order');
+    expect(r.result.capabilities.unavailable.handoff).toBeTruthy();
+    expect(typeof r.result.capabilities.source).toBe('string'); // one shared source string, not one per capability
+    expect(r.result.mode).toBeUndefined(); // the envelope carries the mode
+    expect(r.tool).toBeUndefined();
+    expect(r.operation_id).toBeUndefined();
     expect(r.result.delivery_address).toEqual({ address_id: expect.any(String), label: 'Home', area: 'Watthana, Bangkok' });
   });
 
@@ -118,12 +123,17 @@ describe('Demo: full vertical flow over real MCP + OAuth', () => {
     expect(cart.cart_id).toBeTruthy();
   });
 
-  it('reorder creates a NEW draft that must be re-quoted', async () => {
+  it('reorder creates a NEW cart, re-quoted at current prices with a fresh confirmation link', async () => {
     const list = await u.mcp.call('list_orders');
     const r = await u.mcp.call('create_cart', { from_order_id: list.result.orders[0].order_id });
     expect(r.ok).toBe(true);
     expect(r.result.version).toBe(1);
     expect(r.result.status).toBe('open');
-    expect(r.next_actions[0].tool).toBe('quote_cart');
+    expect(r.result.quote.breakdown.total.amount_minor).toBeGreaterThan(0);
+    expect(r.result.checkout.confirm_url).toContain('/confirm/');
+    expect(r.next_actions[0].tool).toBe('get_checkout_status');
+    const draft = await u.mcp.call('create_cart', { from_order_id: list.result.orders[0].order_id, checkout: false });
+    expect(draft.result.checkout).toBeUndefined();
+    expect(draft.next_actions[0].tool).toBe('quote_cart');
   });
 });

@@ -118,8 +118,10 @@ describe('OAuth and tokens', () => {
     const tok = await oauthToken(h, s, 'orders:read');
     const m = await mcpClient(h, tok.access_token);
     expect((await m.call('get_capabilities')).ok).toBe(true);
-    const r = await m.call('create_cart', { store_id: 'demo-r1', items: [] });
-    expect(r.error.code).toBe('INSUFFICIENT_SCOPE');
+    // Over-scope tool calls get an HTTP 403 step-up challenge before the tool runs.
+    const r = await fetch(`${h.baseUrl}/mcp`, { method: 'POST', headers: { authorization: `Bearer ${tok.access_token}`, 'content-type': 'application/json', accept: 'application/json, text/event-stream' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'create_cart', arguments: { store_id: 'demo-r1', items: [] } } }) });
+    expect(r.status).toBe(403);
+    expect(r.headers.get('www-authenticate')).toContain('insufficient_scope');
     await m.close();
   });
 
@@ -128,6 +130,8 @@ describe('OAuth and tokens', () => {
     const tok = await oauthToken(h, s);
     const r1 = await h.app.inject({ method: 'POST', url: '/oauth/token', payload: { grant_type: 'refresh_token', refresh_token: tok.refresh_token, client_id: tok.client_id } });
     expect(r1.statusCode).toBe(200);
+    // Reuse inside the 60 s grace window is tolerated (parallel refresh); push it past the window.
+    await h.db.query(`UPDATE oauth_tokens SET consumed_at = now() - interval '2 minutes' WHERE consumed_at IS NOT NULL`);
     const reuse = await h.app.inject({ method: 'POST', url: '/oauth/token', payload: { grant_type: 'refresh_token', refresh_token: tok.refresh_token, client_id: tok.client_id } });
     expect(reuse.json().error).toBe('invalid_grant');
     const r2 = await h.app.inject({ method: 'POST', url: '/oauth/token', payload: { grant_type: 'refresh_token', refresh_token: r1.json().refresh_token, client_id: tok.client_id } });

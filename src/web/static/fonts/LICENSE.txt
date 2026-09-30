@@ -1,10 +1,15 @@
 Fonts bundled with Unyly (self-hosted woff2 subsets from @fontsource):
 
-Inter: Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)
-Manrope: Copyright 2018 The Manrope Project Authors (https://github.com/sharanda/manrope)
+Inter (latin, latin-ext, cyrillic and vietnamese subsets):
+  Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)
+Manrope (latin, latin-ext, cyrillic and vietnamese subsets):
+  Copyright 2018 The Manrope Project Authors (https://github.com/sharanda/manrope)
 Noto Sans Thai: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/thai)
+Noto Sans Khmer: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/khmer)
+Noto Sans Myanmar: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/myanmar)
 
-All three are licensed under the SIL Open Font License, Version 1.1, reproduced below.
+All of these fonts are licensed under the SIL Open Font License, Version 1.1, reproduced below.
+Subsetting and conversion to woff2 were done by @fontsource; no other modifications.
 
 ----
 

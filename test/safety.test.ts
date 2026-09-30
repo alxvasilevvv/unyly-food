@@ -75,7 +75,7 @@ describe('Invalidation of confirmations', () => {
     await confirmOnWeb(h, u, checkout.checkout_id);
     await setSubmissionsEnabled(h.db, 'demo', true);
     expect((await u.mcp.call('get_checkout_status', { checkout_id: checkout.checkout_id })).result.status).toBe('approved');
-    h.clock.advance(11 * 60_000);
+    h.clock.advance(16 * 60_000); // confirmations live 15 minutes, independent of the 5-minute quote validity
     const r = await u.mcp.call('submit_order', { checkout_id: checkout.checkout_id });
     expect(r.error.code).toBe('CONFIRMATION_EXPIRED');
     // The state change is persisted, not rolled back with the error.

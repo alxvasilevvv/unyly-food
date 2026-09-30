@@ -20,6 +20,73 @@ export class OAuthError extends Error {
   }
 }
 
+/**
+ * OAuth parameters are single-valued (RFC 6749 3.1, 3.2): a repeated or structured value is an
+ * invalid_request, never a 500 or a silently picked element. Numbers/booleans (JSON bodies) are
+ * stringified. Keys in `multi` may repeat (e.g. the consent form's `grant` checkboxes) and are
+ * dropped here: the caller reads them itself.
+ */
+export function oauthParams(input: unknown, multi: readonly string[] = []): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = {};
+  if (input === undefined || input === null) return out;
+  if (typeof input !== 'object' || Array.isArray(input)) throw new OAuthError('invalid_request', 'Parameters must be an object');
+  for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+    if (multi.includes(k)) continue;
+    if (v === undefined || v === null) continue;
+    if (typeof v === 'string') out[k] = v;
+    else if (typeof v === 'number' || typeof v === 'boolean') out[k] = String(v);
+    else throw new OAuthError('invalid_request', `Parameter ${k} must be a single value`);
+  }
+  return out;
+}
+
+function canonicalUrl(raw: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (u.hash || u.username || u.password) return null;
+  // URL already lowercases scheme and host and drops default ports; strip one trailing slash.
+  const path = u.pathname.replace(/\/$/, '');
+  return `${u.protocol}//${u.host}${path}${u.search}`;
+}
+
+/**
+ * RFC 8707 resource indicator. Accepts the canonical MCP resource URL with case/trailing-slash
+ * differences, and the bare origin as an alias (some clients send the server origin). Returns the
+ * canonical resource, or throws invalid_target.
+ */
+export function normalizeResource(ctx: Ctx, raw: string | undefined): string {
+  if (raw === undefined || raw === '') return ctx.cfg.mcpResourceUrl;
+  const want = canonicalUrl(ctx.cfg.mcpResourceUrl);
+  const got = canonicalUrl(raw);
+  if (got && want && (got === want || got === new URL(ctx.cfg.mcpResourceUrl).origin)) return ctx.cfg.mcpResourceUrl;
+  throw new OAuthError('invalid_target', 'Unknown resource');
+}
+
+/**
+ * Client authentication for public clients: client_id in the body, or HTTP Basic (RFC 6749 2.3.1,
+ * form-urlencoded id, any secret ignored: we issue none). Both present and different: invalid_request.
+ */
+export function clientIdFrom(body: Record<string, string | undefined>, authorization: string | undefined): string | undefined {
+  let basic: string | undefined;
+  const m = /^basic\s+([A-Za-z0-9+/=._~-]+)\s*$/i.exec(authorization ?? '');
+  if (m) {
+    const dec = Buffer.from(m[1], 'base64').toString('utf8');
+    const i = dec.indexOf(':');
+    try {
+      basic = decodeURIComponent((i === -1 ? dec : dec.slice(0, i)).replace(/\+/g, ' '));
+    } catch {
+      throw new OAuthError('invalid_request', 'Malformed Basic credentials');
+    }
+    if (!basic) basic = undefined;
+  }
+  if (basic && body.client_id && basic !== body.client_id) throw new OAuthError('invalid_request', 'client_id differs between Basic auth and body');
+  return body.client_id || basic;
+}
+
 export function asMetadata(ctx: Ctx) {
   const o = ctx.cfg.webOrigin;
   return {
@@ -125,22 +192,49 @@ function isPrivateIp(ip: string): boolean {
   return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
 }
 
+const CIMD_DEADLINE_MS = 5000;
+const CIMD_DNS_TIMEOUT_MS = 2000;
+/** Cached Client ID Metadata Documents are re-fetched after this long. */
+export const CIMD_MAX_AGE_MS = 24 * 3600_000;
+/** A redirect_uri mismatch triggers a re-fetch at most this often per client (no fetch amplification). */
+const CIMD_MISMATCH_REFETCH_MS = 60_000;
+
+function withTimeout<T>(p: Promise<T>, ms: number, err: () => Error): Promise<T> {
+  let t: NodeJS.Timeout;
+  return Promise.race([p, new Promise<never>((_, reject) => { t = setTimeout(() => reject(err()), ms); })]).finally(() => clearTimeout(t));
+}
+
 /**
  * Fetch a Client ID Metadata Document with SSRF protection: https on 443 only, DNS answers pinned
- * and checked against private ranges, no redirects, 5 s timeout, 16 KB cap.
+ * and checked against private ranges, no redirects, 16 KB cap. DNS has its own timeout and the whole
+ * fetch (DNS, connect, TLS, body) a hard deadline enforced with an AbortController.
  */
 export async function fetchClientMetadata(url: string): Promise<any> {
   const u = new URL(url);
   if (u.protocol !== 'https:' || (u.port && u.port !== '443') || u.username || u.password || u.hash) throw new OAuthError('invalid_client', 'client_id URL not allowed');
-  const addrs = await lookup(u.hostname, { all: true });
-  if (!addrs.length || addrs.some((a) => isPrivateIp(a.address))) throw new OAuthError('invalid_client', 'client_id host not allowed');
-  const pinned = addrs[0];
+  const ac = new AbortController();
+  const deadline = setTimeout(() => ac.abort(), CIMD_DEADLINE_MS);
+  try {
+    const addrs = await withTimeout(lookup(u.hostname, { all: true }), CIMD_DNS_TIMEOUT_MS, () => new OAuthError('invalid_client', 'client_id host did not resolve in time'));
+    if (!addrs.length || addrs.some((a) => isPrivateIp(a.address))) throw new OAuthError('invalid_client', 'client_id host not allowed');
+    return await fetchPinned(u, addrs[0], ac.signal);
+  } catch (e) {
+    if (e instanceof OAuthError) throw e;
+    throw new OAuthError('invalid_client', 'could not fetch client metadata');
+  } finally {
+    clearTimeout(deadline);
+  }
+}
+
+function fetchPinned(u: URL, pinned: { address: string; family: number }, signal: AbortSignal): Promise<any> {
   return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(new OAuthError('invalid_client', 'client metadata fetch timed out'));
     const req = https.get(
       {
         host: u.hostname,
         path: u.pathname + u.search,
-        timeout: 5000,
+        timeout: CIMD_DEADLINE_MS,
+        signal,
         headers: { accept: 'application/json' },
         lookup: (_h: string, opts: any, cb: any) => (opts?.all ? cb(null, [pinned]) : cb(null, pinned.address, pinned.family)),
       },
@@ -168,14 +262,28 @@ export async function fetchClientMetadata(url: string): Promise<any> {
       },
     );
     req.on('timeout', () => req.destroy(new Error('timeout')));
-    req.on('error', () => reject(new OAuthError('invalid_client', 'could not fetch client metadata')));
+    req.on('error', () => reject(new OAuthError('invalid_client', signal.aborted ? 'client metadata fetch timed out' : 'could not fetch client metadata')));
   });
 }
 
-export async function getClient(ctx: Ctx, clientId: string, fetcher = fetchClientMetadata): Promise<Client> {
+/**
+ * Looks up a client. URL client_ids (CIMD) are fetched on first use and re-fetched when the cached
+ * copy is older than 24 h, or when `redirectUri` is not among the cached redirect URIs (the client
+ * may have added one; at most once a minute per client).
+ */
+export async function getClient(ctx: Ctx, clientId: string, fetcher = fetchClientMetadata, opts: { redirectUri?: string } = {}): Promise<Client> {
   if (!clientId || clientId.length > 500) throw new OAuthError('invalid_client', 'unknown client');
-  const r = await ctx.db.query('SELECT * FROM oauth_clients WHERE client_id = $1', [clientId]);
-  if (r.rows[0]) return r.rows[0];
+  const r = await ctx.db.query(
+    `SELECT *, (now() - updated_at) > make_interval(secs => $2) AS stale, (now() - updated_at) > make_interval(secs => $3) AS refetchable
+       FROM oauth_clients WHERE client_id = $1`,
+    [clientId, CIMD_MAX_AGE_MS / 1000, CIMD_MISMATCH_REFETCH_MS / 1000],
+  );
+  const cached = r.rows[0];
+  if (cached) {
+    const { stale, refetchable, ...client } = cached;
+    const mismatch = opts.redirectUri !== undefined && !redirectMatches(client.redirect_uris, opts.redirectUri);
+    if (client.registration !== 'cimd' || !(stale || (mismatch && refetchable))) return client;
+  }
   if (clientId.startsWith('https://')) {
     const doc = await fetcher(clientId);
     if (doc?.client_id !== clientId) throw new OAuthError('invalid_client', 'client_id in metadata does not match URL');
@@ -183,8 +291,8 @@ export async function getClient(ctx: Ctx, clientId: string, fetcher = fetchClien
     if (!uris.length) throw new OAuthError('invalid_client', 'client metadata has no valid redirect_uris');
     const name = String(doc.client_name ?? new URL(clientId).hostname).slice(0, 80);
     await ctx.db.query(
-      `INSERT INTO oauth_clients (client_id, client_name, redirect_uris, registration) VALUES ($1,$2,$3,'cimd')
-       ON CONFLICT (client_id) DO UPDATE SET client_name = EXCLUDED.client_name, redirect_uris = EXCLUDED.redirect_uris`,
+      `INSERT INTO oauth_clients (client_id, client_name, redirect_uris, registration, updated_at) VALUES ($1,$2,$3,'cimd', now())
+       ON CONFLICT (client_id) DO UPDATE SET client_name = EXCLUDED.client_name, redirect_uris = EXCLUDED.redirect_uris, updated_at = now()`,
       [clientId, name, JSON.stringify(uris)],
     );
     return { client_id: clientId, client_name: name, redirect_uris: uris, registration: 'cimd' };
@@ -206,16 +314,16 @@ export interface AuthzRequest {
  * Validates an authorization request. Errors that happen before the client and redirect URI
  * are trusted are thrown (shown on our page, never redirected: prevents open redirects).
  */
-export async function parseAuthzRequest(ctx: Ctx, p: Record<string, string | undefined>, fetcher = fetchClientMetadata): Promise<AuthzRequest> {
-  const client = await getClient(ctx, p.client_id ?? '', fetcher);
+export async function parseAuthzRequest(ctx: Ctx, input: unknown, fetcher = fetchClientMetadata): Promise<AuthzRequest> {
+  const p = oauthParams(input, ['grant']);
+  const client = await getClient(ctx, p.client_id ?? '', fetcher, { redirectUri: p.redirect_uri });
   const redirect = p.redirect_uri ?? '';
   if (!redirectMatches(client.redirect_uris, redirect)) throw new OAuthError('invalid_request', 'redirect_uri is not registered for this client');
   if (p.response_type !== 'code') throw new OAuthError('unsupported_response_type', 'response_type must be code');
   if (p.code_challenge_method !== 'S256' || !p.code_challenge || !/^[A-Za-z0-9_-]{43,128}$/.test(p.code_challenge)) {
     throw new OAuthError('invalid_request', 'PKCE with S256 is required');
   }
-  const resource = p.resource ?? ctx.cfg.mcpResourceUrl;
-  if (resource.replace(/\/$/, '') !== ctx.cfg.mcpResourceUrl) throw new OAuthError('invalid_target', 'Unknown resource');
+  normalizeResource(ctx, p.resource);
   const requested = (p.scope ?? '').split(/\s+/).filter(Boolean);
   let scopes = requested.filter((s): s is Scope => (SCOPES as readonly string[]).includes(s));
   // No Unyly scope named (no scope, or only offline_access/openid): offer all; the user can untick on the consent page.
@@ -265,11 +373,16 @@ async function revokeGrant(q: Queryable, grantId: string) {
   await q.query('DELETE FROM oauth_tokens WHERE grant_id = $1', [grantId]);
 }
 
-export async function tokenEndpoint(ctx: Ctx, body: Record<string, string | undefined>) {
+/** A refresh token presented again within this window of its rotation gets a fresh pair (lost response, retries). */
+export const REFRESH_REUSE_GRACE_SEC = 60;
+
+export async function tokenEndpoint(ctx: Ctx, rawBody: unknown, opts: { authorization?: string } = {}) {
+  const body = oauthParams(rawBody);
   const grantType = body.grant_type;
-  if (body.resource && body.resource.replace(/\/$/, '') !== ctx.cfg.mcpResourceUrl) throw new OAuthError('invalid_target', 'Unknown resource');
+  if (body.resource) normalizeResource(ctx, body.resource);
+  const client_id = clientIdFrom(body, opts.authorization);
   if (grantType === 'authorization_code') {
-    const { code, redirect_uri, client_id, code_verifier } = body;
+    const { code, redirect_uri, code_verifier } = body;
     if (!code || !redirect_uri || !client_id || !code_verifier) throw new OAuthError('invalid_request', 'Missing parameters');
     const out = await ctx.db.tx(async (q) => {
       const r = await q.query('SELECT c.*, g.scopes, g.revoked_at FROM oauth_codes c JOIN oauth_grants g ON g.id = c.grant_id WHERE c.code_hash = $1 FOR UPDATE OF c', [sha256(code)]);
@@ -290,18 +403,28 @@ export async function tokenEndpoint(ctx: Ctx, body: Record<string, string | unde
     return out;
   }
   if (grantType === 'refresh_token') {
-    const { refresh_token, client_id } = body;
-    if (!refresh_token || !client_id) throw new OAuthError('invalid_request', 'Missing parameters');
+    const { refresh_token } = body;
+    if (!refresh_token) throw new OAuthError('invalid_request', 'Missing parameters');
     const out = await ctx.db.tx(async (q) => {
       const r = await q.query(
-        `SELECT t.*, g.client_id, g.scopes, g.revoked_at FROM oauth_tokens t JOIN oauth_grants g ON g.id = t.grant_id WHERE t.token_hash = $1 AND t.kind = 'refresh' FOR UPDATE OF t`,
-        [sha256(refresh_token)],
+        `SELECT t.*, g.client_id, g.scopes, g.revoked_at, g.user_id,
+                (t.consumed_at IS NOT NULL AND now() - t.consumed_at <= make_interval(secs => $2)) AS in_grace
+           FROM oauth_tokens t JOIN oauth_grants g ON g.id = t.grant_id WHERE t.token_hash = $1 AND t.kind = 'refresh' FOR UPDATE OF t`,
+        [sha256(refresh_token), REFRESH_REUSE_GRACE_SEC],
       );
       const row = r.rows[0];
       if (!row || row.revoked_at) throw new OAuthError('invalid_grant', 'Invalid refresh token');
-      if (row.client_id !== client_id) throw new OAuthError('invalid_grant', 'Client mismatch');
+      // Public clients: client_id is optional on refresh (the grant knows it), but must match if sent.
+      if (client_id && row.client_id !== client_id) throw new OAuthError('invalid_grant', 'Client mismatch');
       if (row.consumed_at) {
-        await revokeGrant(q, row.grant_id); // refresh token reuse: assume theft
+        if (row.in_grace) {
+          // Rotation grace: the client most likely lost the previous response (timeout, retry,
+          // two tabs). Issue another pair for the same grant instead of revoking everything.
+          await audit(q, { userId: row.user_id, actor: `mcp:${row.client_id}`, action: 'oauth.refresh_reuse_grace', entity: 'oauth_grant', entityId: row.grant_id });
+          return issueTokens(ctx, q, row.grant_id, row.scopes);
+        }
+        await revokeGrant(q, row.grant_id); // refresh token reuse after the grace window: assume theft
+        await audit(q, { userId: row.user_id, actor: `mcp:${row.client_id}`, action: 'oauth.refresh_reuse_revoked', entity: 'oauth_grant', entityId: row.grant_id });
         return new OAuthError('invalid_grant', 'Refresh token reuse detected; access revoked');
       }
       if (new Date(row.expires_at).getTime() < Date.now()) throw new OAuthError('invalid_grant', 'Refresh token expired');
@@ -314,7 +437,8 @@ export async function tokenEndpoint(ctx: Ctx, body: Record<string, string | unde
   throw new OAuthError('unsupported_grant_type', 'Unsupported grant_type');
 }
 
-export async function revokeToken(ctx: Ctx, token: string | undefined) {
+export async function revokeToken(ctx: Ctx, rawBody: unknown) {
+  const token = oauthParams(rawBody).token;
   if (!token) return;
   await ctx.db.tx(async (q) => {
     const r = await q.query('SELECT grant_id FROM oauth_tokens WHERE token_hash = $1', [sha256(token)]);

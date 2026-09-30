@@ -28,11 +28,11 @@ describe('Passkey endpoints', () => {
     expect(r3.json().message).toMatch(/expired/); // already consumed
   });
 
-  it('cannot register a passkey onto an existing account without signing in', async () => {
+  it('registration start does not reveal whether an account exists', async () => {
     await webLogin(h, 'owner@example.com');
     const r = await h.app.inject({ method: 'POST', url: '/auth/passkey/register/options', headers: origin, payload: { email: 'owner@example.com' } });
-    expect(r.statusCode).toBe(400);
-    expect(r.json().message).toMatch(/already exists/);
+    expect(r.statusCode).toBe(200);
+    expect(r.json().challenge_id).toBeTruthy();
   });
 
   it('adding a passkey to a signed-in account needs the session CSRF token', async () => {

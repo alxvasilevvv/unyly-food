@@ -7,13 +7,15 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 /** Applies pending SQL migrations in lexical order. Each file runs in its own transaction. */
 export async function migrate(db: Db, log: (m: string) => void = () => {}): Promise<string[]> {
-  await db.query(`CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`);
-  // Serialize concurrent migrators (e.g. two containers starting at once).
   const dir = join(here, 'migrations');
   const files = (await readdir(dir)).filter((f) => f.endsWith('.sql')).sort();
   const applied: string[] = [];
   await db.tx(async (q) => {
+    // Serialize concurrent migrators (e.g. two containers starting at once). The lock is taken before
+    // creating schema_migrations: two concurrent CREATE TABLE IF NOT EXISTS can otherwise race on the
+    // catalog and fail with a unique violation on pg_type.
     await q.query('SELECT pg_advisory_xact_lock(727274)');
+    await q.query(`CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`);
     const done = new Set((await q.query<{ name: string }>('SELECT name FROM schema_migrations')).rows.map((r) => r.name));
     for (const f of files) {
       if (done.has(f)) continue;

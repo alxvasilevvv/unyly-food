@@ -3,13 +3,14 @@
 //   issue-login-code <email>      one-time sign-in code for account recovery (10 min)
 //   kill-switch <demo|live> <on|off> | kill-switch status
 import { loadConfig } from './config.js';
-import { createDb } from './db/db.js';
+import { createDbFromCandidates } from './db/db.js';
 import { migrate } from './db/migrate.js';
 import { issueLoginCode } from './auth/session.js';
 import { setSubmissionsEnabled } from './services/common.js';
 
 const [cmd, ...args] = process.argv.slice(2);
-const db = createDb(loadConfig().databaseUrl, 1);
+// Same "|" candidate list handling as main.ts (first reachable URL wins).
+const db = await createDbFromCandidates(loadConfig().databaseUrl, 1);
 try {
   if (cmd === 'migrate') {
     const a = await migrate(db, console.log);

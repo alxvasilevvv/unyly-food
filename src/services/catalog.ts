@@ -9,6 +9,10 @@ import { getDefaultAddress, getPreferences, getUser, maskedAddress, toDeliveryAd
 
 const NON_MAIN = new Set(['drinks', 'desserts', 'sides']);
 
+const HOW_TO_ORDER =
+  'Pass the ids exactly as returned: create_cart { store_id, items: [{ item_id, quantity, modifiers: [{ group_id, option_ids: [option_id] }] }] }. ' +
+  'Every group in required_options needs a choice; get_store lists all groups and options.';
+
 /** Allergen status for a single item relative to the user's exclusions. Never claims "safe". */
 export function allergenAssessment(it: MenuItem, excluded: string[]) {
   if (it.allergen_info.status === 'not_applicable') return { status: 'not_applicable' as const, note: undefined };
@@ -52,7 +56,7 @@ export async function searchStores(ctx: Ctx, actor: Actor, args: SearchArgs) {
   if (service === 'mart') return searchMart(ctx, actor, args);
   const r = await searchRestaurants(ctx, actor, args);
   const { restaurants, ...rest } = r;
-  return { ...rest, service, stores: restaurants.map(({ restaurant, ...x }) => ({ store: restaurant, ...x })) };
+  return { ...rest, service, how_to_order: HOW_TO_ORDER, stores: restaurants.map(({ restaurant, ...x }) => ({ store: restaurant, ...x })) };
 }
 
 async function searchMart(ctx: Ctx, actor: Actor, args: SearchArgs) {
@@ -79,7 +83,10 @@ async function searchMart(ctx: Ctx, actor: Actor, args: SearchArgs) {
         category: it.category,
         price: money(it.price_minor, st.currency),
         available: it.available,
-        required_options: it.modifier_groups.filter((g) => g.min_select > 0).map((g) => ({ group_id: g.id, name: g.name, options: g.options.map((o) => o.id) })),
+        required_options: it.modifier_groups.filter((g) => g.min_select > 0).map((g) => ({
+          group_id: g.id, name: g.name, choose: g.min_select,
+          options: g.options.filter((o) => o.available).map((o) => ({ option_id: o.id, name: o.name, price_delta: money(o.price_delta_minor, st.currency) })),
+        })),
         max_quantity: it.max_quantity ?? null,
         allergen_check: allergenAssessment(it, excluded),
       })),
@@ -97,6 +104,7 @@ async function searchMart(ctx: Ctx, actor: Actor, args: SearchArgs) {
     delivery_address: maskedAddress(addrRow),
     applied_filters: { category: args.category ?? null, query: args.query ?? null, exclude_allergens: excluded },
     allergen_disclaimer: undefined as string | undefined,
+    how_to_order: HOW_TO_ORDER,
     stores: out.slice(0, Math.min(args.limit ?? 5, 10)),
   };
 }
@@ -144,7 +152,7 @@ export async function searchRestaurants(ctx: Ctx, actor: Actor, args: SearchArgs
         estimated_total: money(q.total_minor, q.currency),
         within_budget: args.budget_total_major === undefined ? null : q.total_minor <= Math.round(args.budget_total_major * 10 ** exponentOf(q.currency)),
         blocking_issues: q.issues.map((i) => i.code),
-        note: 'Estimate from the current price list including delivery and service fees. Call create_cart then quote_cart for a binding quote.',
+        note: 'Estimate from the current price list including delivery and service fees. create_cart returns the binding total.',
       };
     }
     results.push({
@@ -272,6 +280,6 @@ export async function estimateTrip(
     store: publicRestaurant(menu.restaurant),
     trip: describeTrip(trip),
     options,
-    note: 'Estimates only. Call create_cart with the same pickup and dropoff and the chosen item_id, then quote_cart for the binding price.',
+    note: 'Estimates only. create_cart with the same service, pickup and dropoff and the chosen item_id returns the binding price and the confirmation link.',
   };
 }
