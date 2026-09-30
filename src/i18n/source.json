@@ -8,7 +8,7 @@
  {
   "en": "(default)",
   "where": [
-   "src/web/showcase.ts:543"
+   "src/web/showcase.ts:542"
   ]
  },
  {
@@ -26,7 +26,7 @@
  {
   "en": "14 days, then deleted",
   "where": [
-   "src/web/routes.ts:304"
+   "src/web/routes.ts:305"
   ]
  },
  {
@@ -86,7 +86,7 @@
  {
   "en": "Add a Bangkok delivery address to see prices.",
   "where": [
-   "src/web/showcase.ts:445"
+   "src/web/showcase.ts:444"
   ]
  },
  {
@@ -99,7 +99,7 @@
   "en": "Add address",
   "where": [
    "src/web/messages.ts:347",
-   "src/web/showcase.ts:445"
+   "src/web/showcase.ts:444"
   ]
  },
  {
@@ -129,7 +129,7 @@
  {
   "en": "Addresses and gift recipients",
   "where": [
-   "src/web/routes.ts:309"
+   "src/web/routes.ts:310"
   ]
  },
  {
@@ -141,8 +141,8 @@
  {
   "en": "after you choose",
   "where": [
-   "src/web/showcase.ts:471",
-   "src/web/showcase.ts:598"
+   "src/web/showcase.ts:470",
+   "src/web/showcase.ts:597"
   ]
  },
  {
@@ -180,8 +180,8 @@
  {
   "en": "All contacts",
   "where": [
-   "src/web/layout.ts:118",
-   "src/web/showcase.ts:298"
+   "src/web/layout.ts:119",
+   "src/web/showcase.ts:297"
   ]
  },
  {
@@ -193,7 +193,7 @@
  {
   "en": "Allergen data comes from restaurants and may be incomplete. Unyly never calls a dish safe. Check with the restaurant.",
   "where": [
-   "src/web/showcase.ts:582"
+   "src/web/showcase.ts:581"
   ]
  },
  {
@@ -205,7 +205,7 @@
  {
   "en": "Allergies and diet",
   "where": [
-   "src/web/routes.ts:311"
+   "src/web/routes.ts:312"
   ]
  },
  {
@@ -272,7 +272,7 @@
  {
   "en": "Arrival",
   "where": [
-   "src/web/routes.ts:821"
+   "src/web/routes.ts:822"
   ]
  },
  {
@@ -284,7 +284,7 @@
  {
   "en": "Ask",
   "where": [
-   "src/web/showcase.ts:464"
+   "src/web/showcase.ts:463"
   ]
  },
  {
@@ -296,7 +296,7 @@
  {
   "en": "Ask the way you would text a friend",
   "where": [
-   "src/web/showcase.ts:613"
+   "src/web/showcase.ts:612"
   ]
  },
  {
@@ -308,21 +308,21 @@
  {
   "en": "Assistant connections (OAuth)",
   "where": [
-   "src/web/routes.ts:306"
+   "src/web/routes.ts:307"
   ]
  },
  {
   "en": "Assistant:",
   "where": [
-   "src/web/showcase.ts:476",
-   "src/web/showcase.ts:503",
-   "src/web/showcase.ts:579"
+   "src/web/showcase.ts:475",
+   "src/web/showcase.ts:502",
+   "src/web/showcase.ts:578"
   ]
  },
  {
   "en": "Audit log",
   "where": [
-   "src/web/routes.ts:314"
+   "src/web/routes.ts:315"
   ]
  },
  {
@@ -340,7 +340,7 @@
  {
   "en": "avoid:",
   "where": [
-   "src/web/showcase.ts:545"
+   "src/web/showcase.ts:544"
   ]
  },
  {
@@ -364,7 +364,7 @@
  {
   "en": "Before you confirm, the assistant can change quantities, add items or a note (a card message, for example).",
   "where": [
-   "src/web/showcase.ts:489"
+   "src/web/showcase.ts:488"
   ]
  },
  {
@@ -469,7 +469,7 @@
  {
   "en": "Can the assistant order without me?",
   "where": [
-   "src/web/routes.ts:283"
+   "src/web/routes.ts:284"
   ]
  },
  {
@@ -524,13 +524,13 @@
  {
   "en": "Carts, quotes, orders",
   "where": [
-   "src/web/routes.ts:313"
+   "src/web/routes.ts:314"
   ]
  },
  {
   "en": "Change mode",
   "where": [
-   "src/web/showcase.ts:442"
+   "src/web/showcase.ts:441"
   ]
  },
  {
@@ -542,7 +542,7 @@
  {
   "en": "Check out",
   "where": [
-   "src/web/showcase.ts:486"
+   "src/web/showcase.ts:485"
   ]
  },
  {
@@ -572,8 +572,8 @@
  {
   "en": "Choose",
   "where": [
-   "src/web/showcase.ts:518",
-   "src/web/showcase.ts:571"
+   "src/web/showcase.ts:517",
+   "src/web/showcase.ts:570"
   ]
  },
  {
@@ -597,7 +597,7 @@
  {
   "en": "closed",
   "where": [
-   "src/web/showcase.ts:576"
+   "src/web/showcase.ts:575"
   ]
  },
  {
@@ -625,15 +625,9 @@
   ]
  },
  {
-  "en": "Community channels and a direct line for bugs and ideas.",
-  "where": [
-   "src/web/routes.ts:258"
-  ]
- },
- {
   "en": "Company",
   "where": [
-   "src/web/routes.ts:260"
+   "src/web/routes.ts:261"
   ]
  },
  {
@@ -663,7 +657,7 @@
  {
   "en": "Confirm on the secure page",
   "where": [
-   "src/web/showcase.ts:607"
+   "src/web/showcase.ts:606"
   ]
  },
  {
@@ -752,8 +746,8 @@
   "en": "Contacts",
   "where": [
    "src/web/layout.ts:114",
-   "src/web/routes.ts:247",
-   "src/web/routes.ts:250"
+   "src/web/routes.ts:248",
+   "src/web/routes.ts:251"
   ]
  },
  {
@@ -789,7 +783,7 @@
  {
   "en": "Copy the token now: it will not be shown again.",
   "where": [
-   "src/web/routes.ts:984"
+   "src/web/routes.ts:985"
   ]
  },
  {
@@ -831,7 +825,7 @@
  {
   "en": "Create token",
   "where": [
-   "src/web/routes.ts:998"
+   "src/web/routes.ts:999"
   ]
  },
  {
@@ -876,7 +870,7 @@
  {
   "en": "Dashboard → Connections → Revoke access. The token stops working immediately.",
   "where": [
-   "src/web/routes.ts:292"
+   "src/web/routes.ts:293"
   ]
  },
  {
@@ -919,13 +913,13 @@
  {
   "en": "deleted after 1 day",
   "where": [
-   "src/web/routes.ts:303"
+   "src/web/routes.ts:304"
   ]
  },
  {
   "en": "deleted with all data after 24 hours",
   "where": [
-   "src/web/routes.ts:305"
+   "src/web/routes.ts:306"
   ]
  },
  {
@@ -976,7 +970,7 @@
  {
   "en": "Demo condo",
   "where": [
-   "src/web/showcase.ts:327"
+   "src/web/showcase.ts:326"
   ]
  },
  {
@@ -1024,7 +1018,7 @@
  {
   "en": "Describe what you need",
   "where": [
-   "src/web/showcase.ts:605"
+   "src/web/showcase.ts:604"
   ]
  },
  {
@@ -1079,7 +1073,7 @@
  {
   "en": "does not deliver to you",
   "where": [
-   "src/web/showcase.ts:576"
+   "src/web/showcase.ts:575"
   ]
  },
  {
@@ -1141,7 +1135,7 @@
  {
   "en": "Drop-off",
   "where": [
-   "src/web/routes.ts:833"
+   "src/web/routes.ts:834"
   ]
  },
  {
@@ -1171,7 +1165,7 @@
  {
   "en": "Estimate",
   "where": [
-   "src/web/showcase.ts:516"
+   "src/web/showcase.ts:515"
   ]
  },
  {
@@ -1195,7 +1189,7 @@
  {
   "en": "Examples",
   "where": [
-   "src/web/showcase.ts:463"
+   "src/web/showcase.ts:462"
   ]
  },
  {
@@ -1220,7 +1214,7 @@
  {
   "en": "Fare",
   "where": [
-   "src/web/routes.ts:827"
+   "src/web/routes.ts:828"
   ]
  },
  {
@@ -1296,7 +1290,7 @@
  {
   "en": "For assistants that take a bearer token instead of OAuth sign-in: Mistral Le Chat, Copilot Studio, Perplexity, API integrations. A token has the same powers as an OAuth connection: you still confirm every order on an Unyly page.",
   "where": [
-   "src/web/routes.ts:981"
+   "src/web/routes.ts:982"
   ]
  },
  {
@@ -1368,7 +1362,7 @@
  {
   "en": "from",
   "where": [
-   "src/web/showcase.ts:379"
+   "src/web/showcase.ts:378"
   ]
  },
  {
@@ -1430,13 +1424,7 @@
  {
   "en": "General questions and press",
   "where": [
-   "src/web/routes.ts:256"
-  ]
- },
- {
-  "en": "General questions:",
-  "where": [
-   "src/web/showcase.ts:298"
+   "src/web/routes.ts:257"
   ]
  },
  {
@@ -1473,12 +1461,6 @@
   "en": "Grab markets (Thailand first)",
   "where": [
    "src/web/showcase.ts:223"
-  ]
- },
- {
-  "en": "Grab partnership",
-  "where": [
-   "src/web/routes.ts:254"
   ]
  },
  {
@@ -1594,19 +1576,19 @@
  {
   "en": "Guest demo account",
   "where": [
-   "src/web/routes.ts:490"
+   "src/web/routes.ts:491"
   ]
  },
  {
   "en": "Guest demo accounts",
   "where": [
-   "src/web/routes.ts:305"
+   "src/web/routes.ts:306"
   ]
  },
  {
   "en": "Guest IP hash",
   "where": [
-   "src/web/routes.ts:312"
+   "src/web/routes.ts:313"
   ]
  },
  {
@@ -1642,7 +1624,7 @@
  {
   "en": "Handoff; demo data is Bangkok",
   "where": [
-   "src/web/routes.ts:537"
+   "src/web/routes.ts:538"
   ]
  },
  {
@@ -1654,7 +1636,7 @@
  {
   "en": "Header",
   "where": [
-   "src/web/routes.ts:986"
+   "src/web/routes.ts:987"
   ]
  },
  {
@@ -1685,26 +1667,26 @@
  {
   "en": "Here are {n} options. Prices already include all fees:",
   "where": [
-   "src/web/showcase.ts:584"
+   "src/web/showcase.ts:583"
   ]
  },
  {
   "en": "Here is a basket. The price already includes delivery and fees:",
   "where": [
-   "src/web/showcase.ts:477"
+   "src/web/showcase.ts:476"
   ]
  },
  {
   "en": "Here is what I understood:",
   "where": [
-   "src/web/showcase.ts:580"
+   "src/web/showcase.ts:579"
   ]
  },
  {
   "en": "Home",
   "where": [
    "src/web/messages.ts:339",
-   "src/web/routes.ts:1091"
+   "src/web/routes.ts:1092"
   ]
  },
  {
@@ -1761,13 +1743,13 @@
  {
   "en": "How accurate are allergens?",
   "where": [
-   "src/web/routes.ts:289"
+   "src/web/routes.ts:290"
   ]
  },
  {
   "en": "How do I disconnect an assistant?",
   "where": [
-   "src/web/routes.ts:291"
+   "src/web/routes.ts:292"
   ]
  },
  {
@@ -1787,7 +1769,7 @@
  {
   "en": "How the demo goes",
   "where": [
-   "src/web/showcase.ts:626"
+   "src/web/showcase.ts:625"
   ]
  },
  {
@@ -1883,7 +1865,7 @@
  {
   "en": "Is this an official Grab service?",
   "where": [
-   "src/web/routes.ts:281"
+   "src/web/routes.ts:282"
   ]
  },
  {
@@ -1896,13 +1878,13 @@
   "en": "Items",
   "where": [
    "src/web/messages.ts:379",
-   "src/web/routes.ts:827"
+   "src/web/routes.ts:828"
   ]
  },
  {
   "en": "items picked",
   "where": [
-   "src/web/showcase.ts:494"
+   "src/web/showcase.ts:493"
   ]
  },
  {
@@ -1938,13 +1920,13 @@
  {
   "en": "kept with carts and orders",
   "where": [
-   "src/web/routes.ts:310"
+   "src/web/routes.ts:311"
   ]
  },
  {
   "en": "keyed hash for the guest limit, deleted after 24 hours",
   "where": [
-   "src/web/routes.ts:312"
+   "src/web/routes.ts:313"
   ]
  },
  {
@@ -2005,13 +1987,13 @@
   "en": "Live demo",
   "where": [
    "src/web/layout.ts:104",
-   "src/web/showcase.ts:629"
+   "src/web/showcase.ts:628"
   ]
  },
  {
   "en": "Live demo · fictional data · no payment",
   "where": [
-   "src/web/showcase.ts:612"
+   "src/web/showcase.ts:611"
   ]
  },
  {
@@ -2073,7 +2055,7 @@
  {
   "en": "MCP calls",
   "where": [
-   "src/web/showcase.ts:624"
+   "src/web/showcase.ts:623"
   ]
  },
  {
@@ -2108,9 +2090,9 @@
   ]
  },
  {
-  "en": "Meetings, the pilot and API access.",
+  "en": "Meetings, the Grab pilot and API access.",
   "where": [
-   "src/web/routes.ts:254"
+   "src/web/routes.ts:255"
   ]
  },
  {
@@ -2152,9 +2134,9 @@
  {
   "en": "min",
   "where": [
-   "src/web/routes.ts:811",
-   "src/web/showcase.ts:470",
-   "src/web/showcase.ts:559"
+   "src/web/routes.ts:812",
+   "src/web/showcase.ts:469",
+   "src/web/showcase.ts:558"
   ]
  },
  {
@@ -2203,13 +2185,13 @@
   "en": "Name",
   "where": [
    "src/web/messages.ts:338",
-   "src/web/routes.ts:995"
+   "src/web/routes.ts:996"
   ]
  },
  {
   "en": "name set by the client itself",
   "where": [
-   "src/web/routes.ts:791"
+   "src/web/routes.ts:792"
   ]
  },
  {
@@ -2257,7 +2239,7 @@
  {
   "en": "no allergen data",
   "where": [
-   "src/web/showcase.ts:551"
+   "src/web/showcase.ts:550"
   ]
  },
  {
@@ -2341,13 +2323,13 @@
  {
   "en": "No. Unyly is an independent concept prepared as a partnership proposal. Real Grab orders through Unyly are not available yet: Grab has no public API for ordering on behalf of a customer.",
   "where": [
-   "src/web/routes.ts:282"
+   "src/web/routes.ts:283"
   ]
  },
  {
   "en": "No. You confirm every order and cancellation on an Unyly page after signing in. The assistant cannot press that button.",
   "where": [
-   "src/web/routes.ts:284"
+   "src/web/routes.ts:285"
   ]
  },
  {
@@ -2385,7 +2367,7 @@
  {
   "en": "Not shown:",
   "where": [
-   "src/web/showcase.ts:587"
+   "src/web/showcase.ts:586"
   ]
  },
  {
@@ -2397,7 +2379,7 @@
  {
   "en": "Nothing fits these filters. Try a higher budget or fewer restrictions.",
   "where": [
-   "src/web/showcase.ts:586"
+   "src/web/showcase.ts:585"
   ]
  },
  {
@@ -2464,26 +2446,26 @@
  {
   "en": "only a hash is stored; deleted 30 days after revocation or expiry",
   "where": [
-   "src/web/routes.ts:307"
+   "src/web/routes.ts:308"
   ]
  },
  {
   "en": "only after you confirm",
   "where": [
-   "src/web/showcase.ts:472",
-   "src/web/showcase.ts:599"
+   "src/web/showcase.ts:471",
+   "src/web/showcase.ts:598"
   ]
  },
  {
   "en": "only after your confirmation",
   "where": [
-   "src/web/routes.ts:855"
+   "src/web/routes.ts:856"
   ]
  },
  {
   "en": "Only you can press this button. Your assistant cannot confirm for you.",
   "where": [
-   "src/web/routes.ts:847"
+   "src/web/routes.ts:848"
   ]
  },
  {
@@ -2502,14 +2484,14 @@
   "en": "Open the demo",
   "where": [
    "src/web/routes.ts:235",
-   "src/web/routes.ts:1091",
+   "src/web/routes.ts:1092",
    "src/web/showcase.ts:179"
   ]
  },
  {
   "en": "options",
   "where": [
-   "src/web/showcase.ts:524"
+   "src/web/showcase.ts:523"
   ]
  },
  {
@@ -2563,7 +2545,7 @@
  {
   "en": "over budget",
   "where": [
-   "src/web/showcase.ts:566"
+   "src/web/showcase.ts:565"
   ]
  },
  {
@@ -2619,7 +2601,7 @@
   "en": "Parcel",
   "where": [
    "src/domain/labels.ts:54",
-   "src/web/routes.ts:835",
+   "src/web/routes.ts:836",
    "src/web/showcase.ts:45"
   ]
  },
@@ -2638,7 +2620,7 @@
  {
   "en": "Parcel options. Demo fares:",
   "where": [
-   "src/web/showcase.ts:509"
+   "src/web/showcase.ts:508"
   ]
  },
  {
@@ -2661,6 +2643,12 @@
   ]
  },
  {
+  "en": "Partnership and direct contact",
+  "where": [
+   "src/web/routes.ts:255"
+  ]
+ },
+ {
   "en": "Partnership contact",
   "where": [
    "src/web/showcase.ts:296"
@@ -2675,13 +2663,13 @@
  {
   "en": "Partnership proposal: every Grab service through AI assistants.",
   "where": [
-   "src/web/showcase.ts:301"
+   "src/web/showcase.ts:300"
   ]
  },
  {
   "en": "Partnerships, press and security reports (answered within 24 hours).",
   "where": [
-   "src/web/routes.ts:256"
+   "src/web/routes.ts:257"
   ]
  },
  {
@@ -2700,7 +2688,7 @@
   "en": "Passkeys",
   "where": [
    "src/web/messages.ts:291",
-   "src/web/routes.ts:308"
+   "src/web/routes.ts:309"
   ]
  },
  {
@@ -2749,7 +2737,7 @@
   "en": "people",
   "where": [
    "src/web/messages.ts:357",
-   "src/web/showcase.ts:541"
+   "src/web/showcase.ts:540"
   ]
  },
  {
@@ -2767,7 +2755,7 @@
  {
   "en": "person",
   "where": [
-   "src/web/showcase.ts:541"
+   "src/web/showcase.ts:540"
   ]
  },
  {
@@ -2781,7 +2769,7 @@
  {
   "en": "personal token",
   "where": [
-   "src/web/routes.ts:788"
+   "src/web/routes.ts:789"
   ]
  },
  {
@@ -2793,8 +2781,8 @@
  {
   "en": "Personal tokens",
   "where": [
-   "src/web/routes.ts:307",
-   "src/web/routes.ts:978"
+   "src/web/routes.ts:308",
+   "src/web/routes.ts:979"
   ]
  },
  {
@@ -2825,7 +2813,7 @@
  {
   "en": "Pick an option",
   "where": [
-   "src/web/showcase.ts:606"
+   "src/web/showcase.ts:605"
   ]
  },
  {
@@ -2843,7 +2831,7 @@
  {
   "en": "Pickup",
   "where": [
-   "src/web/routes.ts:832"
+   "src/web/routes.ts:833"
   ]
  },
  {
@@ -2953,8 +2941,8 @@
   "en": "Proposal for Grab",
   "where": [
    "src/web/layout.ts:109",
-   "src/web/routes.ts:255",
-   "src/web/showcase.ts:99"
+   "src/web/showcase.ts:99",
+   "src/web/showcase.ts:207"
   ]
  },
  {
@@ -2991,7 +2979,7 @@
  {
   "en": "public key only, until you remove it",
   "where": [
-   "src/web/routes.ts:308"
+   "src/web/routes.ts:309"
   ]
  },
  {
@@ -3009,7 +2997,7 @@
  {
   "en": "Reach us about partnerships, questions or bugs. We reply in English, Russian and Thai.",
   "where": [
-   "src/web/routes.ts:251"
+   "src/web/routes.ts:252"
   ]
  },
  {
@@ -3046,7 +3034,7 @@
  {
   "en": "Refresh price",
   "where": [
-   "src/web/routes.ts:794"
+   "src/web/routes.ts:795"
   ]
  },
  {
@@ -3095,13 +3083,13 @@
  {
   "en": "restaurants",
   "where": [
-   "src/web/showcase.ts:597"
+   "src/web/showcase.ts:596"
   ]
  },
  {
   "en": "Retention for Thailand (PDPA) must be reviewed by counsel before any Live launch.",
   "where": [
-   "src/web/routes.ts:323"
+   "src/web/routes.ts:324"
   ]
  },
  {
@@ -3156,7 +3144,7 @@
  {
   "en": "Ride options. Demo fares:",
   "where": [
-   "src/web/showcase.ts:508"
+   "src/web/showcase.ts:507"
   ]
  },
  {
@@ -3180,7 +3168,7 @@
  {
   "en": "Route",
   "where": [
-   "src/web/routes.ts:834"
+   "src/web/routes.ts:835"
   ]
  },
  {
@@ -3266,7 +3254,7 @@
  {
   "en": "Secure confirmation",
   "where": [
-   "src/web/routes.ts:814"
+   "src/web/routes.ts:815"
   ]
  },
  {
@@ -3278,7 +3266,7 @@
  {
   "en": "Send a request and the tool calls appear here.",
   "where": [
-   "src/web/showcase.ts:602"
+   "src/web/showcase.ts:601"
   ]
  },
  {
@@ -3420,7 +3408,7 @@
  {
   "en": "Sign-in codes",
   "where": [
-   "src/web/routes.ts:303"
+   "src/web/routes.ts:304"
   ]
  },
  {
@@ -3613,13 +3601,7 @@
  {
   "en": "Taxi",
   "where": [
-   "src/web/showcase.ts:378"
-  ]
- },
- {
-  "en": "Telegram",
-  "where": [
-   "src/web/routes.ts:258"
+   "src/web/showcase.ts:377"
   ]
  },
  {
@@ -3667,7 +3649,7 @@
  {
   "en": "That place is not on the Bangkok demo map. Try one of these:",
   "where": [
-   "src/web/showcase.ts:388"
+   "src/web/showcase.ts:387"
   ]
  },
  {
@@ -3679,7 +3661,7 @@
  {
   "en": "The address is incomplete or ambiguous. Check:",
   "where": [
-   "src/web/routes.ts:602"
+   "src/web/routes.ts:603"
   ]
  },
  {
@@ -3691,7 +3673,7 @@
  {
   "en": "The assistant only sees the address name and area.",
   "where": [
-   "src/web/showcase.ts:625"
+   "src/web/showcase.ts:624"
   ]
  },
  {
@@ -3721,13 +3703,13 @@
  {
   "en": "The confirmation stops being valid. The assistant re-quotes and you confirm the new total.",
   "where": [
-   "src/web/routes.ts:286"
+   "src/web/routes.ts:287"
   ]
  },
  {
   "en": "The connection to the provider dropped after sending. Unyly reconciles the status itself and never resends. Do not order the same food elsewhere until it resolves.",
   "where": [
-   "src/web/routes.ts:288"
+   "src/web/routes.ts:289"
   ]
  },
  {
@@ -3781,7 +3763,7 @@
  {
   "en": "The guided demo runs in Demo mode. Your account uses another mode.",
   "where": [
-   "src/web/showcase.ts:442"
+   "src/web/showcase.ts:441"
   ]
  },
  {
@@ -3833,15 +3815,21 @@
   ]
  },
  {
+  "en": "The Unyly community.",
+  "where": [
+   "src/web/routes.ts:259"
+  ]
+ },
+ {
   "en": "the Unyly demo assistant",
   "where": [
-   "src/web/routes.ts:785"
+   "src/web/routes.ts:786"
   ]
  },
  {
   "en": "The Unyly demo assistant turns your request into the same MCP calls ChatGPT or Claude would make. The order goes out only after you confirm.",
   "where": [
-   "src/web/showcase.ts:616"
+   "src/web/showcase.ts:615"
   ]
  },
  {
@@ -3877,7 +3865,7 @@
  {
   "en": "This is a guest account from the demo and it is deleted after 24 hours. To connect your own AI assistant, create an account with a passkey.",
   "where": [
-   "src/web/routes.ts:491"
+   "src/web/routes.ts:492"
   ]
  },
  {
@@ -3901,7 +3889,7 @@
  {
   "en": "to",
   "where": [
-   "src/web/showcase.ts:380"
+   "src/web/showcase.ts:379"
   ]
  },
  {
@@ -3919,7 +3907,7 @@
  {
   "en": "tokens are deleted on revocation or expiry",
   "where": [
-   "src/web/routes.ts:306"
+   "src/web/routes.ts:307"
   ]
  },
  {
@@ -3938,15 +3926,15 @@
  {
   "en": "Total with fees",
   "where": [
-   "src/web/showcase.ts:484",
-   "src/web/showcase.ts:569"
+   "src/web/showcase.ts:483",
+   "src/web/showcase.ts:568"
   ]
  },
  {
   "en": "Track the status",
   "where": [
    "src/web/messages.ts:273",
-   "src/web/showcase.ts:608"
+   "src/web/showcase.ts:607"
   ]
  },
  {
@@ -3964,19 +3952,19 @@
  {
   "en": "Trip",
   "where": [
-   "src/web/routes.ts:508"
+   "src/web/routes.ts:509"
   ]
  },
  {
   "en": "Trips, item notes, parcel descriptions",
   "where": [
-   "src/web/routes.ts:310"
+   "src/web/routes.ts:311"
   ]
  },
  {
   "en": "Try ordering through an AI assistant in your browser.",
   "where": [
-   "src/web/showcase.ts:629"
+   "src/web/showcase.ts:628"
   ]
  },
  {
@@ -4012,7 +4000,7 @@
  {
   "en": "unavailable",
   "where": [
-   "src/web/showcase.ts:576"
+   "src/web/showcase.ts:575"
   ]
  },
  {
@@ -4024,19 +4012,19 @@
  {
   "en": "unlinked from you and scrubbed when you delete the account",
   "where": [
-   "src/web/routes.ts:314"
+   "src/web/routes.ts:315"
   ]
  },
  {
   "en": "until",
   "where": [
-   "src/web/routes.ts:991"
+   "src/web/routes.ts:992"
   ]
  },
  {
   "en": "until you delete them; deletion erases the address text",
   "where": [
-   "src/web/routes.ts:309"
+   "src/web/routes.ts:310"
   ]
  },
  {
@@ -4048,7 +4036,7 @@
  {
   "en": "Unyly contacts: partnerships, support, Telegram.",
   "where": [
-   "src/web/routes.ts:263"
+   "src/web/routes.ts:264"
   ]
  },
  {
@@ -4084,13 +4072,13 @@
  {
   "en": "Unyly is not affiliated with or endorsed by Grab. For questions about orders placed in Grab, contact Grab support.",
   "where": [
-   "src/web/routes.ts:263"
+   "src/web/routes.ts:264"
   ]
  },
  {
   "en": "up to",
   "where": [
-   "src/web/showcase.ts:544"
+   "src/web/showcase.ts:543"
   ]
  },
  {
@@ -4114,7 +4102,7 @@
  {
   "en": "used only for filtering, until you change them",
   "where": [
-   "src/web/routes.ts:311"
+   "src/web/routes.ts:312"
   ]
  },
  {
@@ -4132,13 +4120,13 @@
  {
   "en": "Valid for, days",
   "where": [
-   "src/web/routes.ts:997"
+   "src/web/routes.ts:998"
   ]
  },
  {
   "en": "Valid until",
   "where": [
-   "src/web/routes.ts:986"
+   "src/web/routes.ts:987"
   ]
  },
  {
@@ -4223,7 +4211,7 @@
  {
   "en": "We only show what the restaurant declared. If there is no data we say so. Unyly never calls a dish safe.",
   "where": [
-   "src/web/routes.ts:290"
+   "src/web/routes.ts:291"
   ]
  },
  {
@@ -4235,7 +4223,7 @@
  {
   "en": "We store only what the service needs: email, passkeys, addresses, preferences, carts, trips and orders, assistant connections and an audit log. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area. You can download or delete everything under Data.",
   "where": [
-   "src/web/routes.ts:319"
+   "src/web/routes.ts:320"
   ]
  },
  {
@@ -4253,7 +4241,7 @@
  {
   "en": "Website sessions",
   "where": [
-   "src/web/routes.ts:304"
+   "src/web/routes.ts:305"
   ]
  },
  {
@@ -4271,19 +4259,19 @@
  {
   "en": "What does \"outcome unknown\" mean?",
   "where": [
-   "src/web/routes.ts:287"
+   "src/web/routes.ts:288"
   ]
  },
  {
   "en": "What if the price changes?",
   "where": [
-   "src/web/routes.ts:285"
+   "src/web/routes.ts:286"
   ]
  },
  {
   "en": "What the assistant did (MCP calls)",
   "where": [
-   "src/web/routes.ts:849"
+   "src/web/routes.ts:850"
   ]
  },
  {
@@ -4313,13 +4301,13 @@
  {
   "en": "Which one do you mean?",
   "where": [
-   "src/web/showcase.ts:387"
+   "src/web/showcase.ts:386"
   ]
  },
  {
   "en": "while the account exists (order history)",
   "where": [
-   "src/web/routes.ts:313"
+   "src/web/routes.ts:314"
   ]
  },
  {
@@ -4339,7 +4327,7 @@
  {
   "en": "with a suggestion",
   "where": [
-   "src/web/showcase.ts:597"
+   "src/web/showcase.ts:596"
   ]
  },
  {
@@ -4351,7 +4339,7 @@
  {
   "en": "within budget",
   "where": [
-   "src/web/showcase.ts:565"
+   "src/web/showcase.ts:564"
   ]
  },
  {
@@ -4405,7 +4393,7 @@
  {
   "en": "You are in a guest demo. Signing in or creating an account replaces the guest session.",
   "where": [
-   "src/web/routes.ts:340"
+   "src/web/routes.ts:341"
   ]
  },
  {
@@ -4423,14 +4411,14 @@
  {
   "en": "You:",
   "where": [
-   "src/web/showcase.ts:469",
-   "src/web/showcase.ts:578"
+   "src/web/showcase.ts:468",
+   "src/web/showcase.ts:577"
   ]
  },
  {
   "en": "You: confirm on this page",
   "where": [
-   "src/web/routes.ts:854"
+   "src/web/routes.ts:855"
   ]
  },
  {
@@ -4448,13 +4436,13 @@
  {
   "en": "your allergens not declared",
   "where": [
-   "src/web/showcase.ts:553"
+   "src/web/showcase.ts:552"
   ]
  },
  {
   "en": "your assistant",
   "where": [
-   "src/web/routes.ts:783"
+   "src/web/routes.ts:784"
   ]
  },
  {
@@ -4484,7 +4472,7 @@
  {
   "en": "Your request",
   "where": [
-   "src/web/showcase.ts:460"
+   "src/web/showcase.ts:459"
   ]
  }
 ]

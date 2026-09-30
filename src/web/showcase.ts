@@ -16,7 +16,7 @@ import { html, SafeHtml } from './html.js';
 import { detectService, parseIntent } from './intent.js';
 import { SHOP_STORE, shopPlan, ShopPlan, tripPlan, TripPlan } from './try-services.js';
 import { REPO_URL } from './layout.js';
-import { CONTACT } from './contacts.js';
+import { CONTACT, whatsappUrl } from './contacts.js';
 import { fmt, Locale, tr } from './messages.js';
 import { pack } from '../i18n/index.js';
 import type { Kit, R } from './routes.js';
@@ -47,7 +47,7 @@ const EXAMPLE_KIND: { ic: string; name: { ru: string; en: string; th: string } }
 
 export function registerShowcase(app: FastifyInstance, kit: Kit) {
   const { ctx, base, send, csrfField, errorBox } = kit;
-  const supportEmail = process.env.SUPPORT_EMAIL || CONTACT.partnership.email;
+  const supportEmail = process.env.SUPPORT_EMAIL || CONTACT.email;
   const baht = (minor: number, l: Locale) => formatMinor(minor, 'THB', l).replace(/\.00(?=\D*$)/, '').replace(/,00(?=\D*$)/, '');
 
   // ---------------- Landing ----------------
@@ -294,9 +294,8 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
   </div>
   <div class="card stack pitch-contact" style="margin-top:16px">
     <div><span class="eyebrow">${icon('handshake')} ${tr(l, { ru: 'Контакт по партнёрству', en: 'Partnership contact', th: 'ผู้ติดต่อด้านความร่วมมือ' })}</span>
-      <div class="who">${CONTACT.partnership.name}</div>
-      <p class="small muted">${tr(l, { ru: 'Общие вопросы:', en: 'General questions:', th: 'คำถามทั่วไป:' })} <a href="mailto:${CONTACT.email}">${CONTACT.email}</a> · <a href="/contact">${tr(l, { ru: 'Все контакты', en: 'All contacts', th: 'ช่องทางติดต่อทั้งหมด' })}</a></p></div>
-    <a class="btn" href="mailto:${CONTACT.partnership.email}">${icon('mail')} ${CONTACT.partnership.email}</a>
+      <p class="small muted"><a href="mailto:${CONTACT.email}">${CONTACT.email}</a> · <a href="/contact">${tr(l, { ru: 'Все контакты', en: 'All contacts', th: 'ช่องทางติดต่อทั้งหมด' })}</a></p></div>
+    <div class="actions">${CONTACT.owner.linkedin ? html`<a class="btn secondary" href="${CONTACT.owner.linkedin}" rel="noopener">${icon('users')} LinkedIn</a>` : ''}${CONTACT.owner.whatsapp ? html`<a class="btn" href="${whatsappUrl(CONTACT.owner.whatsapp)}" rel="noopener">${icon('chat')} WhatsApp</a>` : html`<a class="btn" href="mailto:${CONTACT.email}">${icon('mail')} ${CONTACT.email}</a>`}</div>
   </div>
 </section>`, { noBanner: true, description: tr(l, { ru: 'Предложение о партнёрстве: все сервисы Grab через ИИ-ассистентов.', en: 'Partnership proposal: every Grab service through AI assistants.', th: 'ข้อเสนอความร่วมมือ: ทุกบริการของ Grab ผ่านผู้ช่วย AI' }) });
   });

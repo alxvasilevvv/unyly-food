@@ -1,5 +1,5 @@
 import { icon } from './art.js';
-import { CONTACT } from './contacts.js';
+import { CONTACT, whatsappUrl } from './contacts.js';
 import { LOCALE_CODES, LOCALE_NATIVE } from '../domain/locales.js';
 import { ASSET_VERSION } from './assets.js';
 import { html, raw, SafeHtml } from './html.js';
@@ -31,7 +31,7 @@ const LOCALE_FONT: Partial<Record<Locale, string>> = {
 
 const ORG_LD = JSON.stringify({
   '@context': 'https://schema.org', '@type': 'Organization', name: 'Unyly', url: CONTACT.site, logo: `${CONTACT.site}/pixel/unicorn/rotations/south.png`,
-  email: CONTACT.email, legalName: CONTACT.company, sameAs: [CONTACT.telegramGlobal, CONTACT.telegramCis, CONTACT.github, CONTACT.x],
+  email: CONTACT.email, legalName: CONTACT.company, sameAs: [CONTACT.telegramGlobal, CONTACT.telegramCis, CONTACT.owner.linkedin].filter(Boolean),
 }).replace(/</g, '\\u003c');
 
 export const REPO_URL = 'https://github.com/alxvasilevvv/unyly-food';
@@ -113,8 +113,9 @@ ${!o.noBanner && o.mode === 'handoff' ? html`<div class="banner handoff" role="s
     </div>
     <div class="foot-col"><p class="foot-h">${tr(l, { ru: 'Контакты', en: 'Contacts', th: 'ติดต่อ' })}</p>
       <a href="mailto:${CONTACT.email}">${icon('mail')} ${CONTACT.email}</a>
-      <a href="${CONTACT.telegramGlobal}" rel="noopener">${icon('send')} Telegram (EN)</a>
-      <a href="${CONTACT.telegramCis}" rel="noopener">${icon('send')} Telegram (RU)</a>
+      ${CONTACT.owner.whatsapp ? html`<a href="${whatsappUrl(CONTACT.owner.whatsapp)}" rel="noopener">${icon('chat')} WhatsApp</a>` : ''}
+      ${CONTACT.owner.linkedin ? html`<a href="${CONTACT.owner.linkedin}" rel="noopener">${icon('users')} LinkedIn</a>` : ''}
+      <a href="${CONTACT.telegramGlobal}" rel="noopener">${icon('send')} Telegram</a>
       <a href="/contact">${tr(l, { ru: 'Все контакты', en: 'All contacts', th: 'ช่องทางติดต่อทั้งหมด' })} ${icon('arrow')}</a>
     </div>
   </div>

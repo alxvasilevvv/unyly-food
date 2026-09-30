@@ -115,7 +115,7 @@ Dockerfile, docker-compose.yml, .github/workflows/ci.yml
 
 ## Контакты
 
-- Партнёрство с Grab: Katrina Pilipenko, catrinaess@gmail.com
+- Партнёрство: LinkedIn и WhatsApp владельца (переменные `CONTACT_LINKEDIN`, `CONTACT_WHATSAPP`)
 - Общие вопросы: info@unyly.org
 - Telegram: [Unyly Global](https://t.me/unyly_global), [Unyly CIS](https://t.me/unyly_cis)
 - Компания: CSA PROJECT - FZCO, IFZA Business Park, DDP, Premises Number 31174 - 001, Dubai, UAE
