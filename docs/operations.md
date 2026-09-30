@@ -12,6 +12,35 @@
 2. `food.unyly.org` + `mcp-food.unyly.org/mcp`.
 3. Схема из ТЗ, если маркетплейс переезжает.
 
+
+## Основной вариант: Unyly Deploy (food.unyly.org)
+
+Проверено 30.09.2026: `unyly.org` — собственная платформа владельца. Unyly Deploy (deploy.unyly.org) собирает GitHub-репозиторий по его `Dockerfile` и публикует на `slug.unyly.org`, пуш в ветку пересобирает проект. Поэтому отдельный VPS, Caddy и DNS-записи не нужны: TLS и домен даёт платформа.
+
+1. Репозиторий `alxvasilevvv/unyly-food` (приватный), ветка `main`.
+2. Проект в Unyly Deploy со slug `food`, runtime Docker (собственный Dockerfile, порт 3000).
+3. База: схема `unyly` и роль `unyly_app` в Supabase (`deploy/supabase-setup.sql`); приложение подключается через transaction pooler.
+4. Переменные окружения (секреты задаются в консоли Unyly Deploy):
+
+| Переменная | Значение |
+|---|---|
+| `NODE_ENV` | `production` |
+| `WEB_ORIGIN` | `https://food.unyly.org` |
+| `MCP_RESOURCE_URL` | `https://food.unyly.org/mcp` |
+| `DATABASE_URL` | `postgresql://unyly_app.<ref>:<password>@<pooler-host>:6543/postgres` |
+| `DATABASE_POOLER` | `transaction` |
+| `DATABASE_SSL` | `no-verify` (или `DATABASE_SSL_CA` с сертификатом Supabase для полной проверки) |
+| `DATABASE_POOL_MAX` | `5` |
+| `DEMO_WEBHOOK_SECRET` | случайные 32 байта |
+| `MAIL_MODE` | `disabled` (вход по passkey), или `smtp` + `SMTP_URL` |
+| `DEV_ECHO_LOGIN_CODE` | `false` |
+| `TRUST_PROXY` | `true` |
+| `SUPPORT_EMAIL` | адрес поддержки |
+
+Операции внутри контейнера: `node dist/cli.js kill-switch demo off`, `node dist/cli.js issue-login-code user@example.com` (восстановление доступа без почты), `node dist/cli.js migrate`.
+
+**Вход без почтового сервиса.** Основной вход — passkey (WebAuthn: Face ID, Touch ID, Windows Hello, ключи безопасности). Коды на email включаются через `MAIL_MODE=smtp`. Без SMTP поддержка выдаёт одноразовый код командой `issue-login-code`, пользователь вводит его на `/login/code` и добавляет новый passkey.
+
 ## Окружения
 
 | | staging | production |
