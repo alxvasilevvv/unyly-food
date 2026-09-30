@@ -55,7 +55,7 @@ describe('Unknown submission outcomes', () => {
     const { checkout } = await preparedCheckout(u.mcp.call);
     h.ctx.providers.demo.faults = { unavailable: true };
     const r = await confirmOnWeb(h, u, checkout.checkout_id);
-    const search = await u.mcp.call('search_restaurants', {});
+    const search = await u.mcp.call('search_stores', {});
     h.ctx.providers.demo.faults = {};
     expect(r.statusCode).toBe(409);
     expect(search.error.code).toBe('PROVIDER_UNAVAILABLE');

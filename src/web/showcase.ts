@@ -332,9 +332,9 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
       const actor = { userId: r.s.user.id, via: 'web' as const };
       // Never trust the client for items: recompute the suggestion server-side.
       const res = await searchRestaurants(ctx, actor, { ...parseIntent(q), limit: 10 });
-      const hit = res.restaurants.find((x: any) => x.restaurant.restaurant_id === String(b.restaurant_id ?? ''));
+      const hit = res.restaurants.find((x: any) => x.restaurant.store_id === String(b.restaurant_id ?? ''));
       if (!hit?.suggestion || hit.availability_notes.length || hit.suggestion.blocking_issues.length) throw new DomainError('VALIDATION_FAILED', 'This option is no longer available. Please search again.');
-      const cart = await createCart(ctx, actor, { restaurant_id: hit.restaurant.restaurant_id, items: hit.suggestion.items.map((i: any) => ({ item_id: i.item_id, quantity: i.quantity })) });
+      const cart = await createCart(ctx, actor, { restaurant_id: hit.restaurant.store_id, items: hit.suggestion.items.map((i: any) => ({ item_id: i.item_id, quantity: i.quantity })) });
       const { quote } = await quoteCart(ctx, actor, cart.id);
       const co = await prepareCheckout(ctx, actor, { cart_id: cart.id, quote_id: quote.id });
       return reply.code(303).redirect(`/confirm/${co.id}`);
@@ -403,7 +403,7 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
         const s = x.suggestion;
         const rest = x.restaurant;
         return html`<article class="opt-card" style="animation-delay:${i * 90}ms">
-  <div class="art">${restaurantArt(rest.restaurant_id, rest.name)}<span class="eta">${icon('clock')} ${rest.eta_estimate_minutes.min}–${rest.eta_estimate_minutes.max} ${tr(l, { ru: 'мин', en: 'min', th: 'นาที' })}</span></div>
+  <div class="art">${restaurantArt(rest.store_id, rest.name)}<span class="eta">${icon('clock')} ${rest.eta_estimate_minutes.min}–${rest.eta_estimate_minutes.max} ${tr(l, { ru: 'мин', en: 'min', th: 'นาที' })}</span></div>
   <div class="in">
     <h3>${rest.name}</h3>
     <p class="small muted">${rest.cuisines.map((c: string) => t3(CUISINE_NAMES, c, l)).join(' · ')}</p>
@@ -414,7 +414,7 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
       ${rest.promo ? html`<span class="pill accent">${icon('tag')} promo</span>` : ''}
     </div>
     <div class="total-row"><span class="small muted">${tr(l, { ru: 'Итого со сборами', en: 'Total with fees', th: 'รวมค่าธรรมเนียม' })}</span><span class="total">${baht(s.estimated_total.amount_minor, l)}</span></div>
-    <form method="post" action="/try/choose">${csrfField(r.s!)}<input type="hidden" name="q" value="${q}"><input type="hidden" name="restaurant_id" value="${rest.restaurant_id}">
+    <form method="post" action="/try/choose">${csrfField(r.s!)}<input type="hidden" name="q" value="${q}"><input type="hidden" name="restaurant_id" value="${rest.store_id}">
       <button class="btn block" type="submit">${tr(l, { ru: 'Выбрать', en: 'Choose', th: 'เลือก' })}</button></form>
   </div>
 </article>`;

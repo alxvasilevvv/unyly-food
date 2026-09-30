@@ -17,16 +17,16 @@ afterAll(async () => {
 
 describe('Menu and cart validation', () => {
   it('required modifier missing → MODIFIERS_INVALID with the required groups', async () => {
-    const r = await u.mcp.call('create_cart', { restaurant_id: 'demo-r1', items: [{ item_id: 'r1-krapao', quantity: 1 }] });
+    const r = await u.mcp.call('create_cart', { store_id: 'demo-r1', items: [{ item_id: 'r1-krapao', quantity: 1 }] });
     expect(r.error.code).toBe('MODIFIERS_INVALID');
     expect(r.error.details.required_groups[0].group_id).toBe('spice');
   });
   it('out of stock item → OUT_OF_STOCK', async () => {
-    const r = await u.mcp.call('create_cart', { restaurant_id: 'demo-r2', items: [{ item_id: 'r2-coconut', quantity: 1 }] });
+    const r = await u.mcp.call('create_cart', { store_id: 'demo-r2', items: [{ item_id: 'r2-coconut', quantity: 1 }] });
     expect(r.error.code).toBe('OUT_OF_STOCK');
   });
   it('item going out of stock after carting is caught at quote', async () => {
-    const cart = await u.mcp.call('create_cart', { restaurant_id: 'demo-r1', items: [{ item_id: 'r1-greencurry', quantity: 1 }] });
+    const cart = await u.mcp.call('create_cart', { store_id: 'demo-r1', items: [{ item_id: 'r1-greencurry', quantity: 1 }] });
     h.ctx.providers.demo.faults = { outOfStockItemIds: ['r1-greencurry'] };
     const q = await u.mcp.call('quote_cart', { cart_id: cart.result.cart_id });
     h.ctx.providers.demo.faults = {};
@@ -36,25 +36,25 @@ describe('Menu and cart validation', () => {
     expect(p.error.code).toBe('OUT_OF_STOCK');
   });
   it('minimum order not met blocks checkout', async () => {
-    const cart = await u.mcp.call('create_cart', { restaurant_id: 'demo-r2', items: [{ item_id: 'r2-springroll', quantity: 1 }] });
+    const cart = await u.mcp.call('create_cart', { store_id: 'demo-r2', items: [{ item_id: 'r2-springroll', quantity: 1 }] });
     const q = await u.mcp.call('quote_cart', { cart_id: cart.result.cart_id });
     expect(q.result.issues.map((i: any) => i.code)).toContain('MINIMUM_ORDER_NOT_MET');
     const p = await u.mcp.call('prepare_checkout', { cart_id: cart.result.cart_id, quote_id: q.result.quote_id });
     expect(p.error.code).toBe('MINIMUM_ORDER_NOT_MET');
   });
   it('closed restaurant and delivery outside zone are reported', async () => {
-    const c1 = await u.mcp.call('create_cart', { restaurant_id: 'demo-r4', items: [{ item_id: 'r4-burger', quantity: 1 }] });
+    const c1 = await u.mcp.call('create_cart', { store_id: 'demo-r4', items: [{ item_id: 'r4-burger', quantity: 1 }] });
     const q1 = await u.mcp.call('quote_cart', { cart_id: c1.result.cart_id });
     expect(q1.result.issues[0].code).toBe('RESTAURANT_CLOSED');
-    const c2 = await u.mcp.call('create_cart', { restaurant_id: 'demo-r5', items: [{ item_id: 'r5-chicken', quantity: 1 }] });
+    const c2 = await u.mcp.call('create_cart', { store_id: 'demo-r5', items: [{ item_id: 'r5-chicken', quantity: 1 }] });
     const q2 = await u.mcp.call('quote_cart', { cart_id: c2.result.cart_id });
     expect(q2.result.issues.map((i: any) => i.code)).toContain('DELIVERY_UNAVAILABLE');
   });
   it('fees: small-order fee and promo discount are itemised', async () => {
-    const small = await u.mcp.call('create_cart', { restaurant_id: 'demo-r1', items: [{ item_id: 'r1-rice', quantity: 1 }] });
+    const small = await u.mcp.call('create_cart', { store_id: 'demo-r1', items: [{ item_id: 'r1-rice', quantity: 1 }] });
     const qs = await u.mcp.call('quote_cart', { cart_id: small.result.cart_id });
     expect(qs.result.breakdown.small_order_fee.amount_minor).toBe(1000);
-    const big = await u.mcp.call('create_cart', { restaurant_id: 'demo-r1', items: [{ item_id: 'r1-tomyum', quantity: 2, modifiers: [{ group_id: 'spice', option_ids: ['hot'] }] }] });
+    const big = await u.mcp.call('create_cart', { store_id: 'demo-r1', items: [{ item_id: 'r1-tomyum', quantity: 2, modifiers: [{ group_id: 'spice', option_ids: ['hot'] }] }] });
     const qb = await u.mcp.call('quote_cart', { cart_id: big.result.cart_id });
     expect(qb.result.breakdown.discount.amount_minor).toBe(-3200); // 10% of 320
     expect(qb.result.breakdown.total.amount_minor).toBe(32000 + 2500 + 1000 - 3200);
@@ -111,9 +111,9 @@ describe('Handoff and Live modes', () => {
     const caps = await m.call('get_capabilities');
     expect(caps.mode).toBe('handoff');
     expect(caps.result.current.capabilities.search_restaurants.available).toBe(false);
-    const search = await m.call('search_restaurants', { query: 'thai' });
+    const search = await m.call('search_stores', { query: 'thai' });
     expect(search.error.code).toBe('CAPABILITY_UNAVAILABLE');
-    const cart = await m.call('create_cart', { restaurant_name: 'My favourite Thai place', items: [{ name: 'Pad thai', quantity: 2 }, { name: 'Green curry', quantity: 1, note: 'not spicy' }] });
+    const cart = await m.call('create_cart', { store_name: 'My favourite Thai place', items: [{ name: 'Pad thai', quantity: 2 }, { name: 'Green curry', quantity: 1, note: 'not spicy' }] });
     expect(cart.ok).toBe(true);
     expect((await m.call('quote_cart', { cart_id: cart.result.cart_id })).error.code).toBe('CAPABILITY_UNAVAILABLE');
     const ho = await m.call('create_handoff', { cart_id: cart.result.cart_id });

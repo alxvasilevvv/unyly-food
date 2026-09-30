@@ -108,6 +108,82 @@ export function burger(label = 'Burger') {
 <path d="M28 58q6 6 12 0t12 0 12 0 12 0 12 0 4 0" fill="#6cc04a"/><rect x="28" y="62" width="64" height="7" rx="3" fill="#ffc933"/><rect x="28" y="67" width="64" height="11" rx="5" fill="#6e3a22"/><path d="M30 80h60a4 4 0 0 1-4 6H34a4 4 0 0 1-4-6z" fill="#e39a3f"/>`, label);
 }
 
+// ---------- Mart, rides and parcels ----------
+const disc = `<circle cx="60" cy="63" r="54" fill="#0f1f18" opacity=".07"/><circle cx="60" cy="60" r="54" fill="#f4f1e8"/>`;
+
+export function groceryBasket(label = 'Groceries') {
+  return svg(`${disc}
+<path d="M30 58c0-22 60-22 60 0" fill="none" stroke="#0a6b41" stroke-width="5" stroke-linecap="round"/>
+<path d="M44 48c-6-8 2-16 10-12 6 3 6 10 2 14z" fill="#ffcf3f"/><path d="M47 40c3-2 7-1 8 2" stroke="#e0a91a" stroke-width="1.6" fill="none"/>
+<circle cx="72" cy="46" r="9" fill="#e5533d"/><path d="M72 37c1-3 3-4 6-4" stroke="#2f9e44" stroke-width="2" stroke-linecap="round" fill="none"/>
+<rect x="56" y="36" width="10" height="20" rx="4" fill="#f5e6c8" transform="rotate(-12 61 46)"/>
+${leaf(78, 52, -30, '#2f9e44', 1.1)}${leaf(34, 54, 200, '#57b85c', 1)}
+<path d="M24 56h72l-7 34a6 6 0 0 1-6 5H37a6 6 0 0 1-6-5z" fill="#0a8a53"/>
+<path d="M36 66v20M48 66v20M60 66v20M72 66v20M84 66v20" stroke="#c9f26b" stroke-width="3" stroke-linecap="round" opacity=".85"/>
+<rect x="22" y="53" width="76" height="8" rx="4" fill="#0a6b41"/>`, label);
+}
+
+export function bouquet(label = 'Bouquet') {
+  const rose = (x: number, y: number, r: number) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#d9304f"/><path d="M${x - r * 0.5} ${y}a${r * 0.5} ${r * 0.5} 0 1 1 ${r * 0.6} ${r * 0.3}" stroke="#a51d3a" stroke-width="1.6" fill="none"/><circle cx="${x}" cy="${y}" r="${r * 0.28}" fill="#a51d3a"/>`;
+  return svg(`${disc}
+${leaf(34, 42, -150, '#2f9e44', 1.3)}${leaf(86, 40, -30, '#2f9e44', 1.3)}${leaf(60, 26, -90, '#57b85c', 1.1)}
+${rose(46, 44, 10)}${rose(66, 38, 11)}${rose(78, 52, 9)}${rose(56, 56, 9)}${rose(40, 60, 7)}
+<circle cx="70" cy="62" r="3" fill="#fff"/><circle cx="32" cy="50" r="2.5" fill="#fff"/><circle cx="86" cy="62" r="2.5" fill="#fff"/>
+<path d="M30 64l30 42 30-42z" fill="#d8b98a"/><path d="M30 64l30 42 8-42z" fill="#c9a674"/>
+<path d="M48 82h24" stroke="#c9f26b" stroke-width="6" stroke-linecap="round"/><path d="M60 82l-8 10M60 82l8 10" stroke="#a4d44a" stroke-width="3" stroke-linecap="round"/>`, label);
+}
+
+export function pharmacy(label = 'Pharmacy') {
+  return svg(`${disc}
+<rect x="30" y="40" width="46" height="54" rx="8" fill="#fff" stroke="#dcd6c8" stroke-width="2"/>
+<path d="M38 40c0-8 5-12 15-12s15 4 15 12" fill="none" stroke="#0a6b41" stroke-width="4" stroke-linecap="round"/>
+<rect x="44" y="56" width="18" height="24" rx="3" fill="#0a8a53"/><rect x="49" y="61" width="8" height="14" rx="1" fill="#fff"/><rect x="46" y="64" width="14" height="8" rx="1" fill="#fff"/>
+<rect x="68" y="58" width="26" height="40" rx="6" fill="#c9f26b" transform="rotate(14 81 78)"/>
+<g transform="rotate(14 81 78)">${[64, 74, 84].map((y) => `<circle cx="76" cy="${y}" r="3.4" fill="#fff"/><circle cx="86" cy="${y}" r="3.4" fill="#fff"/>`).join('')}</g>`, label);
+}
+
+export function cake(label = 'Cake') {
+  return svg(`${disc}
+<ellipse cx="60" cy="90" rx="40" ry="8" fill="#fff" stroke="#e6dcc8" stroke-width="2"/>
+<path d="M28 58h64v28a4 4 0 0 1-4 4H32a4 4 0 0 1-4-4z" fill="#6e3a22"/>
+<path d="M28 70h64" stroke="#f5d0a9" stroke-width="5"/>
+<path d="M26 58c0-6 6-8 34-8s34 2 34 8c0 5-4 4-6 8-2-5-6-5-8 0-2-5-6-5-8 0-2-5-6-5-8 0-2-5-6-5-8 0-2-5-6-5-8 0-2-5-6-5-8 0-2-4-4-3-4-8z" fill="#fff4e2"/>
+${[44, 60, 76].map((x) => `<rect x="${x - 2}" y="34" width="4" height="16" rx="2" fill="#c9f26b"/><path d="M${x} 26c3 3 3 6 0 7-3-1-3-4 0-7z" fill="#ffb020"/>`).join('')}
+<circle cx="40" cy="56" r="3" fill="#d9304f"/><circle cx="80" cy="56" r="3" fill="#d9304f"/>`, label);
+}
+
+export function car(label = 'Car') {
+  return raw(`<svg viewBox="0 0 160 110" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(label)}">
+<ellipse cx="80" cy="98" rx="66" ry="5" fill="#0f1f18" opacity=".1"/>
+<g stroke="#b9c9c0" stroke-width="3" stroke-linecap="round" opacity=".8"><path d="M4 56h18M0 68h20M8 80h14"/></g>
+<path d="M22 78c0-10 6-16 16-18l16-18c4-4 9-6 15-6h30c6 0 11 2 15 6l14 18c10 1 18 6 18 16v6a4 4 0 0 1-4 4H26a4 4 0 0 1-4-4z" fill="#0a8a53"/>
+<path d="M60 44h18v18H46zM84 44h14c4 0 7 1 9 4l10 14H84z" fill="#dff3ea"/>
+<rect x="24" y="70" width="10" height="5" rx="2" fill="#ffcf3f"/><rect x="128" y="70" width="10" height="5" rx="2" fill="#e5533d"/>
+<rect x="66" y="30" width="26" height="8" rx="3" fill="#c9f26b"/>
+<circle cx="50" cy="84" r="13" fill="#0f1f18"/><circle cx="50" cy="84" r="5.5" fill="#e9efe9"/>
+<circle cx="114" cy="84" r="13" fill="#0f1f18"/><circle cx="114" cy="84" r="5.5" fill="#e9efe9"/>
+</svg>`);
+}
+
+export function parcel(label = 'Parcel') {
+  return svg(`${disc}
+<path d="M24 46l36-16 36 16-36 16z" fill="#e2b77a"/>
+<path d="M24 46v36l36 16V62z" fill="#c9965a"/><path d="M96 46v36L60 98V62z" fill="#b38049"/>
+<path d="M42 38l36 16v12l-8 3V58L34 42z" fill="#c9f26b"/>
+<path d="M30 60l18 8M30 66l12 5" stroke="#8f6333" stroke-width="2" stroke-linecap="round"/>`, label);
+}
+
+const ART_BY_CATEGORY: Record<string, (l?: string) => SafeHtml> = {
+  supermarket: groceryBasket,
+  convenience: groceryBasket,
+  flowers: bouquet,
+  pharmacy,
+  cakes: cake,
+  transport: car,
+  parcel,
+};
+export const categoryArt = (category: string | null | undefined, label: string) => (ART_BY_CATEGORY[category ?? ''] ?? greenCurry)(label);
+
 const DISH_BY_RESTAURANT: Record<string, (l?: string) => SafeHtml> = {
   'demo-r1': greenCurry,
   'demo-r2': tofuBowl,
@@ -115,6 +191,13 @@ const DISH_BY_RESTAURANT: Record<string, (l?: string) => SafeHtml> = {
   'demo-r4': burger,
   'demo-r5': grillSet,
   'demo-r6': seafoodRice,
+  'demo-m1': groceryBasket,
+  'demo-m2': groceryBasket,
+  'demo-m3': bouquet,
+  'demo-m4': pharmacy,
+  'demo-m5': cake,
+  'demo-ride-bkk': car,
+  'demo-express-bkk': parcel,
 };
 export const restaurantArt = (id: string | null | undefined, label: string) => (DISH_BY_RESTAURANT[id ?? ''] ?? greenCurry)(label);
 

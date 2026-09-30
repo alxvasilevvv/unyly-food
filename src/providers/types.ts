@@ -1,4 +1,7 @@
 // Provider abstraction. Unyly's business logic only talks to this interface.
+import type { Service } from '../domain/regions.js';
+export type { Service } from '../domain/regions.js';
+
 // NOTE: these are Unyly's internal operations. They do NOT imply that a Grab API with
 // the same shape exists. See docs/feasibility.md.
 
@@ -61,8 +64,8 @@ export interface ModifierGroup {
   options: ModifierOption[];
 }
 export interface AllergenInfo {
-  /** 'declared_by_restaurant' means the restaurant supplied a list; 'not_provided' means unknown. */
-  status: 'declared_by_restaurant' | 'not_provided';
+  /** 'declared_by_restaurant' means the store supplied a list; 'not_provided' means unknown; 'not_applicable' for non-food. */
+  status: 'declared_by_restaurant' | 'not_provided' | 'not_applicable';
   declared: string[];
 }
 export interface MenuItem {
@@ -75,10 +78,28 @@ export interface MenuItem {
   modifier_groups: ModifierGroup[];
   allergen_info: AllergenInfo;
   dietary_tags_declared: string[];
+  /** Per-order limit (e.g. household medicines). */
+  max_quantity?: number;
+  /** Ride / express vehicle types: fare formula and limits. */
+  vehicle?: VehicleSpec;
 }
+export interface VehicleSpec {
+  seats?: number;
+  max_weight_kg?: number;
+  base_minor: number;
+  per_km_minor: number;
+  per_min_minor: number;
+  note?: string;
+}
+/** A store in any service: a restaurant, a mart/florist/pharmacy, or the transport/express "counter". */
 export interface Restaurant {
   id: string;
   name: string;
+  service: Service;
+  /** restaurant, supermarket, convenience, flowers, pharmacy, cakes, transport, parcel */
+  category: string;
+  /** Regulatory or scope note shown to the user (e.g. pharmacy limits). */
+  notice?: string;
   cuisines: string[];
   is_open: boolean;
   opening_note?: string;
@@ -91,6 +112,25 @@ export interface Restaurant {
   eta_max_minutes: number;
   delivers_to_address: boolean | null;
   promo?: string;
+}
+
+export interface Place {
+  name: string;
+  lat?: number;
+  lng?: number;
+  /** How the place was resolved: a known landmark, a district centre, a saved address, or free text (Handoff). */
+  kind: 'landmark' | 'district' | 'saved_address' | 'user_text';
+  area?: string;
+  is_airport?: boolean;
+}
+export interface Trip {
+  pickup: Place;
+  dropoff: Place;
+  /** Road distance estimate and drive time; absent in Handoff (no routing data). */
+  distance_km?: number;
+  duration_min?: number;
+  parcel?: { weight_kg: number; description?: string };
+  fingerprint: string;
 }
 
 export interface SelectedModifier {
@@ -107,7 +147,9 @@ export interface CartLine {
 }
 
 export interface QuoteIssue {
-  code: 'OUT_OF_STOCK' | 'RESTAURANT_CLOSED' | 'MINIMUM_ORDER_NOT_MET' | 'DELIVERY_UNAVAILABLE' | 'ITEM_NOT_FOUND' | 'MODIFIERS_INVALID';
+  code:
+    | 'OUT_OF_STOCK' | 'RESTAURANT_CLOSED' | 'MINIMUM_ORDER_NOT_MET' | 'DELIVERY_UNAVAILABLE' | 'ITEM_NOT_FOUND' | 'MODIFIERS_INVALID'
+    | 'QUANTITY_LIMIT' | 'TRIP_REQUIRED' | 'WEIGHT_LIMIT' | 'OUTSIDE_SERVICE_AREA';
   message: string;
   line_id?: string;
 }
@@ -143,7 +185,8 @@ export interface SubmitRequest {
   idempotency_key: string;
   restaurant_id: string;
   lines: CartLine[];
-  address: DeliveryAddress;
+  address: DeliveryAddress | null;
+  trip?: Trip | null;
   expected_total_minor: number;
   currency: string;
 }
@@ -198,9 +241,9 @@ export interface Provider {
   readonly mode: Mode;
   readonly providerName: string;
   capabilities(): Record<CapabilityKey, Capability>;
-  searchRestaurants(q: { address: DeliveryAddress | null; query?: string; cuisine?: string }): Promise<Restaurant[]>;
+  searchRestaurants(q: { address: DeliveryAddress | null; query?: string; cuisine?: string; service?: Service; category?: string }): Promise<Restaurant[]>;
   getMenu(restaurantId: string, address: DeliveryAddress | null): Promise<{ restaurant: Restaurant; items: MenuItem[] }>;
-  quote(req: { restaurant_id: string; lines: CartLine[]; address: DeliveryAddress }): Promise<ProviderQuote>;
+  quote(req: { restaurant_id: string; lines: CartLine[]; address: DeliveryAddress | null; trip?: Trip | null }): Promise<ProviderQuote>;
   submitOrder(req: SubmitRequest): Promise<SubmitResult>;
   lookupByIdempotencyKey(key: string): Promise<LookupResult>;
   getOrderStatus(ref: string): Promise<ProviderOrderStatus>;
@@ -208,5 +251,9 @@ export interface Provider {
   /** Must be idempotent per key and must refuse if the current fee exceeds maxFeeMinor (what the user approved). */
   cancelOrder(ref: string, idempotencyKey: string, maxFeeMinor: number): Promise<CancelResult>;
   verifyWebhook(rawBody: string, headers: Record<string, string | string[] | undefined>): ProviderEvent[];
-  handoffUrl?(region: string): { url: string; source: string; verified_at: string } | null;
+  /** Resolve a free-text place (landmark, district, saved address label) to coordinates for trip pricing. */
+  resolvePlace?(text: string, saved: { label: string; district: string; city: string }[]):
+    | { ok: true; place: Place }
+    | { ok: false; code: 'PLACE_NOT_FOUND' | 'PLACE_AMBIGUOUS'; message: string; suggestions: string[] };
+  handoffUrl?(region: string, service: Service): { url: string; source: string; verified: boolean; verified_at?: string } | null;
 }

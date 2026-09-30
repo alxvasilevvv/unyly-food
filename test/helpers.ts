@@ -136,8 +136,8 @@ export async function demoUser(h: Harness, email = 'alice@example.com', district
 }
 
 /** create_cart → quote_cart → prepare_checkout for a simple valid demo order. */
-export async function preparedCheckout(call: (n: string, a?: any) => Promise<any>, items = [{ item_id: 'r1-greencurry', quantity: 2 }], restaurant_id = 'demo-r1') {
-  const cart = await call('create_cart', { restaurant_id, items });
+export async function preparedCheckout(call: (n: string, a?: any) => Promise<any>, items = [{ item_id: 'r1-greencurry', quantity: 2 }], store_id = 'demo-r1') {
+  const cart = await call('create_cart', { store_id, items });
   if (!cart.ok) throw new Error(JSON.stringify(cart));
   const quote = await call('quote_cart', { cart_id: cart.result.cart_id });
   if (!quote.ok) throw new Error(JSON.stringify(quote));

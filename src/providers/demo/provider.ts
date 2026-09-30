@@ -3,9 +3,13 @@ import { hmac, randomToken, safeEqual } from '../../domain/crypto.js';
 import {
   CapabilityKey, Capability, CancelResult, CancellationTerms, CartLine, DeliveryAddress, FulfillmentStatus, LookupResult,
   MenuItem, Provider, ProviderEvent, ProviderOrderStatus, ProviderOutcomeUnknownError, ProviderQuote, ProviderUnavailableError,
-  QuoteIssue, QuoteLine, Restaurant, SubmitRequest, SubmitResult,
+  QuoteIssue, QuoteLine, Restaurant, Service, SubmitRequest, SubmitResult, Trip,
 } from '../types.js';
-import { DEMO_CITY, DEMO_DISTRICTS, DEMO_QUOTE_TTL_SECONDS, DEMO_RESTAURANTS, DEMO_SERVICE_FEE_MINOR, DemoRestaurant, findRestaurant } from './catalog.js';
+import { isTripService, REGIONS } from '../../domain/regions.js';
+import {
+  DEMO_AIRPORT_PICKUP_FEE_MINOR, DEMO_CITY, DEMO_DISTRICTS, DEMO_QUOTE_TTL_SECONDS, DEMO_RESTAURANTS, DEMO_SERVICE_FEE_MINOR, DemoRestaurant, findRestaurant,
+} from './catalog.js';
+import { resolvePlace } from './places.js';
 
 /** Fault injection for automated tests. Not reachable from any HTTP or MCP input. */
 export interface DemoFaults {
@@ -22,12 +26,27 @@ export interface DemoFaults {
   hangAfterAccept?: boolean;
 }
 
-const TIMELINE: { status: FulfillmentStatus; atMinute: number }[] = [
-  { status: 'accepted', atMinute: 0 },
-  { status: 'preparing', atMinute: 2 },
-  { status: 'picked_up', atMinute: 15 },
-  { status: 'delivered', atMinute: 30 },
-];
+/** Demo fulfilment timeline per service. For trips the last step follows the trip duration. */
+function timeline(service: Service, tripMinutes = 20): { status: FulfillmentStatus; atMinute: number }[] {
+  switch (service) {
+    case 'ride':
+      return [{ status: 'accepted', atMinute: 0 }, { status: 'preparing', atMinute: 1 }, { status: 'picked_up', atMinute: 6 }, { status: 'delivered', atMinute: 6 + tripMinutes }];
+    case 'express':
+      return [{ status: 'accepted', atMinute: 0 }, { status: 'preparing', atMinute: 2 }, { status: 'picked_up', atMinute: 10 }, { status: 'delivered', atMinute: 10 + tripMinutes }];
+    case 'mart':
+      return [{ status: 'accepted', atMinute: 0 }, { status: 'preparing', atMinute: 3 }, { status: 'picked_up', atMinute: 12 }, { status: 'delivered', atMinute: 25 }];
+    default:
+      return [{ status: 'accepted', atMinute: 0 }, { status: 'preparing', atMinute: 2 }, { status: 'picked_up', atMinute: 15 }, { status: 'delivered', atMinute: 30 }];
+  }
+}
+
+/** Demo fare for one vehicle type on a trip, in minor units (rounded up to a whole baht). */
+export function demoFare(it: MenuItem, trip: Trip): number | null {
+  const v = it.vehicle;
+  if (!v || trip.distance_km === undefined || trip.duration_min === undefined) return null;
+  const raw = v.base_minor + v.per_km_minor * trip.distance_km + v.per_min_minor * trip.duration_min;
+  return Math.ceil(raw / 100) * 100;
+}
 const SEQ: Record<string, number> = { accepted: 1, preparing: 2, picked_up: 3, delivered: 4 };
 
 export const DEMO_SIGNATURE_HEADER = 'x-unyly-demo-signature';
@@ -49,8 +68,12 @@ export class DemoProvider implements Provider {
     const ok: Capability = { available: true, source: 'Unyly demo simulator (synthetic data, no real charges or deliveries)' };
     return {
       search_restaurants: ok, get_menu: ok, cart: ok, quote: ok, checkout: ok, submit_order: ok, order_status: ok, cancel_order: ok,
-      handoff: { available: false, reason: 'Demo restaurants do not exist in Grab, so there is nothing to hand off.' },
+      handoff: { available: false, reason: 'Demo stores do not exist in Grab, so there is nothing to hand off.' },
     };
+  }
+
+  resolvePlace(text: string, saved: { label: string; district: string; city: string }[]) {
+    return resolvePlace(text, saved);
   }
 
   private delivers(r: DemoRestaurant, a: DeliveryAddress | null): boolean | null {
@@ -63,10 +86,10 @@ export class DemoProvider implements Provider {
 
   private toRestaurant(r: DemoRestaurant, a: DeliveryAddress | null): Restaurant {
     return {
-      id: r.id, name: r.name, cuisines: r.cuisines, is_open: r.open, opening_note: r.opening_note, currency: 'THB',
+      id: r.id, name: r.name, service: r.service, category: r.category, notice: r.notice, cuisines: r.cuisines, is_open: r.open, opening_note: r.opening_note, currency: 'THB',
       delivery_fee_minor: r.delivery_fee_minor, min_order_minor: r.min_order_minor,
       small_order_threshold_minor: r.small_order_threshold_minor, small_order_fee_minor: r.small_order_fee_minor,
-      eta_min_minutes: r.eta[0], eta_max_minutes: r.eta[1], delivers_to_address: this.delivers(r, a), promo: r.promo?.text,
+      eta_min_minutes: r.eta[0], eta_max_minutes: r.eta[1], delivers_to_address: isTripService(r.service) ? null : this.delivers(r, a), promo: r.promo?.text,
     };
   }
 
@@ -82,10 +105,13 @@ export class DemoProvider implements Provider {
     if (this.faults.unavailable) throw new ProviderUnavailableError('Demo provider is unavailable (injected fault)');
   }
 
-  async searchRestaurants(q: { address: DeliveryAddress | null; query?: string; cuisine?: string }): Promise<Restaurant[]> {
+  async searchRestaurants(q: { address: DeliveryAddress | null; query?: string; cuisine?: string; service?: Service; category?: string }): Promise<Restaurant[]> {
     this.guard();
     const text = q.query?.toLowerCase().trim();
+    const service = q.service ?? 'food';
     return DEMO_RESTAURANTS.filter((r) => {
+      if (r.service !== service) return false;
+      if (q.category && r.category !== q.category) return false;
       if (q.cuisine && !r.cuisines.includes(q.cuisine.toLowerCase())) return false;
       if (text) {
         const hay = [r.name, ...r.cuisines, ...r.items.map((i) => `${i.name} ${i.category}`)].join(' ').toLowerCase();
@@ -103,12 +129,13 @@ export class DemoProvider implements Provider {
   }
 
   /** Pure pricing used by both quote and submit, so the provider can detect price drift itself. */
-  private price(restaurantId: string, lines: CartLine[], address: DeliveryAddress) {
+  private price(restaurantId: string, lines: CartLine[], address: DeliveryAddress | null, trip?: Trip | null) {
     const r = findRestaurant(restaurantId);
     if (!r) throw Object.assign(new Error('restaurant not found'), { notFound: true });
+    if (isTripService(r.service)) return this.priceTrip(r, lines, trip ?? null);
     const issues: QuoteIssue[] = [];
-    if (!r.open) issues.push({ code: 'RESTAURANT_CLOSED', message: r.opening_note || 'Restaurant is closed' });
-    if (!this.delivers(r, address)) issues.push({ code: 'DELIVERY_UNAVAILABLE', message: 'Restaurant does not deliver to this address' });
+    if (!r.open) issues.push({ code: 'RESTAURANT_CLOSED', message: r.opening_note || 'Store is closed' });
+    if (!address || !this.delivers(r, address)) issues.push({ code: 'DELIVERY_UNAVAILABLE', message: 'Store does not deliver to this address' });
     const qlines: QuoteLine[] = lines.map((l) => {
       const it = l.item_id ? this.item(r, l.item_id) : undefined;
       if (!it) {
@@ -131,6 +158,9 @@ export class DemoProvider implements Provider {
         }
       }
       if (!it.available) issues.push({ code: 'OUT_OF_STOCK', message: `${it.name} is out of stock`, line_id: l.line_id });
+      if (it.max_quantity && l.quantity > it.max_quantity) {
+        issues.push({ code: 'QUANTITY_LIMIT', message: `At most ${it.max_quantity} of ${it.name} per order`, line_id: l.line_id });
+      }
       return { line_id: l.line_id, item_id: it.id, name: it.name, quantity: l.quantity, modifiers_desc: desc, unit_price_minor: unit, line_total_minor: unit * l.quantity, available: it.available };
     });
     const subtotal = qlines.reduce((s, l) => s + l.line_total_minor, 0);
@@ -143,19 +173,55 @@ export class DemoProvider implements Provider {
       discount = Math.min(Math.floor((subtotal * r.promo.percent) / 100), r.promo.max_discount_minor);
     }
     const total = subtotal + r.delivery_fee_minor + DEMO_SERVICE_FEE_MINOR + smallFee - discount;
-    return { r, qlines, issues, subtotal, smallFee, discount, total };
+    return { r, qlines, issues, subtotal, smallFee, discount, total, serviceFee: DEMO_SERVICE_FEE_MINOR, eta: r.eta };
   }
 
-  async quote(req: { restaurant_id: string; lines: CartLine[]; address: DeliveryAddress }): Promise<ProviderQuote> {
+  /** Ride / express: one vehicle line priced by the trip. */
+  private priceTrip(r: DemoRestaurant, lines: CartLine[], trip: Trip | null) {
+    const issues: QuoteIssue[] = [];
+    const qlines: QuoteLine[] = [];
+    if (!trip) issues.push({ code: 'TRIP_REQUIRED', message: 'Pickup and drop-off are required' });
+    else if (trip.distance_km === undefined) issues.push({ code: 'OUTSIDE_SERVICE_AREA', message: 'Pickup or drop-off is outside the demo map' });
+    if (lines.length !== 1 || lines[0].quantity !== 1) {
+      issues.push({ code: 'MODIFIERS_INVALID', message: 'Choose exactly one vehicle type' });
+    }
+    for (const l of lines) {
+      const it = l.item_id ? this.item(r, l.item_id) : undefined;
+      if (!it?.vehicle) {
+        issues.push({ code: 'ITEM_NOT_FOUND', message: `Vehicle type not found: ${l.name}`, line_id: l.line_id });
+        qlines.push({ line_id: l.line_id, item_id: l.item_id, name: l.name, quantity: l.quantity, modifiers_desc: [], unit_price_minor: 0, line_total_minor: 0, available: false });
+        continue;
+      }
+      if (r.service === 'express') {
+        if (!trip?.parcel) issues.push({ code: 'TRIP_REQUIRED', message: 'Parcel weight is required' });
+        else if (it.vehicle.max_weight_kg !== undefined && trip.parcel.weight_kg > it.vehicle.max_weight_kg) {
+          issues.push({ code: 'WEIGHT_LIMIT', message: `${it.name} carries up to ${it.vehicle.max_weight_kg} kg; parcel is ${trip.parcel.weight_kg} kg`, line_id: l.line_id });
+        }
+      }
+      const unit = (trip && demoFare(it, trip)) ?? 0;
+      if (!it.available) issues.push({ code: 'OUT_OF_STOCK', message: `${it.name} is not available right now`, line_id: l.line_id });
+      qlines.push({ line_id: l.line_id, item_id: it.id, name: it.name, quantity: l.quantity, modifiers_desc: it.vehicle.note ? [it.vehicle.note] : [], unit_price_minor: unit, line_total_minor: unit * l.quantity, available: it.available });
+    }
+    if (r.service === 'ride' && trip?.pickup.is_airport) {
+      qlines.push({ line_id: 'fee_airport', name: 'Airport pickup fee', quantity: 1, modifiers_desc: [], unit_price_minor: DEMO_AIRPORT_PICKUP_FEE_MINOR, line_total_minor: DEMO_AIRPORT_PICKUP_FEE_MINOR, available: true });
+    }
+    const subtotal = qlines.reduce((s, l) => s + l.line_total_minor, 0);
+    const dur = trip?.duration_min ?? 20;
+    const eta: [number, number] = r.service === 'ride' ? [dur + 3, dur + 10] : [dur + 10, dur + 25];
+    return { r, qlines, issues, subtotal, smallFee: 0, discount: 0, total: subtotal, serviceFee: 0, eta };
+  }
+
+  async quote(req: { restaurant_id: string; lines: CartLine[]; address: DeliveryAddress | null; trip?: Trip | null }): Promise<ProviderQuote> {
     this.guard();
-    const p = this.price(req.restaurant_id, req.lines, req.address);
+    const p = this.price(req.restaurant_id, req.lines, req.address, req.trip);
     return {
       currency: 'THB', lines: p.qlines, subtotal_minor: p.subtotal, delivery_fee_minor: p.r.delivery_fee_minor,
-      service_fee_minor: DEMO_SERVICE_FEE_MINOR, small_order_fee_minor: p.smallFee, discount_minor: p.discount, total_minor: p.total,
-      eta_min_minutes: p.r.eta[0], eta_max_minutes: p.r.eta[1], issues: p.issues,
-      price_source: 'Demo simulator price list (synthetic)', valid_for_seconds: DEMO_QUOTE_TTL_SECONDS,
+      service_fee_minor: p.serviceFee, small_order_fee_minor: p.smallFee, discount_minor: p.discount, total_minor: p.total,
+      eta_min_minutes: p.eta[0], eta_max_minutes: p.eta[1], issues: p.issues,
+      price_source: isTripService(p.r.service) ? 'Demo fare formula (synthetic distance and time)' : 'Demo simulator price list (synthetic)',
+      valid_for_seconds: DEMO_QUOTE_TTL_SECONDS,
       payment_method_label: 'Demo wallet (no real charge)',
-      cancellation_terms: 'Demo terms: free cancellation before the restaurant starts preparing; 50% of food subtotal after that; not possible once picked up.',
+      cancellation_terms: CANCEL_TERMS[p.r.service],
     };
   }
 
@@ -167,7 +233,7 @@ export class DemoProvider implements Provider {
     if (existing.rows[0]) {
       return { outcome: 'accepted', provider_order_ref: existing.rows[0].ref, status: existing.rows[0].status, payment_status: 'not_charged_demo' };
     }
-    const p = this.price(req.restaurant_id, req.lines, req.address);
+    const p = this.price(req.restaurant_id, req.lines, req.address, req.trip);
     const blocking = p.issues[0]; // every issue blocks a real submission
     if (blocking) {
       const code = blocking.code === 'RESTAURANT_CLOSED' || blocking.code === 'DELIVERY_UNAVAILABLE' || blocking.code === 'OUT_OF_STOCK' ? blocking.code : 'PROVIDER_REJECTED';
@@ -181,12 +247,12 @@ export class DemoProvider implements Provider {
     await this.deps.db.query(
       `INSERT INTO demo_sim_orders (ref, idempotency_key, payload, total_minor, status, sequence, accepted_at) VALUES ($1,$2,$3,$4,'accepted',1,$5)
        ON CONFLICT (idempotency_key) DO NOTHING`,
-      [ref, req.idempotency_key, JSON.stringify({ restaurant_id: req.restaurant_id, lines: req.lines }), p.total, now],
+      [ref, req.idempotency_key, JSON.stringify({ restaurant_id: req.restaurant_id, service: p.r.service, lines: req.lines, trip_minutes: req.trip?.duration_min ?? null }), p.total, now],
     );
     const row = (await this.deps.db.query('SELECT ref, status FROM demo_sim_orders WHERE idempotency_key = $1', [req.idempotency_key])).rows[0];
     if (this.faults.hangAfterAccept) return new Promise<never>(() => {});
     if (this.faults.timeoutAfterAccept) throw new ProviderOutcomeUnknownError('Demo provider: response lost after accept (injected fault)');
-    const eta = new Date(now.getTime() + (p.r.eta[1] * 60000) / this.deps.timeScale).toISOString();
+    const eta = new Date(now.getTime() + (p.eta[1] * 60000) / this.deps.timeScale).toISOString();
     return { outcome: 'accepted', provider_order_ref: row.ref, status: row.status, payment_status: 'not_charged_demo', eta_at: eta };
   }
 
@@ -205,7 +271,7 @@ export class DemoProvider implements Provider {
     if (row.status === 'cancelled' || row.status === 'delivered') return row;
     const elapsedMin = ((this.deps.now().getTime() - new Date(row.accepted_at).getTime()) / 60000) * this.deps.timeScale * Number(row.speed ?? 1);
     let target: FulfillmentStatus = 'accepted';
-    for (const t of TIMELINE) if (elapsedMin >= t.atMinute) target = t.status;
+    for (const t of timeline(row.payload.service ?? 'food', row.payload.trip_minutes ?? undefined)) if (elapsedMin >= t.atMinute) target = t.status;
     if (SEQ[target] > row.sequence) {
       const u = await this.deps.db.query(
         `UPDATE demo_sim_orders SET status = $2, sequence = $3 WHERE ref = $1 AND status NOT IN ('cancelled','delivered') AND sequence < $3 RETURNING *`,
@@ -227,10 +293,21 @@ export class DemoProvider implements Provider {
     this.guard();
     const row = await this.advance(ref);
     if (!row) throw Object.assign(new Error('order not found'), { notFound: true });
+    const service: Service = row.payload.service ?? 'food';
     const food = (row.payload.lines as CartLine[]).length ? row.total_minor : 0;
-    if (row.status === 'accepted') return { allowed: true, fee_minor: 0, currency: 'THB', terms: 'Free cancellation: the restaurant has not started preparing (demo).' };
+    if (service === 'ride' || service === 'express') {
+      const who = service === 'ride' ? 'driver' : 'courier';
+      if (row.status === 'accepted') return { allowed: true, fee_minor: 0, currency: 'THB', terms: `Free cancellation: the ${who} has just been assigned (demo).` };
+      if (row.status === 'preparing') {
+        const fee = service === 'ride' ? 3000 : 2000;
+        return { allowed: true, fee_minor: fee, currency: 'THB', terms: `The ${who} is on the way: ${fee / 100} THB cancellation fee (demo, not charged).` };
+      }
+      return { allowed: false, fee_minor: 0, currency: 'THB', terms: service === 'ride' ? 'Cannot cancel: the trip has started or ended.' : 'Cannot cancel: the parcel has been picked up.' };
+    }
+    const who = service === 'mart' ? 'store' : 'restaurant';
+    if (row.status === 'accepted') return { allowed: true, fee_minor: 0, currency: 'THB', terms: `Free cancellation: the ${who} has not started preparing (demo).` };
     if (row.status === 'preparing') {
-      return { allowed: true, fee_minor: Math.round(food / 2), currency: 'THB', terms: 'The restaurant is preparing the order: 50% cancellation fee (demo, not charged).' };
+      return { allowed: true, fee_minor: Math.round(food / 2), currency: 'THB', terms: `The ${who} is preparing the order: 50% cancellation fee (demo, not charged).` };
     }
     return { allowed: false, fee_minor: 0, currency: 'THB', terms: `Cannot cancel: order is ${row.status}.` };
   }
@@ -297,6 +374,16 @@ export class DemoProvider implements Provider {
     return sent;
   }
 }
+
+const CANCEL_TERMS: Record<Service, string> = {
+  food: 'Demo terms: free cancellation before the restaurant starts preparing; 50% of the total after that; not possible once picked up.',
+  mart: 'Demo terms: free cancellation before the store starts picking; 50% of the total after that; not possible once picked up.',
+  ride: 'Demo terms: free cancellation right after a driver is assigned; 30 THB once the driver is on the way; not possible after pickup.',
+  express: 'Demo terms: free cancellation right after a courier is assigned; 20 THB once the courier is on the way; not possible after pickup.',
+};
+
+/** Region list is exported for capability reporting; the demo catalog covers Bangkok only. */
+export const DEMO_REGION = REGIONS.TH;
 
 export function validateModifiers(it: MenuItem, selected: { group_id: string; option_ids: string[] }[]): string | null {
   for (const sel of selected) {

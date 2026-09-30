@@ -1,3 +1,4 @@
+import { regionOf, Service } from '../domain/regions.js';
 import {
   CapabilityKey, Capability, CapabilityUnavailableError, Mode, Provider, ProviderEvent,
 } from './types.js';
@@ -24,9 +25,10 @@ abstract class UnavailableBase implements Provider {
 }
 
 const NO_CONSUMER_API =
-  'Grab does not publish an API for third parties to search GrabFood, price a basket or place an order on behalf of a consumer. ' +
-  'The public GrabFood API is a merchant/POS API (scope food.partner_api). Requires a partner agreement with Grab.';
-const SRC = 'https://developer.grab.com/docs/grabfood/api/v1-1-3/ ; https://developer.grab.com/docs/grab-id/';
+  'Grab does not publish an API for third parties to order GrabFood or GrabMart, or book a ride, on behalf of a consumer. ' +
+  'The public Food and Mart APIs are merchant/POS APIs. GrabExpress has a business Delivery API (credentials via Grab sales), not a consumer one. ' +
+  'Requires a partner agreement with Grab.';
+const SRC = 'https://developer.grab.com/docs/grabfood/api/v1-1-3/ ; https://developer.grab.com/docs/grab-express/ ; https://developer.grab.com/docs/grab-id/';
 
 /**
  * Live mode: real operations against Grab. No capability is enabled because none is
@@ -56,7 +58,7 @@ export class HandoffGrabProvider extends UnavailableBase {
   capabilities(): Record<CapabilityKey, Capability> {
     const noData: Capability = {
       available: false, verified_at: CHECKED, source: SRC,
-      reason: 'No documented Grab API for consumer restaurant/menu/price data, and Grab terms prohibit scraping. Tell Unyly the restaurant and dishes yourself.',
+      reason: 'No documented Grab API for consumer store, menu, fare or price data, and Grab terms prohibit scraping. Tell Unyly the store and items, or the pickup and drop-off, yourself.',
     };
     const inGrab: Capability = { available: false, verified_at: CHECKED, reason: 'In Handoff mode the order, payment, status and cancellation happen inside Grab, not in Unyly.' };
     return {
@@ -65,12 +67,12 @@ export class HandoffGrabProvider extends UnavailableBase {
       checkout: inGrab, submit_order: inGrab, order_status: inGrab, cancel_order: inGrab,
       handoff: {
         available: true, verified_at: CHECKED,
-        source: `${GRABFOOD_TH_URL} (official GrabFood web entry for Thailand; redirects to grab.com/th/food). Restaurant-level or cart-prefill links are not documented, so none are used.`,
+        source: 'Official Grab service pages per country (Thailand checked page by page). Store-level, trip or cart-prefill links are not documented, so none are used.',
       },
     };
   }
-  handoffUrl(region: string) {
-    if (region !== 'TH') return null;
-    return { url: GRABFOOD_TH_URL, source: 'Fetched 2026-09-30; no documented deep-link parameters', verified_at: CHECKED };
+  handoffUrl(region: string, service: Service) {
+    const link = regionOf(region).links[service];
+    return { url: link.url, source: link.note, verified: link.verified, verified_at: link.checked_at };
   }
 }

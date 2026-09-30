@@ -4,7 +4,8 @@ import type { Queryable } from '../db/db.js';
 import { DomainError } from '../domain/errors.js';
 import { money } from '../domain/money.js';
 import { ProviderOutcomeUnknownError, ProviderUnavailableError, SubmitResult } from '../providers/types.js';
-import { loadCart, QuoteRow } from './carts.js';
+import { describeTrip, loadCart, locationFingerprint, QuoteRow, tripLabel } from './carts.js';
+import { isTripService } from '../domain/regions.js';
 import { requireCapability, submissionsEnabled, withTimeout } from './common.js';
 import { addressFingerprint, getAddress, maskedAddress, toDeliveryAddress } from './users.js';
 
@@ -83,9 +84,8 @@ async function validityProblem(ctx: Ctx, q: Queryable, c: CheckoutRow): Promise<
   const cart = await loadCart(q, c.user_id, c.cart_id);
   if (cart.status !== 'open') return 'CART_NOT_OPEN';
   if (cart.version !== c.cart_version) return 'CART_CHANGED';
-  if (!cart.address_id) return 'ADDRESS_CHANGED';
-  const addr = await getAddress(q, c.user_id, cart.address_id).catch(() => null);
-  if (!addr || addressFingerprint(addr) !== c.address_fingerprint) return 'ADDRESS_CHANGED';
+  const fp = await locationFingerprint(q, c.user_id, cart);
+  if (!fp || fp !== c.address_fingerprint) return 'ADDRESS_CHANGED';
   return null;
 }
 
@@ -120,8 +120,8 @@ export async function prepareCheckout(ctx: Ctx, actor: Actor, args: { cart_id: s
       const first = qr.issues[0];
       throw new DomainError((first?.code as any) ?? 'VALIDATION_FAILED', first?.message ?? 'Quote has blocking issues', { issues: qr.issues });
     }
-    const addr = locked.address_id ? await getAddress(q, actor.userId, locked.address_id).catch(() => null) : null;
-    if (!addr || addressFingerprint(addr) !== qr.address_fingerprint) throw new DomainError('QUOTE_EXPIRED', 'Delivery address changed; quote again');
+    const fp = await locationFingerprint(q, actor.userId, locked);
+    if (!fp || fp !== qr.address_fingerprint) throw new DomainError('QUOTE_EXPIRED', 'Delivery address or trip changed; quote again');
     // Only one pending confirmation per cart.
     await q.query(`UPDATE checkouts SET status='invalidated', invalid_reason='SUPERSEDED' WHERE cart_id = $1 AND status IN ('awaiting_user','approved')`, [locked.id]);
     const expires = new Date(Math.min(new Date(qr.expires_at).getTime(), now.getTime() + CHECKOUT_MAX_TTL_MS));
@@ -144,7 +144,7 @@ export async function checkoutView(ctx: Ctx, userId: string, id: string, locale:
   }
   const qr = (await ctx.db.query<QuoteRow>('SELECT * FROM quotes WHERE id = $1', [c.quote_id])).rows[0];
   const cart = await loadCart(ctx.db, userId, c.cart_id);
-  const v = (await ctx.db.query('SELECT items, address_id FROM cart_versions WHERE cart_id = $1 AND version = $2', [c.cart_id, c.cart_version])).rows[0];
+  const v = (await ctx.db.query('SELECT items, address_id, trip FROM cart_versions WHERE cart_id = $1 AND version = $2', [c.cart_id, c.cart_version])).rows[0];
   const addr = v.address_id ? await ctx.db.query('SELECT * FROM addresses WHERE id = $1', [v.address_id]).then((r) => r.rows[0]) : null;
   const attempt = (await ctx.db.query<AttemptRow>('SELECT * FROM submission_attempts WHERE checkout_id = $1', [c.id])).rows[0];
   const order = (await ctx.db.query('SELECT id, fulfillment_status FROM orders WHERE checkout_id = $1', [c.id])).rows[0];
@@ -153,6 +153,8 @@ export async function checkoutView(ctx: Ctx, userId: string, id: string, locale:
     checkout: c,
     restaurant_name: cart.restaurant_name,
     restaurant_id: cart.restaurant_id,
+    service: cart.service,
+    trip: isTripService(cart.service) ? describeTrip(v.trip ?? null) : null,
     lines: qr.lines,
     address: addr,
     breakdown: {
@@ -275,7 +277,7 @@ export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string) {
       [c.id, actor.userId, c.mode, `unyly-${c.id}`, new Date(now.getTime() + ctx.cfg.providerTimeoutMs + 5000), now],
     );
     const cart = await loadCart(q, actor.userId, c.cart_id);
-    const addr = await getAddress(q, actor.userId, cart.address_id!);
+    const addr = isTripService(cart.service) ? null : await getAddress(q, actor.userId, cart.address_id!);
     await audit(q, { userId: actor.userId, actor: actorLabel(actor), action: 'submission.started', mode: c.mode, entity: 'checkout', entityId: c.id });
     return { attempt: a.rows[0], checkout: c, cart, addr };
   });
@@ -291,7 +293,8 @@ export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string) {
         idempotency_key: attempt.idempotency_key,
         restaurant_id: cart.restaurant_id!,
         lines: cart.items,
-        address: toDeliveryAddress(addr),
+        address: addr ? toDeliveryAddress(addr) : null,
+        trip: cart.trip,
         expected_total_minor: checkout.total_minor,
         currency: checkout.currency,
       }),
@@ -358,14 +361,15 @@ export async function recordAccepted(ctx: Ctx, attemptId: string, ref: string, s
     const c = (await q.query<CheckoutRow>('SELECT * FROM checkouts WHERE id = $1', [a.checkout_id])).rows[0];
     const cart = await loadCart(q, a.user_id, c.cart_id);
     const qr = (await q.query<QuoteRow>('SELECT * FROM quotes WHERE id = $1', [c.quote_id])).rows[0];
-    const addr = (await q.query('SELECT * FROM addresses WHERE id = $1', [cart.address_id])).rows[0];
+    const addr = cart.address_id ? (await q.query('SELECT * FROM addresses WHERE id = $1', [cart.address_id])).rows[0] : null;
+    const where = isTripService(cart.service) ? tripLabel(cart.trip) ?? 'trip' : maskedAddress(addr)?.label ?? 'address';
     const ins = await q.query(
       `INSERT INTO orders (user_id, checkout_id, submission_id, cart_id, mode, provider, provider_order_ref, restaurant_id, restaurant_name, items, address_label,
-         total_minor, currency, fulfillment_status, payment_status, status_version, eta_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,0,$16) ON CONFLICT DO NOTHING RETURNING id`,
+         total_minor, currency, fulfillment_status, payment_status, status_version, eta_at, service)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,0,$16,$17) ON CONFLICT DO NOTHING RETURNING id`,
       [a.user_id, c.id, a.id, cart.id, c.mode, ctx.provider(c.mode).providerName, ref, cart.restaurant_id, cart.restaurant_name,
         JSON.stringify(qr.lines.map((l: any) => ({ item_id: l.item_id, name: l.name, quantity: l.quantity, modifiers: l.modifiers_desc, line_total_minor: l.line_total_minor }))),
-        maskedAddress(addr)?.label ?? 'address', c.total_minor, c.currency, status, paymentStatus, etaAt ?? null],
+        where, c.total_minor, c.currency, status, paymentStatus, etaAt ?? null, cart.service],
     );
     await q.query(`UPDATE carts SET status='ordered', updated_at=now() WHERE id=$1`, [cart.id]);
     if (ins.rowCount) {

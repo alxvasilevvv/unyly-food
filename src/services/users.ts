@@ -3,6 +3,7 @@ import { audit } from '../context.js';
 import type { Queryable } from '../db/db.js';
 import { sha256, stableJson } from '../domain/crypto.js';
 import { DomainError } from '../domain/errors.js';
+import { REGION_CODES } from '../domain/regions.js';
 import type { DeliveryAddress, Mode } from '../providers/types.js';
 
 export interface UserRow {
@@ -16,7 +17,7 @@ export interface UserRow {
   created_at: string;
 }
 
-export const SUPPORTED_REGIONS = ['TH'] as const;
+export const SUPPORTED_REGIONS = REGION_CODES;
 export const ALLERGENS = ['peanut', 'tree_nut', 'milk', 'egg', 'wheat', 'soy', 'fish', 'shellfish', 'sesame'] as const;
 export const DIETS = ['vegetarian', 'vegan', 'halal', 'no_pork', 'no_beef'] as const;
 
@@ -42,7 +43,7 @@ export async function findOrCreateUserByEmail(q: Queryable, email: string, local
 }
 
 export async function setRegionAndMode(ctx: Ctx, userId: string, region: string, mode: Mode) {
-  if (!SUPPORTED_REGIONS.includes(region as any)) throw new DomainError('VALIDATION_FAILED', 'Unsupported region');
+  if (!SUPPORTED_REGIONS.includes(region)) throw new DomainError('VALIDATION_FAILED', 'Unsupported region');
   const caps = ctx.provider(mode).capabilities();
   const usable = mode === 'handoff' ? caps.handoff.available : caps.submit_order.available || caps.search_restaurants.available;
   if (!usable) throw new DomainError('CAPABILITY_UNAVAILABLE', `Mode ${mode} is not available`, { reason: caps.submit_order.reason });
@@ -104,7 +105,7 @@ export function validateAddressInput(input: { label: string; line1: string; dist
   if (clean.line1.length < 5 || !/\d/.test(clean.line1)) problems.push('line1'); // needs a house/building number
   if (clean.district.length < 2) problems.push('district');
   if (clean.city.length < 2) problems.push('city');
-  if (clean.country !== 'TH') problems.push('country');
+  if (!REGION_CODES.includes(clean.country)) problems.push('country');
   if (problems.length) throw new DomainError('ADDRESS_AMBIGUOUS', 'Address is incomplete or ambiguous', { fields: problems });
   return clean;
 }

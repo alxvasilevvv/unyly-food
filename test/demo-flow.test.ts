@@ -14,16 +14,23 @@ afterAll(async () => {
 });
 
 describe('Demo: full vertical flow over real MCP + OAuth', () => {
-  it('lists the 14 tools with annotations and strict schemas', async () => {
+  it('lists the 15 tools, each with a title, all three hints and a strict schema', async () => {
     const { tools } = await u.mcp.client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
-      'cancel_order', 'create_cart', 'create_handoff', 'get_capabilities', 'get_checkout_status', 'get_menu', 'get_order_status',
-      'list_orders', 'prepare_cancellation', 'prepare_checkout', 'quote_cart', 'search_restaurants', 'submit_order', 'update_cart',
+      'cancel_order', 'create_cart', 'create_handoff', 'estimate_trip', 'get_capabilities', 'get_checkout_status', 'get_order_status', 'get_store',
+      'list_orders', 'prepare_cancellation', 'prepare_checkout', 'quote_cart', 'search_stores', 'submit_order', 'update_cart',
     ]);
-    const submit = tools.find((t) => t.name === 'submit_order')!;
-    expect(submit.annotations?.destructiveHint).toBe(true);
-    expect(submit.inputSchema.additionalProperties).toBe(false);
-    expect(tools.find((t) => t.name === 'get_menu')!.annotations?.readOnlyHint).toBe(true);
+    for (const t of tools) {
+      expect(t.title ?? t.annotations?.title).toBeTruthy();
+      expect(typeof t.annotations?.readOnlyHint).toBe('boolean');
+      expect(typeof t.annotations?.destructiveHint).toBe('boolean');
+      expect(typeof t.annotations?.openWorldHint).toBe('boolean');
+      expect(t.inputSchema.additionalProperties).toBe(false);
+      expect(t.name).toMatch(/^[a-z_]+$/);
+    }
+    expect(tools.find((t) => t.name === 'submit_order')!.annotations?.destructiveHint).toBe(true);
+    expect(tools.find((t) => t.name === 'get_store')!.annotations?.readOnlyHint).toBe(true);
+    expect(tools.find((t) => t.name === 'estimate_trip')!.annotations?.readOnlyHint).toBe(true);
   });
 
   it('get_capabilities reports demo mode honestly', async () => {
@@ -36,11 +43,11 @@ describe('Demo: full vertical flow over real MCP + OAuth', () => {
   });
 
   it('search: dinner for two under 600 THB, no nuts', async () => {
-    const r = await u.mcp.call('search_restaurants', { party_size: 2, budget_total_major: 600, exclude_allergens: ['peanut', 'tree_nut'], limit: 3 });
+    const r = await u.mcp.call('search_stores', { party_size: 2, budget_total_major: 600, exclude_allergens: ['peanut', 'tree_nut'], limit: 3 });
     expect(r.ok).toBe(true);
-    expect(r.result.restaurants.length).toBe(3);
+    expect(r.result.stores.length).toBe(3);
     expect(r.result.allergen_disclaimer).toMatch(/never marks a dish as safe/);
-    for (const x of r.result.restaurants) {
+    for (const x of r.result.stores) {
       if (!x.suggestion) continue;
       expect(x.suggestion.within_budget).toBe(true);
       for (const it of x.suggestion.items) {
@@ -49,7 +56,7 @@ describe('Demo: full vertical flow over real MCP + OAuth', () => {
       }
     }
     // Closed restaurant and out-of-zone restaurant are never suggested as orderable.
-    const names = r.result.restaurants.map((x: any) => x.restaurant.name);
+    const names = r.result.stores.map((x: any) => x.store.name);
     expect(names).not.toContain('Night Owl Burgers (Demo)');
   });
 

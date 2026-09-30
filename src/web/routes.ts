@@ -16,7 +16,9 @@ import {
 } from '../services/users.js';
 import { DEMO_DISTRICTS, findRestaurant } from '../providers/demo/catalog.js';
 import type { Mode } from '../providers/types.js';
-import { checkBurst, icon, restaurantArt, scooter } from './art.js';
+import { car, checkBurst, icon, restaurantArt, scooter } from './art.js';
+import { SERVICE_NAME, statusLabel } from '../domain/labels.js';
+import { isTripService, Service } from '../domain/regions.js';
 import { ALLERGEN_NAMES, DIET_NAMES, dishName, t3 } from './copy.js';
 import { html, SafeHtml } from './html.js';
 import { page } from './layout.js';
@@ -115,7 +117,8 @@ export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
   const csrfField = (s: WebSession) => html`<input type="hidden" name="_csrf" value="${s.csrf}">`;
   const dt = (d: string | Date, l: Locale) =>
     new Intl.DateTimeFormat(intlLocale(l), { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Bangkok' }).format(new Date(d)) + ' (ICT)';
-  const fsLabel = (m: Messages, s: string) => (m as any)[`fs_${s}`] ?? s;
+  const fsLabel = (m: Messages, s: string, service: Service = 'food', l?: Locale) =>
+    l ? statusLabel(service, s as any, l) : (m as any)[`fs_${s}`] ?? s;
   const psLabel = (m: Messages, s: string) => (m as any)[`ps_${s}`] ?? s;
   const errorBox = (e: unknown) => html`<div class="notice bad" role="alert">${isDomainError(e) ? e.message : 'Unexpected error'}</div>`;
 
@@ -411,10 +414,17 @@ ${u.is_guest ? html`<div class="notice stack small"><span>${tr(r.l, { ru: 'Эт�
 </div>`);
   });
 
+  const TRIP_WORD = { ru: 'Маршрут', en: 'Trip', th: 'เส้นทาง' };
+  const handoffSummary = (c: any) => {
+    const items = Array.isArray(c) ? c : c?.items ?? [];
+    const trip = Array.isArray(c) ? null : c?.trip;
+    return [trip ? `${trip.pickup.name} → ${trip.dropoff.name}` : null, items.map((i: any) => `${i.quantity}× ${i.name}`).join(', ')].filter(Boolean).join(' · ');
+  };
+
   function orderRow(r: R, o: any) {
     const d = describeOrder(o, r.l);
-    return html`<li><span><strong>${d.restaurant}</strong><br><span class="small muted">${dt(d.placed_at, r.l)} · ${d.total.formatted}</span></span>
-<span><span class="pill ${d.fulfillment_status === 'delivered' ? 'ok' : d.fulfillment_status === 'cancelled' || d.fulfillment_status === 'failed' ? 'bad' : 'accent'}">${fsLabel(r.m, d.fulfillment_status)}</span> <a href="/app/orders/${d.order_id}">${r.m.details}</a></span></li>`;
+    return html`<li><span><strong>${d.title}</strong><br><span class="small muted">${dt(d.placed_at, r.l)} · ${d.total.formatted}</span></span>
+<span><span class="pill ${d.fulfillment_status === 'delivered' ? 'ok' : d.fulfillment_status === 'cancelled' || d.fulfillment_status === 'failed' ? 'bad' : 'accent'}">${fsLabel(r.m, d.fulfillment_status, d.service, r.l)}</span> <a href="/app/orders/${d.order_id}">${r.m.details}</a></span></li>`;
   }
 
   // ---------------- Region & mode ----------------
@@ -563,7 +573,7 @@ ${r.s.user.mode === 'demo' ? html`<p class="notice small">${m.demoAddressHint}</
     const handoffs = (await ctx.db.query('SELECT h.*, c.restaurant_name FROM handoffs h JOIN carts c ON c.id=h.cart_id WHERE h.user_id=$1 ORDER BY h.created_at DESC LIMIT 20', [r.s.user.id])).rows;
     return send(reply, r, m.ordersTitle, html`<h1>${m.ordersTitle}</h1>
 ${orders.length ? html`<ul class="list card">${orders.map((o: any) => orderRow(r, o))}</ul>` : html`<p class="muted">${m.noOrders}</p>`}
-${handoffs.length ? html`<h2>${m.handoffsTitle}</h2><p class="small muted">${m.handoffNote}</p><ul class="list card">${handoffs.map((h: any) => html`<li><span><strong>${h.restaurant_name}</strong><br><span class="small muted">${dt(h.created_at, r.l)}</span></span><span class="small">${(h.checklist as any[]).map((i) => `${i.quantity}× ${i.name}`).join(', ')}</span></li>`)}</ul>` : ''}`);
+${handoffs.length ? html`<h2>${m.handoffsTitle}</h2><p class="small muted">${m.handoffNote}</p><ul class="list card">${handoffs.map((h: any) => html`<li><span><strong>${h.restaurant_name}</strong><br><span class="small muted">${dt(h.created_at, r.l)}</span></span><span class="small">${handoffSummary(h.checklist)}</span></li>`)}</ul>` : ''}`);
   });
 
   async function loadOrderForWeb(r: R & { s: WebSession }, id: string) {
@@ -599,7 +609,9 @@ ${handoffs.length ? html`<h2>${m.handoffsTitle}</h2><p class="small muted">${m.h
     const idx = STATUS_FLOW.indexOf(o.fulfillment_status as any);
     const bad = o.fulfillment_status === 'cancelled' || o.fulfillment_status === 'failed';
     const placed = (req.query as any)?.placed === '1';
-    const hero = o.fulfillment_status === 'delivered' ? checkBurst(fsLabel(m, o.fulfillment_status)) : bad ? html`<span class="hero-ico bad">${icon('alert')}</span>` : scooter(fsLabel(m, o.fulfillment_status));
+    const label = (st: string) => fsLabel(m, st, o.service, l);
+    const trip = isTripService(o.service);
+    const hero = o.fulfillment_status === 'delivered' ? checkBurst(label(o.fulfillment_status)) : bad ? html`<span class="hero-ico bad">${icon('alert')}</span>` : o.service === 'ride' ? car(label(o.fulfillment_status)) : scooter(label(o.fulfillment_status));
     const sub = o.is_final
       ? dt(o.status_updated_at, l)
       : o.eta_estimate_at
@@ -612,19 +624,19 @@ ${data.notices.map((n) => html`<p class="notice warn" role="status">${n}</p>`)}
   <div class="status-hero">
     <div class="status-art">${hero}</div>
     <div>
-      <span class="eyebrow">${m.orderTitle} · ${o.restaurant}</span>
-      <h1 class="status-title">${fsLabel(m, o.fulfillment_status)}</h1>
+      <span class="eyebrow">${tr(l, SERVICE_NAME[o.service])} · ${o.title}</span>
+      <h1 class="status-title">${label(o.fulfillment_status)}</h1>
       <p class="muted">${sub}</p>
     </div>
   </div>
   ${bad ? '' : html`<ol class="timeline" aria-label="${m.status}">
-    ${STATUS_FLOW.map((s, i) => html`<li class="${i < idx ? 'done' : i === idx ? 'current' : ''}" ${i === idx ? html`aria-current="step"` : ''}><span class="t-dot" aria-hidden="true"></span>${fsLabel(m, s)}</li>`)}
+    ${STATUS_FLOW.map((s, i) => html`<li class="${i < idx ? 'done' : i === idx ? 'current' : ''}" ${i === idx ? html`aria-current="step"` : ''}><span class="t-dot" aria-hidden="true"></span>${label(s)}</li>`)}
   </ol>`}
   <p class="small muted live-line">${o.is_final ? '' : html`<span class="live-dot" aria-hidden="true"></span>`}${fmt(m.statusAsOf, { time: dt(data.data_as_of, l) })} · <a href="/app/orders/${o.order_id}">${m.refresh}</a></p>
 </section>
 <div class="grid two-1" style="margin-top:18px">
   <div class="card stack">
-    <div class="receipt-head">${restaurantArt(restaurantId, o.restaurant)}<div><h2>${o.restaurant}</h2><p class="small muted">${m.placed}: ${dt(o.placed_at, l)}</p></div></div>
+    <div class="receipt-head">${restaurantArt(restaurantId, o.title)}<div><h2>${o.title}</h2><p class="small muted">${m.placed}: ${dt(o.placed_at, l)}</p></div></div>
     <table class="lines"><tbody>
       ${row.items.map((i: any) => html`<tr><td>${i.quantity}× ${dishName(i.item_id ?? '', i.name, l)}${l !== 'en' && dishName(i.item_id ?? '', i.name, l) !== i.name ? html`<br><span class="small muted">${i.name}</span>` : ''}${i.modifiers?.length ? html`<br><span class="small muted">${i.modifiers.join(', ')}</span>` : ''}</td><td class="num">${i.line_total_minor !== undefined ? formatMinor(i.line_total_minor, row.currency, l) : ''}</td></tr>`)}
       <tr class="total"><td>${m.total}</td><td class="num">${formatMinor(o.total.amount_minor, o.total.currency, l)}</td></tr>
@@ -632,7 +644,7 @@ ${data.notices.map((n) => html`<p class="notice warn" role="status">${n}</p>`)}
   </div>
   <div class="card stack">
     <dl class="facts">
-      <div><dt>${m.deliveryTo}</dt><dd>${o.delivery_to}</dd></div>
+      <div><dt>${trip ? tr(l, TRIP_WORD) : m.deliveryTo}</dt><dd>${trip ? o.trip : o.delivery_to}</dd></div>
       <div><dt>${m.payment}</dt><dd>${psLabel(m, o.payment_status)}</dd></div>
       <div><dt>${m.providerRef}</dt><dd class="mono">${o.provider_order_ref}</dd></div>
     </dl>
@@ -710,17 +722,22 @@ ${data.notices.map((n) => html`<p class="notice warn" role="status">${n}</p>`)}
 ${c.mode === 'demo' ? html`<p class="notice warn small">${m.confirmDemoNote}</p>` : ''}
 ${flash ?? ''}${state ?? ''}
 <div class="card receipt stack">
-  <div class="receipt-head">${restaurantArt(v.restaurant_id, v.restaurant_name)}<div><h2>${v.restaurant_name}</h2><p class="small muted">${icon('clock')} ${m.eta}: ${v.eta.min}–${v.eta.max} ${min}. ${m.etaNote}</p></div></div>
+  <div class="receipt-head">${restaurantArt(v.restaurant_id, v.restaurant_name)}<div><span class="eyebrow">${tr(l, SERVICE_NAME[v.service])}</span><h2>${v.restaurant_name}</h2><p class="small muted">${icon('clock')} ${v.trip ? tr(l, { ru: 'Прибытие', en: 'Arrival', th: 'ถึงที่หมาย' }) : m.eta}: ${v.eta.min}–${v.eta.max} ${min}. ${m.etaNote}</p></div></div>
   <table class="lines"><tbody>
     ${v.lines.map((ln: any) => {
       const local = dishName(ln.item_id ?? '', ln.name, l);
       return html`<tr><td><strong>${ln.quantity}×</strong> ${local}${local !== ln.name ? html`<br><span class="small muted">${ln.name}</span>` : ''}${ln.modifiers_desc?.length ? html`<br><span class="small muted">${ln.modifiers_desc.join(', ')}</span>` : ''}</td><td class="num">${formatMinor(ln.line_total_minor, c.currency, l)}</td></tr>`;
     })}
-    ${line(m.subtotal, b.items_subtotal, true)}${line(m.deliveryFee, b.delivery_fee, true)}${line(m.serviceFee, b.service_fee)}${line(m.smallOrderFee, b.small_order_fee)}${line(m.discount, b.discount)}
+    ${line(v.trip ? tr(l, { ru: 'Стоимость поездки', en: 'Fare', th: 'ค่าโดยสาร' }) : m.subtotal, b.items_subtotal, true)}${line(m.deliveryFee, b.delivery_fee, !v.trip)}${line(m.serviceFee, b.service_fee)}${line(m.smallOrderFee, b.small_order_fee)}${line(m.discount, b.discount)}
     <tr class="total"><td>${m.total}</td><td class="num">${formatMinor(b.total.amount_minor, c.currency, l)}</td></tr>
   </tbody></table>
   <dl class="facts">
-    <div><dt>${icon('map')} ${m.deliveryTo}</dt><dd>${v.address ? `${v.address.label}: ${v.address.line1}, ${v.address.district}, ${v.address.city}` : '-'}</dd></div>
+    ${v.trip
+      ? html`<div><dt>${icon('map')} ${tr(l, { ru: 'Откуда', en: 'Pickup', th: 'จุดรับ' })}</dt><dd>${v.trip.pickup.name}${v.trip.pickup.area ? html` <span class="small muted">(${v.trip.pickup.area})</span>` : ''}</dd></div>
+    <div><dt>${icon('map')} ${tr(l, { ru: 'Куда', en: 'Drop-off', th: 'จุดส่ง' })}</dt><dd>${v.trip.dropoff.name}${v.trip.dropoff.area ? html` <span class="small muted">(${v.trip.dropoff.area})</span>` : ''}</dd></div>
+    ${v.trip.distance_km_estimate !== null ? html`<div><dt>${icon('clock')} ${tr(l, { ru: 'Маршрут', en: 'Route', th: 'เส้นทาง' })}</dt><dd>≈ ${v.trip.distance_km_estimate} km · ≈ ${v.trip.drive_minutes_estimate} ${min}</dd></div>` : ''}
+    ${v.trip.parcel ? html`<div><dt>${icon('receipt')} ${tr(l, { ru: 'Посылка', en: 'Parcel', th: 'พัสดุ' })}</dt><dd>${v.trip.parcel.weight_kg} kg${v.trip.parcel.description ? ` · ${v.trip.parcel.description}` : ''}</dd></div>` : ''}`
+      : html`<div><dt>${icon('map')} ${m.deliveryTo}</dt><dd>${v.address ? `${v.address.label}: ${v.address.line1}, ${v.address.district}, ${v.address.city}` : '-'}</dd></div>`}
     <div><dt>${icon('receipt')} ${m.paymentMethod}</dt><dd>${c.payment_method_label}</dd></div>
     <div><dt>${icon('repeat')} ${m.cancelTerms}</dt><dd>${c.cancellation_terms}</dd></div>
   </dl>
@@ -735,7 +752,7 @@ ${actionable ? html`<div class="confirm-actions">
 </div>` : ''}
 ${fromTry ? html`<details class="trace"><summary>${icon('code')} ${tr(l, { ru: 'Что сделал ассистент (вызовы MCP)', en: 'What the assistant did (MCP calls)', th: 'สิ่งที่ผู้ช่วยทำ (การเรียก MCP)' })}</summary>
 <ol class="tool-log">
-  <li><span class="fn">create_cart</span>(restaurant_id: "${v.restaurant_id}", items: ${v.lines.length})</li>
+  <li><span class="fn">create_cart</span>(store_id: "${v.restaurant_id}", items: ${v.lines.length})</li>
   <li><span class="fn">quote_cart</span>(cart_id) → ${formatMinor(b.total.amount_minor, c.currency, 'en')}</li>
   <li><span class="fn">prepare_checkout</span>(cart_id, quote_id) → confirmation_url</li>
   <li class="you">${tr(l, { ru: 'Вы: подтверждение на этой странице', en: 'You: confirm on this page', th: 'คุณ: ยืนยันในหน้านี้' })}</li>
@@ -761,7 +778,7 @@ ${fromTry ? html`<details class="trace"><summary>${icon('code')} ${tr(l, { ru: '
       if (r.s.user.is_guest && ctx.cfg.demoGuestSpeed > 1) {
         // Guest demo orders move through the timeline faster so a walkthrough finishes in minutes.
         await ctx.db.query('UPDATE demo_sim_orders SET speed = $2 WHERE ref = $1', [placed.provider_order_ref, ctx.cfg.demoGuestSpeed]);
-        const etaMax = findRestaurant(String((await ctx.db.query('SELECT restaurant_id FROM orders WHERE id = $1', [placed.id])).rows[0]?.restaurant_id))?.eta[1] ?? 30;
+        const etaMax = v.eta.max ?? 30;
         const secs = Math.round((etaMax * 60) / (ctx.cfg.demoTimeScale * ctx.cfg.demoGuestSpeed));
         await ctx.db.query(`UPDATE orders SET eta_at = created_at + make_interval(secs => $2) WHERE id = $1 AND mode = 'demo'`, [placed.id, secs]);
       }
@@ -801,7 +818,7 @@ ${fromTry ? html`<details class="trace"><summary>${icon('code')} ${tr(l, { ru: '
       invalidated: html`<p class="notice bad" role="alert">${fmt(m.confirmInvalid, { reason: m.reason_PRICE_CHANGED })}</p>`,
     };
     return send(reply, r, m.cancelConfirmTitle, html`<h1>${m.cancelConfirmTitle}</h1>${flash ?? ''}${res[c.status] ?? ''}
-<div class="card stack"><h2 style="margin:0">${o.restaurant}</h2>
+<div class="card stack"><h2 style="margin:0">${o.title}</h2>
 <p>${o.items.map((i: any) => `${i.quantity}× ${i.name}`).join(', ')} · ${o.total.formatted}</p>
 <p><strong>${m.cancelFee}:</strong> ${money(Number(c.fee_minor), c.currency, r.l).formatted}</p>
 <p>${c.terms}</p>

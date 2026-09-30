@@ -4,6 +4,8 @@ import type { Queryable } from '../db/db.js';
 import { DomainError } from '../domain/errors.js';
 import { money } from '../domain/money.js';
 import { ProviderEvent, ProviderOutcomeUnknownError, ProviderUnavailableError, STATUS_RANK, TERMINAL, FulfillmentStatus } from '../providers/types.js';
+import { statusLabel } from '../domain/labels.js';
+import { isTripService, Service } from '../domain/regions.js';
 import { createCart, loadCart } from './carts.js';
 import { callProvider, requireCapability, withTimeout } from './common.js';
 
@@ -14,6 +16,7 @@ export interface OrderRow {
   submission_id: string;
   cart_id: string;
   mode: 'demo' | 'handoff' | 'live';
+  service: Service;
   provider: string;
   provider_order_ref: string;
   restaurant_id: string | null;
@@ -41,11 +44,15 @@ export function describeOrder(o: OrderRow, locale: 'ru' | 'en' | 'th' = 'en') {
     order_id: o.id,
     mode: o.mode,
     provider_order_ref: o.provider_order_ref,
-    restaurant: o.restaurant_name,
+    service: o.service,
+    title: isTripService(o.service) ? `${o.items[0]?.name ?? 'Trip'}: ${o.address_label}` : o.restaurant_name,
+    store: isTripService(o.service) ? undefined : o.restaurant_name,
     items: o.items.map((i) => ({ name: i.name, quantity: i.quantity, modifiers: i.modifiers })),
-    delivery_to: o.address_label,
+    delivery_to: isTripService(o.service) ? undefined : o.address_label,
+    trip: isTripService(o.service) ? o.address_label : undefined,
     total: money(o.total_minor, o.currency, locale),
     fulfillment_status: o.fulfillment_status,
+    status_label: statusLabel(o.service, o.fulfillment_status, locale),
     payment_status: o.payment_status,
     is_final: TERMINAL.includes(o.fulfillment_status),
     status_updated_at: new Date(o.status_updated_at).toISOString(),
@@ -161,14 +168,14 @@ export async function listOrders(ctx: Ctx, actor: Actor, args: { limit?: number;
   );
   const rows = r.rows.slice(0, limit);
   const handoffs = await ctx.db.query(
-    `SELECT h.id, h.created_at, c.restaurant_name FROM handoffs h JOIN carts c ON c.id = h.cart_id WHERE h.user_id = $1 ORDER BY h.created_at DESC LIMIT 10`,
+    `SELECT h.id, h.created_at, c.restaurant_name, c.service FROM handoffs h JOIN carts c ON c.id = h.cart_id WHERE h.user_id = $1 ORDER BY h.created_at DESC LIMIT 10`,
     [actor.userId],
   );
   return {
     orders: rows.map((o) => describeOrder(o)),
     next_before: r.rows.length > limit ? new Date(rows[rows.length - 1].created_at).toISOString() : null,
     handoffs: handoffs.rows.map((h) => ({
-      handoff_id: h.id, restaurant: h.restaurant_name, created_at: new Date(h.created_at).toISOString(),
+      handoff_id: h.id, service: h.service, store: h.restaurant_name, created_at: new Date(h.created_at).toISOString(),
       note: 'Handoff only: Unyly does not know whether you completed this order in Grab.',
     })),
   };
@@ -179,6 +186,11 @@ export async function reorder(ctx: Ctx, actor: Actor, orderId: string) {
   const o = await loadOrder(ctx.db, actor.userId, orderId);
   const oldCart = await loadCart(ctx.db, actor.userId, o.cart_id);
   const cart = await createCart(ctx, actor, {
+    service: oldCart.service,
+    pickup: oldCart.trip?.pickup.name,
+    dropoff: oldCart.trip?.dropoff.name,
+    parcel_weight_kg: oldCart.trip?.parcel?.weight_kg,
+    parcel_description: oldCart.trip?.parcel?.description,
     restaurant_id: oldCart.restaurant_id ?? undefined,
     restaurant_name: oldCart.restaurant_name,
     items: oldCart.items.map((l) => ({ item_id: l.item_id, name: l.name, quantity: l.quantity, modifiers: l.modifiers, note: l.note })),

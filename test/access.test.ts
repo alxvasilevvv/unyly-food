@@ -118,7 +118,7 @@ describe('OAuth and tokens', () => {
     const tok = await oauthToken(h, s, 'orders:read');
     const m = await mcpClient(h, tok.access_token);
     expect((await m.call('get_capabilities')).ok).toBe(true);
-    const r = await m.call('create_cart', { restaurant_id: 'demo-r1', items: [] });
+    const r = await m.call('create_cart', { store_id: 'demo-r1', items: [] });
     expect(r.error.code).toBe('INSUFFICIENT_SCOPE');
     await m.close();
   });
