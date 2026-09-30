@@ -14,18 +14,16 @@
 
 Черновик обращения к Grab - `grab-partner-request.md` (**не отправлен**).
 
-### Для публикации Demo и Handoff (решается за день)
+### Публикация
+Demo и Handoff опубликованы 30.09.2026 на https://unyly-food.unyly.org. Остаётся:
 | # | Блокер | Что нужно |
 |---|---|---|
-| P1 | `unyly.org` занят действующим продуктом «MCP Server Marketplace» | Решение владельца: отдельный хост, например `food.unyly.org` |
-| P2 | Нет сервера | VPS с Docker (см. operations.md) или облако |
-| P3 | Нет SMTP | Креды провайдера почты |
-| P4 | Ручная проверка в Claude, ChatGPT и Claude Code | Публичный https-адрес (после P1–P3) |
+| P4 | Проверка в Claude.ai, ChatGPT и Claude Code | Добавить https://unyly-food.unyly.org/mcp как коннектор в каждом клиенте (протокол и OAuth уже проверены на живом сервере) |
 | P5 | Deep-link параметры GrabFood не подтверждены | Подтверждение от Grab; до этого используется только общая ссылка |
 
 ## План следующей версии (по приоритету)
 
-1. **Публикация Demo и Handoff на отдельном хосте**, ручная проверка в Claude.ai, Claude Code и ChatGPT Developer mode; обновить `clients.md` статусами «проверено».
+1. **Ручная проверка** в в Claude.ai, Claude Code и ChatGPT Developer mode; обновить `clients.md` статусами «проверено».
 2. **Обращение в Grab** (B1–B5) и параллельно встреча с командой Partner Apps: мини-приложение внутри Grab может дать вход и оплату без консьюмерского API.
 3. **Повторное подтверждение для крупных сумм** (passkey / WebAuthn) на страницах подтверждения - до включения Live.
 4. **Live-адаптер** за feature-флагами по каждой возможности. Контрактные тесты по документации Grab, прогон в их sandbox (staging-окружение есть у GrabFood POS API и GrabExpress).

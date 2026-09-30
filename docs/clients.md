@@ -1,6 +1,6 @@
 # Подключение ИИ-клиентов
 
-Адрес MCP в production: `https://<MCP host>/mcp` (см. `MCP_RESOURCE_URL`), локально - `http://localhost:3000/mcp`.
+Адрес MCP в production: `https://unyly-food.unyly.org/mcp` (см. `MCP_RESOURCE_URL`), локально - `http://localhost:3000/mcp`.
 Транспорт: Streamable HTTP, JSON-ответы, без сессий. Авторизация: OAuth 2.1 + PKCE S256.
 Клиенты находят сервер авторизации сами через `WWW-Authenticate` → `/.well-known/oauth-protected-resource/mcp` → `/.well-known/oauth-authorization-server`.
 Регистрация: Dynamic Client Registration (`/oauth/register`) или Client ID Metadata Document (`client_id` в виде https-URL).
@@ -23,7 +23,7 @@
 
 ### Claude Code
 ```bash
-claude mcp add --transport http unyly https://<MCP host>/mcp
+claude mcp add --transport http unyly https://unyly-food.unyly.org/mcp
 # в сессии Claude Code:
 /mcp   # выберите unyly → Authenticate → войдите в Unyly → Разрешить
 ```
@@ -36,7 +36,7 @@ claude mcp add --transport http unyly https://<MCP host>/mcp
   "tools": [{
     "type": "mcp",
     "server_label": "unyly",
-    "server_url": "https://<MCP host>/mcp",
+    "server_url": "https://unyly-food.unyly.org/mcp",
     "authorization": "<access_token из OAuth-потока Unyly>",
     "require_approval": { "always": { "tool_names": ["submit_order", "cancel_order"] } }
   }]

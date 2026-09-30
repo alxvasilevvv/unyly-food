@@ -55,3 +55,12 @@
 - `deploy/Caddyfile`: `caddy validate` (Caddy 2.10.2) - **Valid configuration.**
 - Бэкап и восстановление: `scripts/backup-verify.sh` - **пройдено.**
 - **Не выполнено:** `docker build` (в среде разработки не было Docker daemon; сборка стоит в CI), подключение из Claude.ai, ChatGPT и Claude Code (нужен публичный https-адрес).
+
+## Проверка на живом сервере (30.09.2026, https://unyly-food.unyly.org)
+
+Выполнено в браузере на опубликованном сервисе:
+- `/readyz`: `ready`, база доступна, 3 миграции применены. `GET /mcp`: 405 (stateless). Заголовки HSTS, CSP (`frame-ancestors 'none'`), `Referrer-Policy: same-origin` на месте.
+- Вход по одноразовому коду поддержки → выбор режима → адрес.
+- OAuth: `WWW-Authenticate` → PRM → метаданные AS → DCR → consent → PKCE → токен с 4 scopes, `iss` в ответе.
+- MCP (протокол 2025-11-25): `initialize`, 14 инструментов, `get_capabilities` (demo, Watthana), `search_restaurants` (3 варианта до 600 THB без орехов), `create_cart`, `quote_cart` (THB 250.00), `prepare_checkout`, `submit_order` до подтверждения → `CONFIRMATION_REQUIRED`, подтверждение на странице, `get_checkout_status` → accepted, `get_order_status` → accepted / not_charged_demo.
+- Docker-образ собран платформой Unyly Deploy из `Dockerfile` репозитория.

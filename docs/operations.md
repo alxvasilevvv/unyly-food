@@ -1,32 +1,23 @@
 # Размещение и эксплуатация
 
-## Что обнаружено при проверке инфраструктуры (30.09.2026, только чтение)
+## Инфраструктура
 
-- **`unyly.org` уже занят действующим продуктом**: там работает «Unyly: MCP Server Marketplace» (каталог MCP-серверов, тарифы Pro/Team). DNS обслуживает Cloudflare (IPv6 `2606:4700:…`).
-- **`mcp.unyly.org` тоже резолвится в Cloudflare** и отвечает 404. Похоже на wildcard-запись или хостинг MCP этого маркетплейса.
-- В подключённом аккаунте Vercel нет ни доменов, ни команд.
-- Я **ничего не менял**: ни DNS, ни хостинг.
+`unyly.org` принадлежит владельцу проекта (маркетплейс MCP + Unyly Deploy). Unyly размещён на поддомене платформы, DNS не менялся.
 
-**Вывод.** Схема из ТЗ (`unyly.org` - сайт, `mcp.unyly.org/mcp` - MCP) заменила бы действующий сайт. Код от доменов не зависит: всё задаётся через `WEB_ORIGIN` и `MCP_RESOURCE_URL`. Решение за владельцем домена. Варианты:
-1. `food.unyly.org` (сайт и OAuth) + `food.unyly.org/mcp` (MCP) - одна новая DNS-запись, конфликтов нет. **Рекомендую.**
-2. `food.unyly.org` + `mcp-food.unyly.org/mcp`.
-3. Схема из ТЗ, если маркетплейс переезжает.
-
-
-## Основной вариант: Unyly Deploy (food.unyly.org)
+## Текущее размещение: Unyly Deploy (https://unyly-food.unyly.org)
 
 Проверено 30.09.2026: `unyly.org` — собственная платформа владельца. Unyly Deploy (deploy.unyly.org) собирает GitHub-репозиторий по его `Dockerfile` и публикует на `slug.unyly.org`, пуш в ветку пересобирает проект. Поэтому отдельный VPS, Caddy и DNS-записи не нужны: TLS и домен даёт платформа.
 
-1. Репозиторий `alxvasilevvv/unyly-food` (приватный), ветка `main`.
-2. Проект в Unyly Deploy со slug `food`, runtime Docker (собственный Dockerfile, порт 3000).
-3. База: схема `unyly` и роль `unyly_app` в Supabase (`deploy/supabase-setup.sql`); приложение подключается через transaction pooler.
+1. Репозиторий `alxvasilevvv/unyly-food` (публичный: секретов в коде нет, все секреты в Unyly Deploy), ветка `main`, пуш пересобирает проект.
+2. Проект `unyly-food` в Unyly Deploy (тип Site, собственный Dockerfile, порт 3000, лимиты 0.5 CPU / 384 MiB). Адрес: `unyly-food.unyly.org`. Опубликован 30.09.2026.
+3. База: схема `unyly` и роль `unyly_app` в Supabase-проекте `agentum-ledger` (ap-southeast-1; лимит бесплатных проектов исчерпан, поэтому отдельная схема вместо отдельного проекта). Подключение через transaction pooler `aws-0-ap-southeast-1.pooler.supabase.com:6543`. Перенос в отдельный проект: `pg_dump -n unyly` и смена `DATABASE_URL`.
 4. Переменные окружения (секреты задаются в консоли Unyly Deploy):
 
 | Переменная | Значение |
 |---|---|
 | `NODE_ENV` | `production` |
-| `WEB_ORIGIN` | `https://food.unyly.org` |
-| `MCP_RESOURCE_URL` | `https://food.unyly.org/mcp` |
+| `WEB_ORIGIN` | `https://unyly-food.unyly.org` |
+| `MCP_RESOURCE_URL` | `https://unyly-food.unyly.org/mcp` |
 | `DATABASE_URL` | `postgresql://unyly_app.<ref>:<password>@<pooler-host>:6543/postgres` |
 | `DATABASE_POOLER` | `transaction` |
 | `DATABASE_SSL` | `no-verify` (или `DATABASE_SSL_CA` с сертификатом Supabase для полной проверки) |
@@ -45,7 +36,7 @@
 
 | | staging | production |
 |---|---|---|
-| Хосты (пример) | `staging-food.unyly.org` | `food.unyly.org` |
+| Хосты | отдельный проект Unyly Deploy из ветки `staging` | `unyly-food.unyly.org` |
 | БД | отдельная | отдельная, с ежедневным бэкапом и проверкой восстановления |
 | `DEV_ECHO_LOGIN_CODE` | `true` допустимо (закрыть basic-auth в Caddy) | **`false`**; приложение не стартует, если в production стоит `true` |
 | `MAIL_MODE` | console / smtp | smtp |

@@ -171,3 +171,22 @@ describe('Account data', () => {
     expect(r.status).toBe(401);
   });
 });
+
+describe('Account deletion with full history', () => {
+  it('deletes a user who has carts, quotes, checkouts, orders, cancellations and handoffs', async () => {
+    const { demoUser, preparedCheckout, confirmOnWeb } = await import('./helpers.js');
+    const u = await demoUser(h, 'history@example.com');
+    const p = await preparedCheckout(u.mcp.call);
+    await confirmOnWeb(h, u, p.checkout.checkout_id);
+    const orderId = (await u.mcp.call('get_checkout_status', { checkout_id: p.checkout.checkout_id })).result.order_id;
+    await u.mcp.call('prepare_cancellation', { order_id: orderId });
+    await preparedCheckout(u.mcp.call); // an open, unconfirmed checkout too
+    const r = await h.app.inject({ method: 'POST', url: '/app/data/delete', headers: { cookie: u.cookie }, payload: { _csrf: u.csrf, confirm: 'DELETE' } });
+    expect(r.statusCode).toBe(200);
+    for (const t of ['users', 'orders', 'carts', 'checkouts', 'addresses']) {
+      const n = (await h.db.query(`SELECT count(*)::int n FROM ${t} WHERE ${t === 'users' ? 'id' : 'user_id'} = $1`, [u.userId])).rows[0].n;
+      expect(n, t).toBe(0);
+    }
+    await u.mcp.close().catch(() => {});
+  });
+});
