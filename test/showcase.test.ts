@@ -6,7 +6,7 @@ import { Harness, startHarness } from './helpers.js';
 
 let h: Harness;
 beforeAll(async () => {
-  h = await startHarness();
+  h = await startHarness({ cfg: { guestPerIpHourly: 100 } });
 });
 afterAll(async () => {
   await h.close();
@@ -109,6 +109,35 @@ describe('Guided demo as a guest', () => {
     const r = await h.app.inject({ method: 'POST', url: '/try/choose', headers: { cookie: g.cookie, ...ORIGIN }, payload: { _csrf: g.csrf, q: 'Lunch for 1', restaurant_id: 'demo-r4' } });
     expect(r.statusCode).toBe(409);
     expect((await h.db.query("SELECT count(*)::int n FROM carts c JOIN users u ON u.id = c.user_id WHERE u.is_guest AND c.restaurant_id = 'demo-r4'")).rows[0].n).toBe(0);
+  });
+
+  it('ride from the guided demo: route, options, server-side recompute, confirmation shows the route', async () => {
+    const q = 'Taxi from Siam Paragon to Suvarnabhumi airport';
+    const g = await startGuest(q);
+    expect(g.page.body).toContain('route-card');
+    expect(g.page.body).toContain('Suvarnabhumi Airport (BKK)');
+    const bad = await h.app.inject({ method: 'POST', url: '/try/choose', headers: { cookie: g.cookie, ...ORIGIN }, payload: { _csrf: g.csrf, q, kind: 'trip', item_id: 'express_bike' } });
+    expect(bad.statusCode).toBe(409);
+    const ok = await h.app.inject({ method: 'POST', url: '/try/choose', headers: { cookie: g.cookie, ...ORIGIN }, payload: { _csrf: g.csrf, q, kind: 'trip', item_id: 'justgrab' } });
+    expect(ok.statusCode).toBe(303);
+    const page = await h.app.inject({ method: 'GET', url: String(ok.headers.location), headers: { cookie: g.cookie } });
+    expect(page.body).toContain('Siam Paragon');
+    expect(page.body).toContain('Drop-off');
+  });
+
+  it('pharmacy from the guided demo shows the household-remedies notice and builds a basket', async () => {
+    const q = 'Paracetamol and plasters';
+    const g = await startGuest(q);
+    expect(g.page.body).toContain('Household remedies');
+    expect(g.page.body).toContain('Paracetamol 500 mg');
+    const ok = await h.app.inject({ method: 'POST', url: '/try/choose', headers: { cookie: g.cookie, ...ORIGIN }, payload: { _csrf: g.csrf, q, kind: 'shop', store_id: 'demo-m4' } });
+    expect(ok.statusCode).toBe(303);
+  });
+
+  it('an ambiguous airport asks which one instead of guessing', async () => {
+    const g = await startGuest('Taxi to the airport');
+    expect(g.page.body).toContain('Don Mueang Airport (DMK)');
+    expect(g.page.body).not.toContain('route-card');
   });
 
   it('a guest cannot grant OAuth access to an assistant', async () => {

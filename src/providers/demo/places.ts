@@ -110,7 +110,10 @@ export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; l
 }
 
 export const ROAD_FACTOR = 1.35;
-export const AVG_SPEED_KMH = 22;
+/** City traffic for the first 10 km, expressway speed beyond (airport runs). */
+export const CITY_SPEED_KMH = 22;
+export const EXPRESSWAY_SPEED_KMH = 55;
+export const driveMinutes = (km: number) => (Math.min(km, 10) / CITY_SPEED_KMH + Math.max(0, km - 10) / EXPRESSWAY_SPEED_KMH) * 60;
 
 export function tripFingerprint(t: Omit<Trip, 'fingerprint'>) {
   return sha256(stableJson({ p: t.pickup, d: t.dropoff, parcel: t.parcel ?? null }));
@@ -122,7 +125,7 @@ export function buildTrip(pickup: Place, dropoff: Place, parcel?: { weight_kg: n
   if (pickup.lat !== undefined && pickup.lng !== undefined && dropoff.lat !== undefined && dropoff.lng !== undefined) {
     const km = Math.max(1, haversineKm(pickup as any, dropoff as any) * ROAD_FACTOR);
     base.distance_km = Math.round(km * 10) / 10;
-    base.duration_min = Math.max(5, Math.round((km / AVG_SPEED_KMH) * 60));
+    base.duration_min = Math.max(5, Math.round(driveMinutes(km)));
   }
   return { ...base, fingerprint: tripFingerprint(base) };
 }

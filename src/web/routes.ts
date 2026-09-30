@@ -18,7 +18,7 @@ import { DEMO_DISTRICTS, findRestaurant } from '../providers/demo/catalog.js';
 import type { Mode } from '../providers/types.js';
 import { car, checkBurst, icon, restaurantArt, scooter } from './art.js';
 import { SERVICE_NAME, statusLabel } from '../domain/labels.js';
-import { isTripService, Service } from '../domain/regions.js';
+import { isTripService, REGION_CODES, REGIONS, Service } from '../domain/regions.js';
 import { ALLERGEN_NAMES, DIET_NAMES, dishName, t3 } from './copy.js';
 import { html, SafeHtml } from './html.js';
 import { page } from './layout.js';
@@ -444,7 +444,7 @@ ${devCode ? html`<p class="notice warn">${fmt(r.m.devCode, { code: devCode })}</
       [m.step6, st(firstCart), '/connect'],
     ];
     return send(reply, r, m.appTitle, html`<div class="page-head"><h1>${m.appTitle}</h1>
-<p class="muted">${u.is_guest ? tr(r.l, { ru: 'Гостевой демо-аккаунт', en: 'Guest demo account', th: 'บัญชีเดโมผู้เยี่ยมชม' }) : u.email} · ${m.region}: TH · ${m.mode}: <strong>${modeName}</strong></p></div>
+<p class="muted">${u.is_guest ? tr(r.l, { ru: 'Гостевой демо-аккаунт', en: 'Guest demo account', th: 'บัญชีเดโมผู้เยี่ยมชม' }) : u.email} · ${m.region}: ${u.region} · ${m.mode}: <strong>${modeName}</strong></p></div>
 ${u.is_guest ? html`<div class="notice stack small"><span>${tr(r.l, { ru: 'Это гостевой аккаунт из демо, он удалится через 24 часа. Чтобы подключить своего ИИ-ассистента, создайте аккаунт с passkey.', en: 'This is a guest account from the demo and it is deleted after 24 hours. To connect your own AI assistant, create an account with a passkey.', th: 'นี่คือบัญชีผู้เยี่ยมชมจากเดโม จะถูกลบหลัง 24 ชั่วโมง หากต้องการเชื่อมต่อผู้ช่วย AI ของคุณเอง ให้สร้างบัญชีด้วย passkey' })}</span><span><a class="btn secondary" href="/login">${m.createPasskey}</a></span></div>` : ''}
 <div class="grid two">
   <section class="card"><h2 style="margin-top:0">${m.setupTitle}</h2><ol class="steps">
@@ -491,7 +491,7 @@ ${u.is_guest ? html`<div class="notice stack small"><span>${tr(r.l, { ru: 'Эт�
     const provider = { demo: m.providerDemo, handoff: m.providerHandoff, live: m.providerLive }[u.mode];
     return html`<h1>${m.modeTitle}</h1>${note ?? ''}
 <form method="post" action="/app/mode" class="stack">${csrfField(r.s)}
-  <div class="field"><label for="region">${m.region}</label><select id="region" name="region"><option value="TH" selected>${m.regionTH}</option></select></div>
+  <div class="field"><label for="region">${m.region}</label><select id="region" name="region">${REGION_CODES.map((c) => html`<option value="${c}" ${r.s.user.region === c ? html`selected` : ''}>${c === 'TH' ? m.regionTH : `${REGIONS[c].name} (${tr(r.l, { ru: 'Handoff; демо-данные по Бангкоку', en: 'Handoff; demo data is Bangkok', th: 'Handoff; ข้อมูลเดโมเป็นกรุงเทพฯ' })})`}</option>`)}</select></div>
   <fieldset style="border:0;padding:0;margin:14px 0 0"><legend class="sr-only">${m.mode}</legend>
     ${opt('demo', m.modeDemo, m.modeDemoDesc, true)}
     ${opt('handoff', m.modeHandoff, m.modeHandoffDesc, true)}

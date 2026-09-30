@@ -48,13 +48,13 @@ export function page(o: PageOpts): string {
 <div class="concept-bar" role="note"><div class="wrap">
   <span class="dot" aria-hidden="true"></span>
   <span>${tr(l, {
-    ru: 'Концепт-демо для партнёрства с GrabFood. Не связан с Grab и не одобрен Grab.',
-    en: 'Concept demo built for a GrabFood partnership. Not affiliated with or endorsed by Grab.',
-    th: 'เดโมแนวคิดสำหรับความร่วมมือกับ GrabFood ไม่ได้เกี่ยวข้องหรือได้รับการรับรองจาก Grab',
+    ru: 'Концепт-демо для партнёрства с Grab. Не связан с Grab и не одобрен Grab.',
+    en: 'Concept demo built for a Grab partnership. Not affiliated with or endorsed by Grab.',
+    th: 'เดโมแนวคิดสำหรับความร่วมมือกับ Grab ไม่ได้เกี่ยวข้องหรือได้รับการรับรองจาก Grab',
   })} <a href="/for-grab#disclaimer">${tr(l, { ru: 'Подробнее', en: 'Details', th: 'รายละเอียด' })}</a></span>
 </div></div>
 <header class="site"><div class="wrap">
-  <a class="logo" href="/" aria-label="Unyly">${logoMark()}<span class="logo-text"><span class="logo-word">unyly</span><span class="logo-sub">${tr(l, { ru: 'для GrabFood · концепт', en: 'for GrabFood · concept', th: 'สำหรับ GrabFood · แนวคิด' })}</span></span></a>
+  <a class="logo" href="/" aria-label="Unyly">${logoMark()}<span class="logo-text"><span class="logo-word">unyly</span><span class="logo-sub">${tr(l, { ru: 'для Grab · концепт', en: 'for Grab · concept', th: 'สำหรับ Grab · แนวคิด' })}</span></span></a>
   <nav class="main" aria-label="${tr(l, { ru: 'Основная навигация', en: 'Main', th: 'เมนูหลัก' })}">
     <a href="/#how" class="hide-md">${m.navHow}</a>
     <a href="/for-grab" class="hide-md" ${cur('/for-grab')}>${tr(l, { ru: 'Для Grab', en: 'For Grab', th: 'สำหรับ Grab' })}</a>

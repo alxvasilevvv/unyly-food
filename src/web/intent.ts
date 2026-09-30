@@ -93,3 +93,65 @@ export function parseIntent(input: string): Intent {
   else if (/burger|бургер|เบอร์เกอร์/.test(q)) out.cuisine = 'burgers';
   return out;
 }
+
+// ---------------- Service detection for the multi-service demo ----------------
+// Again only a stand-in for what an assistant extracts; assistants call the MCP tools directly.
+
+export type DemoService = 'food' | 'groceries' | 'flowers' | 'pharmacy' | 'cakes' | 'ride' | 'express';
+
+export interface ServiceIntent {
+  service: DemoService;
+  pickup?: string;
+  dropoff?: string;
+  weight_kg?: number;
+  passengers?: number;
+}
+
+const RIDE = /taxi|\bcab\b|\bride\b|grabcar|justgrab|grabbike|\bbike to\b|\bcar to\b|такси|поездк|отвез|довез|подвез|машину до|แท็กซี่|เรียกรถ|นั่งรถ|รถไป|วินมอเตอร์ไซค์/u;
+const EXPRESS = /parcel|package|courier|\bsend\b|посылк|отправ|курьер|พัสดุ|ส่งของ|แมสเซนเจอร์/u;
+const FLOWERS = /flower|bouquet|roses?\b|lil(?:y|ies)|orchid|garland|цвет|букет|роз[ыау]?\b|лили|орхиде|ดอกไม้|กุหลาบ|ช่อ|พวงมาลัย|กล้วยไม้/u;
+const PHARMACY = /pharmac|paracetamol|plaster|band-?aid|thermometer|medicine|drugstore|аптек|парацетамол|пластыр|лекарств|градусник|термометр|ร้านยา|ยาสามัญ|พาราเซตามอล|พลาสเตอร์|ปรอทวัดไข้|ยาแก้/u;
+const CAKES = /\bcakes?\b|cheesecake|торт|чизкейк|пирожн|เค้ก/u;
+const GROCERY = /grocer|supermarket|продукт|супермаркет|ของชำ|ซูเปอร์มาร์เก็ต|ของใช้ในบ้าน/u;
+const STAPLE = /\beggs?\b|\bmilk\b|\bwater\b|bananas?|\brice\b|яйц|молок|\bвод[уаы]\b|банан|\bрис\b|ไข่ไก่|นมสด|น้ำดื่ม|กล้วย|ข้าวสาร/u;
+const MEAL = /dinner|lunch|breakfast|meal|ужин|обед|завтрак|ข้าวเย็น|มื้อ|อาหารเย็น|อาหารกลางวัน/u;
+
+function cutPlace(s: string): string {
+  return s
+    .split(/,|;|\bfor\b|\bwith\b|\bна\s+\d|\bдля\b|\bс\s+\d|\d+(?:[.,]\d+)?\s*(?:kg|кг|กก|กิโล)|สำหรับ/iu)[0]
+    .replace(/[.!?]+$/, '')
+    .trim()
+    .slice(0, 120);
+}
+
+export function detectService(input: string): ServiceIntent {
+  const q = input.toLowerCase();
+  let service: DemoService = 'food';
+  if (RIDE.test(q)) service = 'ride';
+  else if (FLOWERS.test(q)) service = 'flowers';
+  else if (PHARMACY.test(q)) service = 'pharmacy';
+  else if (CAKES.test(q)) service = 'cakes';
+  else if (EXPRESS.test(q)) service = 'express';
+  else if (GROCERY.test(q) || (STAPLE.test(q) && !MEAL.test(q) && !/\b(?:no|without)\s|без\s|ไม่ใส่|ไม่เอา/u.test(q))) service = 'groceries';
+  const out: ServiceIntent = { service };
+  if (service === 'ride' || service === 'express') {
+    // Match on the original text (case-insensitive) so place names keep their capitalisation.
+    const src = input.trim();
+    const m =
+      /\bfrom\s+(.+?)\s+to\s+(.+)$/iu.exec(src) ??
+      /(?:^|\s)(?:от|из|с)\s+(.+?)\s+(?:до|в|во|на)\s+(.+)$/iu.exec(src) ??
+      /จาก\s*(.+?)\s*(?:ไปที่|ไป|ถึง)\s*(.+)$/iu.exec(src);
+    if (m) {
+      out.pickup = cutPlace(m[1]);
+      out.dropoff = cutPlace(m[2]);
+    } else {
+      const d = /(?:\bto|(?:^|\s)до|(?:^|\s)в|(?:^|\s)во|ไปที่|ไป)\s+(.+)$/iu.exec(src) ?? /(?:ไปที่|ไป)(.+)$/iu.exec(src);
+      if (d) out.dropoff = cutPlace(d[1]);
+    }
+    const w = /(\d+(?:[.,]\d+)?)\s*(?:kg|кг|กก|กิโล)/u.exec(q);
+    if (w) out.weight_kg = Math.min(Number(w[1].replace(',', '.')), 1000);
+    const p = parseIntent(input).party_size;
+    if (p && service === 'ride') out.passengers = p;
+  }
+  return out;
+}
