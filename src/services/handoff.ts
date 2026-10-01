@@ -71,15 +71,19 @@ export async function getCapabilities(ctx: Ctx, actor: Actor) {
   const unavailable = Object.fromEntries(Object.entries(caps).filter(([, c]) => !c.available).map(([k, c]) => [k, c.reason ?? 'not available']));
   const sources = [...new Set(Object.values(caps).map((c) => c.source).filter(Boolean))];
   const region = regionOf(user.region);
-  const demoHere = user.mode === 'demo';
+  const demoHere = user.mode !== 'handoff'; // demo and live share the estimate/cart/confirm flow
   return {
     region: region.code,
     region_name: region.name,
-    region_note: 'No live Grab access in any market. Demo data covers Bangkok only; Handoff links work in every Grab market.',
+    region_note: ctx.providers.live.capabilities().quote.available
+      ? 'Live: GrabExpress and ride estimates per the Grab agreement (country and city access is granted by Grab). Demo data covers Bangkok only; Handoff links work in every Grab market.'
+      : 'No live Grab access in any market. Demo data covers Bangkok only; Handoff links work in every Grab market.',
     mode_explanations: {
       demo: 'Synthetic stores, fares and orders in Bangkok. No real food, ride, delivery or payment.',
       handoff: 'Unyly prepares a checklist; the user orders and pays inside Grab.',
-      live: 'Real Grab orders. Not available: requires a Grab partner agreement.',
+      live: ctx.providers.live.capabilities().quote.available
+        ? 'Real Grab APIs where Grab offers them: GrabExpress parcels (when enabled on this server) and ride fare estimates with a deep link into the Grab app. Food and Mart: not available.'
+        : 'Real Grab orders. Not available: requires a Grab partner agreement.',
     },
     capabilities: { available, unavailable, source: sources.length === 1 ? sources[0] : sources.length ? sources : undefined },
     submissions_enabled: await submissionsEnabled(ctx, ctx.db, user.mode),

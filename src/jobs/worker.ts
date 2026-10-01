@@ -2,6 +2,8 @@ import type { Ctx } from '../context.js';
 import { reconcileAttempt } from '../services/checkout.js';
 import { deleteAccount } from '../services/users.js';
 import { ingestWebhook, processPendingEvents, reconcileCancellations } from '../services/orders.js';
+import { reconcileOpenPayments } from '../payments/service.js';
+import { retryPendingRefunds, settleLivePayments } from '../services/live-payment.js';
 
 /**
  * In-process background jobs. No external queue is needed at this scale.
@@ -29,6 +31,9 @@ const STEP_KEYS = {
   expire_checkouts: 5,
   retention: 6,
   guest_cleanup: 7,
+  reconcile_payments: 8,
+  settle_live_payments: 9,
+  retry_refunds: 10,
 } as const;
 type StepName = keyof typeof STEP_KEYS;
 
@@ -39,6 +44,9 @@ export interface JobRunResult {
   stalePolled: number;
   expired: number;
   guestsDeleted: number;
+  payments: number;
+  settled: number;
+  refunds: number;
   retention: Record<string, number>;
   skipped: StepName[];
   failed: StepName[];
@@ -67,9 +75,13 @@ const RETENTION: [string, string][] = [
   ['oauth_tokens', `DELETE FROM oauth_tokens WHERE expires_at < now() - interval '1 day'`],
   // webauthn_challenges has no created_at; challenges live minutes, so expiry + 1 day is "older than 1 day".
   ['webauthn_challenges', `DELETE FROM webauthn_challenges WHERE expires_at < now() - interval '1 day'`],
+  // Login with Grab requests live 10 minutes (state hash, nonce and PKCE verifier only).
+  ['grab_auth_states', `DELETE FROM grab_auth_states WHERE expires_at < now() - interval '1 day'`],
   // Processed provider events only; unprocessed ones are still handled (and parked) by processPendingEvents.
   // A duplicate delivery arriving after this is harmless: applyEvent ignores sequences <= orders.status_version.
   ['provider_events', `DELETE FROM provider_events WHERE processed_at IS NOT NULL AND processed_at < now() - interval '30 days'`],
+  // Raw GrabExpress webhook log (minimal fields); the order keeps its own status.
+  ['grab_webhook_events', `DELETE FROM grab_webhook_events WHERE received_at < now() - interval '30 days'`],
   // Demo simulator rows: only terminal ones whose final webhook was emitted, and only when no order that points at them (orders.provider_order_ref
   // is a text copy, not an FK) is still non-terminal or has an open cancellation request.
   ['demo_sim_orders', `DELETE FROM demo_sim_orders d
@@ -88,7 +100,7 @@ const RETENTION: [string, string][] = [
 ];
 
 export async function runJobsOnce(ctx: Ctx): Promise<JobRunResult> {
-  const out: JobRunResult = { reconciled: 0, demoEvents: 0, events: 0, stalePolled: 0, expired: 0, guestsDeleted: 0, retention: {}, skipped: [], failed: [] };
+  const out: JobRunResult = { reconciled: 0, demoEvents: 0, events: 0, stalePolled: 0, expired: 0, guestsDeleted: 0, payments: 0, settled: 0, refunds: 0, retention: {}, skipped: [], failed: [] };
 
   // 1) Submissions with unknown outcome, or stuck in flight (e.g. after a crash/restart).
   await step(ctx, out, 'reconcile_submissions', async () => {
@@ -133,6 +145,26 @@ export async function runJobsOnce(ctx: Ctx): Promise<JobRunResult> {
   // 4) Cancellations with unknown outcome (per-row try/catch lives in reconcileCancellations).
   await step(ctx, out, 'reconcile_cancellations', async () => {
     await reconcileCancellations(ctx);
+  });
+
+  // 4b) GrabPay payments that are open, unknown or refunding (one status poll per payment per 2 minutes,
+  //     per-row errors are swallowed inside reconcileOpenPayments). Needs GrabPay credentials.
+  await step(ctx, out, 'reconcile_payments', async () => {
+    if (!ctx.cfg.grabpay?.partnerId) return;
+    out.payments = await reconcileOpenPayments(ctx, 20);
+  });
+
+  // 4c) Captured GrabPay payments of Live orders: submit a paid checkout the request path did not get to,
+  //     refund when the order was not placed or ended before pickup, record support cases (per-row try/catch inside).
+  await step(ctx, out, 'settle_live_payments', async () => {
+    out.settled = await settleLivePayments(ctx, 20);
+  });
+
+  // 4d) Refunds that never reached GrabPay (pending) are re-sent with the same partnerTxID; processing or
+  //     unknown ones are re-checked; refunds GrabPay refused go to support.
+  await step(ctx, out, 'retry_refunds', async () => {
+    if (!ctx.cfg.grabpay?.partnerId) return;
+    out.refunds = await retryPendingRefunds(ctx, 20);
   });
 
   // 5) Expire stale confirmations (display hygiene; validity is always re-checked on use).

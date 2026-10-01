@@ -72,7 +72,9 @@ async function verifyEmailOwnership(q: Queryable, userId: string) {
   await q.query('DELETE FROM oauth_tokens WHERE grant_id IN (SELECT id FROM oauth_grants WHERE user_id = $1)', [userId]);
   await q.query('DELETE FROM oauth_codes WHERE grant_id IN (SELECT id FROM oauth_grants WHERE user_id = $1)', [userId]);
   const pats = (await q.query('UPDATE personal_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL', [userId])).rowCount ?? 0;
-  await audit(q, { userId, actor: 'web', action: 'user.email_verified', details: { first_verification: true, revoked: { passkeys, sessions, oauth_grants: grants, personal_tokens: pats } } });
+  // A Grab account connected by whoever registered the passkey is a credential like any other.
+  const grab = (await q.query('DELETE FROM grab_identities WHERE user_id = $1', [userId])).rowCount ?? 0;
+  await audit(q, { userId, actor: 'web', action: 'user.email_verified', details: { first_verification: true, revoked: { passkeys, sessions, oauth_grants: grants, personal_tokens: pats, grab_identities: grab } } });
 }
 
 export async function verifyLoginCode(ctx: Ctx, emailRaw: string, code: string, locale: Locale) {

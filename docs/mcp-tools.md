@@ -43,6 +43,14 @@
 
 Нажатие «Подтвердить» на странице Unyly **сразу оформляет заказ** (веб-обработчик вызывает `approveCheckout`, затем `submitOrder`). Поэтому после слов пользователя «подтвердил» ассистенту достаточно одного `get_checkout_status` (в ответе есть `summary` одной фразой). `submit_order` нужен, только если статус `approved` и `submission` пустой (например, заказы были на паузе в момент подтверждения).
 
+**Оплата до заказа (Live GrabExpress, `GRAB_EXPRESS_PAYMENT=cashless`).** Здесь кнопка на странице называется «Pay {total} with GrabPay and place the order»: нажатие записывает согласие (с passkey для крупной суммы), затем пользователь подтверждает оплату в Grab, и только после списания создаётся доставка. Поэтому:
+- `checkout.payment_method` и `checkout.note` в `create_cart` говорят, что оплата идёт через GrabPay.
+- `get_checkout_status` возвращает `status: awaiting_payment`, пока согласие дано, а оплата не прошла (не начата, идёт в Grab, не прошла или уточняется). В ответе `confirm_url`, `user_action` (попросить пользователя открыть ссылку и оплатить в GrabPay) и `payment: { method: "grabpay", status }`. `order_id` в это время `null`, а `summary` не говорит, что заказ оформлен.
+- После оплаты `status` становится `approved`, пока доставка создаётся, затем `consumed` с `order_id`. Если Grab отказал или доставка не создалась, `summary` сообщает об отказе и о возврате оплаты.
+- `submit_order` до оплаты отвечает `CONFIRMATION_REQUIRED` с `details.payment_required: "grabpay"` и ничего не создаёт.
+- `get_order_status` показывает `payment_status` платежа GrabPay (`captured`, после возврата `refunded`) и `payment_method: "grabpay"`.
+Ответ остаётся компактным: новые поля появляются только у таких checkout.
+
 ### Подтверждение и цена
 
 - Подтверждение живёт до 15 минут (`CHECKOUT_MAX_TTL_MS`) независимо от срока расчёта провайдера (в Demo 5 минут).
@@ -67,7 +75,7 @@
 | `update_cart` | orders:prepare | операции `add_item`, `set_quantity`, `remove_item`, `set_address`, `set_trip` (новые `pickup`, `dropoff`, вес посылки). Версия +1, ожидающие подтверждения **аннулируются**; по умолчанию новый расчёт и новый `confirm_url`. Запрещено при отправке в процессе или после заказа | destructive, openWorld |
 | `quote_cart` | orders:prepare | сохраняет расчёт с TTL. Не `readOnly`: пишет запись расчёта, к которой привязывается подтверждение; видимых пользователю эффектов нет | openWorld |
 | `prepare_checkout` | orders:prepare | создаёт одноразовое подтверждение и `confirm_url` (до 15 минут) | - |
-| `get_checkout_status` | orders:read | нет. `status`, `submission`, `order_id`, `step_up_required`, `summary` | readOnly |
+| `get_checkout_status` | orders:read | нет. `status` (включая `awaiting_payment` для оплаты GrabPay), `submission`, `order_id`, `step_up_required`, `summary`; при оплате GrabPay ещё `payment` и, пока оплата не прошла, `user_action` | readOnly |
 | `submit_order` | orders:submit | **необратимо**: отправляет заказ, если человек уже подтвердил его на сайте и заказ ещё не ушёл (обычно его уже отправило нажатие на странице). Идемпотентно: повтор для того же checkout возвращает ту же отправку и никогда не создаёт второй заказ. При `SUBMISSION_UNKNOWN` подождать и смотреть `get_checkout_status`, новый заказ не создавать | destructive, idempotent, openWorld |
 | `get_order_status` | orders:read | может обновить статус у провайдера; `status_label` по сервису («Driver assigned», «Parcel in transit») | readOnly, openWorld |
 | `list_orders` | orders:read | нет. Заказы, поездки и посылки, плюс недавние Handoff-списки | readOnly |
@@ -124,7 +132,7 @@
 | `CART_VERSION_CONFLICT` | `expected_version` устарела; `details.current_version` | перечитать и повторить |
 | `CART_EMPTY`, `CART_NOT_OPEN` | корзина пуста / уже оформлена | новая корзина |
 | `QUOTE_EXPIRED`, `PRICE_CHANGED` | расчёт устарел или цена изменилась | `quote_cart`, затем новое подтверждение |
-| `CONFIRMATION_REQUIRED` | человек ещё не подтвердил; `details.confirm_url` | отправить ссылку, потом `get_checkout_status` |
+| `CONFIRMATION_REQUIRED` | человек ещё не подтвердил; `details.confirm_url`; `details.payment_required: "grabpay"`, если подтвердил, но ещё не оплатил | отправить ссылку, потом `get_checkout_status` |
 | `CONFIRMATION_EXPIRED`, `CONFIRMATION_INVALIDATED` | подтверждение истекло или стало недействительным (`details.reason`) | пересчитать |
 | `SUBMISSIONS_PAUSED` | включён выключатель новых заказов | сообщить пользователю |
 | `PROVIDER_UNAVAILABLE` | провайдер недоступен; демо-данные **не** подставляются | повторить позже |

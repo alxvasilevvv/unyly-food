@@ -10,6 +10,8 @@ import { isTripService } from '../domain/regions.js';
 import { callProvider, requireCapability, submissionsEnabled, withTimeout } from './common.js';
 import { addressFingerprint, getAddress, maskedAddress, toDeliveryAddress } from './users.js';
 import { hasPasskey, verifyStepUp } from '../auth/passkeys.js';
+import { GrabLiveProvider } from '../providers/grab/provider.js';
+import { orderPaymentStatus, PaymentRow } from '../payments/service.js';
 
 /**
  * How long the human has to press Confirm. Deliberately independent of the provider's quote validity
@@ -76,6 +78,21 @@ async function cartSubmissionBlock(q: Queryable, cartId: string, exceptCheckoutI
 
 export const confirmUrl = (ctx: Ctx, id: string) => `${ctx.cfg.webOrigin}/confirm/${id}`;
 
+/**
+ * Cashless Live GrabExpress: Grab bills Unyly for the delivery, so the user pays with GrabPay after
+ * approving the order and before the delivery is created. Live mode only ever orders GrabExpress.
+ */
+export function paymentRequired(ctx: Ctx, c: Pick<CheckoutRow, 'mode'>): boolean {
+  const live = ctx.providers.live;
+  return c.mode === 'live' && live instanceof GrabLiveProvider && live.requiresPrepayment;
+}
+
+/** Latest payment of a checkout (a non-failed one first). */
+export async function checkoutPayment(q: Queryable, checkoutId: string): Promise<PaymentRow | null> {
+  const r = await q.query<PaymentRow>(`SELECT * FROM payments WHERE checkout_id = $1 ORDER BY (status <> 'failed') DESC, created_at DESC LIMIT 1`, [checkoutId]);
+  return r.rows[0] ?? null;
+}
+
 /** Step-up threshold in minor units for this currency, or null when step-up is off or the currency has none. */
 export function stepUpThreshold(ctx: Ctx, currency: string): number | null {
   if (!ctx.cfg.stepUp.enabled) return null;
@@ -104,8 +121,11 @@ async function loadCheckout(q: Queryable, userId: string, id: string, lock = fal
  * Checks that everything the human approved is still exactly true: same cart version, same address
  * content, same quote, not expired. Returns the reason code when something changed.
  */
-async function validityProblem(ctx: Ctx, q: Queryable, c: CheckoutRow): Promise<string | null> {
+export async function validityProblem(ctx: Ctx, q: Queryable, c: CheckoutRow): Promise<string | null> {
   if (new Date(c.expires_at).getTime() <= ctx.clock.now().getTime()) return 'EXPIRED';
+  // The payment method is part of what the user approved (cash at pickup versus GrabPay in advance).
+  const live = ctx.providers.live;
+  if (c.mode === 'live' && live instanceof GrabLiveProvider && c.payment_method_label !== live.paymentLabel()) return 'PAYMENT_METHOD_CHANGED';
   const cart = await loadCart(q, c.user_id, c.cart_id);
   if (cart.status !== 'open') return 'CART_NOT_OPEN';
   if (cart.version !== c.cart_version) return 'CART_CHANGED';
@@ -114,7 +134,7 @@ async function validityProblem(ctx: Ctx, q: Queryable, c: CheckoutRow): Promise<
   return null;
 }
 
-async function markInvalid(q: Queryable, id: string, reason: string) {
+export async function markInvalid(q: Queryable, id: string, reason: string) {
   const status = reason === 'EXPIRED' ? 'expired' : 'invalidated';
   await q.query(`UPDATE checkouts SET status = $2, invalid_reason = $3 WHERE id = $1 AND status IN ('awaiting_user','approved')`, [id, status, reason]);
 }
@@ -258,23 +278,61 @@ export async function checkoutView(ctx: Ctx, userId: string, id: string, locale:
   };
 }
 
+const PAID = ['captured', 'refunding', 'refunded'];
+
+/**
+ * Payment step of a checkout that must be paid before submission. `awaiting_payment`: the user
+ * approved the order but the GrabPay payment is not captured (not started, in progress at Grab,
+ * failed, or still being confirmed); nothing is ordered until it is.
+ */
+export function paymentPhase(c: Pick<CheckoutRow, 'status'>, a: AttemptRow | null, p: PaymentRow | null): 'awaiting_payment' | 'paid' | null {
+  if (a || c.status !== 'approved') return p && PAID.includes(p.status) ? 'paid' : null;
+  return p && PAID.includes(p.status) ? 'paid' : 'awaiting_payment';
+}
+
 export async function checkoutStatus(ctx: Ctx, actor: Actor, id: string) {
   const v = await checkoutView(ctx, actor.userId, id);
   const c = v.checkout;
+  const needsPay = paymentRequired(ctx, c);
+  const pay = needsPay ? await checkoutPayment(ctx.db, c.id) : null;
+  const phase = needsPay ? paymentPhase(c, v.attempt ?? null, pay) : null;
+  const awaitingPayment = phase === 'awaiting_payment';
   return {
     checkout_id: c.id,
     mode: c.mode,
-    status: c.status,
+    // awaiting_payment is reported instead of approved: the order is not placed until GrabPay captures the payment.
+    status: awaitingPayment ? ('awaiting_payment' as const) : c.status,
     invalid_reason: c.invalid_reason,
     total: money(c.total_minor, c.currency),
     expires_at: new Date(c.expires_at).toISOString(),
     approved_at: c.approved_at ? new Date(c.approved_at).toISOString() : null,
-    confirm_url: c.status === 'awaiting_user' ? confirmUrl(ctx, c.id) : null,
+    confirm_url: c.status === 'awaiting_user' || awaitingPayment ? confirmUrl(ctx, c.id) : null,
     submission: v.attempt ? describeAttempt(v.attempt) : null,
     order_id: v.order?.id ?? null,
     step_up_required: (await stepUpPolicy(ctx, actor.userId, c)).required,
-    summary: statusSummary(c, v.attempt ?? null),
+    ...(needsPay ? { payment: { method: 'grabpay', status: pay ? pay.status : 'not_started' } } : {}),
+    ...(awaitingPayment
+      ? { user_action: 'Ask the user to open confirm_url and finish paying with GrabPay (they are sent to Grab to approve). Nothing is ordered until the payment goes through. Then call get_checkout_status again.' }
+      : {}),
+    summary: needsPay ? paidStatusSummary(c, v.attempt ?? null, pay) : statusSummary(c, v.attempt ?? null),
   };
+}
+
+/** Summary for a checkout paid with GrabPay before submission. Never says "placed" before an order exists. */
+function paidStatusSummary(c: CheckoutRow, a: AttemptRow | null, p: PaymentRow | null): string {
+  const refund = p?.status === 'refunded' ? ' The GrabPay payment was refunded in full.' : p?.status === 'refunding' ? ' The GrabPay payment is being refunded in full.' : '';
+  if (a) return describeAttempt(a).message + refund;
+  if (c.status === 'awaiting_user') {
+    return 'Waiting for the user to open confirm_url, press "Pay with GrabPay" and approve the payment in Grab. The order is placed only after the payment goes through.';
+  }
+  if (c.status === 'approved') {
+    if (p?.status === 'captured') return 'Payment received in GrabPay. The order is being sent to GrabExpress; it is not placed yet. Check again shortly.';
+    if (p && PAID.includes(p.status)) return `Not ordered.${refund}`;
+    if (p?.status === 'failed') return 'The user confirmed, but the GrabPay payment did not go through and nothing was charged. The user can try again on confirm_url. Nothing is ordered.';
+    if (p?.status === 'unknown') return 'The user confirmed; the GrabPay payment is still being confirmed with Grab. Nothing is ordered yet and the user must not pay again.';
+    return 'The user confirmed but has not completed the GrabPay payment yet. Nothing is ordered until the payment is approved in Grab.';
+  }
+  return statusSummary(c, null) + refund;
 }
 
 /** One sentence the assistant can relay as is. */
@@ -300,7 +358,7 @@ function statusSummary(c: CheckoutRow, a: AttemptRow | null): string {
  * Re-price the exact cart version a checkout was prepared for (items, address or trip) with the provider.
  * Returns null when the provider would charge the same total with no blocking issues.
  */
-async function repriceProblem(ctx: Ctx, c: CheckoutRow): Promise<string | null> {
+export async function repriceProblem(ctx: Ctx, c: CheckoutRow): Promise<string | null> {
   const cart = await loadCart(ctx.db, c.user_id, c.cart_id);
   const v = await loadCartVersion(ctx.db, c.cart_id, c.cart_version);
   const addr = v.address_id ? await getAddress(ctx.db, c.user_id, v.address_id).catch(() => null) : null;
@@ -410,6 +468,15 @@ export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string) {
         'Ask the user to open confirm_url, review the order and press Confirm. Then call get_checkout_status.');
     }
     if (c.status !== 'approved') throw reasonToError(c.invalid_reason ?? c.status.toUpperCase());
+    if (paymentRequired(ctx, c)) {
+      // Cashless GrabExpress is billed to Unyly: never create the delivery before the user's payment is captured.
+      const paid = (await q.query(`SELECT 1 FROM payments WHERE checkout_id = $1 AND status = 'captured'`, [c.id])).rows[0];
+      if (!paid) {
+        throw new DomainError('CONFIRMATION_REQUIRED', 'The user must complete the GrabPay payment from the confirmation page first. Nothing was ordered.',
+          { confirm_url: confirmUrl(ctx, c.id), payment_required: 'grabpay' },
+          'Ask the user to open confirm_url and finish paying with GrabPay. Then call get_checkout_status.');
+      }
+    }
     if (!(await submissionsEnabled(ctx, q, c.mode))) {
       throw new DomainError('SUBMISSIONS_PAUSED', 'New orders are temporarily paused. Your confirmation stays valid until it expires.');
     }
@@ -519,13 +586,18 @@ export async function recordAccepted(ctx: Ctx, attemptId: string, ref: string, s
     const where = isTripService(cart.service) ? tripLabel(v.trip) ?? 'trip' : maskedAddress(addr)?.label ?? 'address';
     const ins = await q.query(
       `INSERT INTO orders (user_id, checkout_id, submission_id, cart_id, mode, provider, provider_order_ref, restaurant_id, restaurant_name, items, address_label,
-         total_minor, currency, fulfillment_status, payment_status, status_version, eta_at, service)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,0,$16,$17) ON CONFLICT DO NOTHING RETURNING id`,
+         total_minor, currency, fulfillment_status, payment_status, status_version, eta_at, service, picked_up_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,0,$16,$17,$18) ON CONFLICT DO NOTHING RETURNING id`,
       [a.user_id, c.id, a.id, cart.id, c.mode, ctx.provider(c.mode).providerName, ref, cart.restaurant_id, cart.restaurant_name,
         JSON.stringify(qr.lines.map((l: any) => ({ item_id: l.item_id, name: l.name, quantity: l.quantity, modifiers: l.modifiers_desc, line_total_minor: l.line_total_minor }))),
-        where, c.total_minor, c.currency, status, paymentStatus, etaAt ?? null, cart.service],
+        where, c.total_minor, c.currency, status, paymentStatus, etaAt ?? null, cart.service, status === 'picked_up' || status === 'delivered' ? ctx.clock.now() : null],
     );
     await q.query(`UPDATE carts SET status='ordered', updated_at=now() WHERE id=$1`, [cart.id]);
+    // An order paid with GrabPay in advance shows that payment, not the provider's payment status.
+    const pay = (await q.query<PaymentRow>(`SELECT * FROM payments WHERE checkout_id = $1 AND status IN ('captured','refunding','refunded') LIMIT 1`, [c.id])).rows[0];
+    if (pay) {
+      await q.query('UPDATE orders SET payment_id = $2, payment_status = $3 WHERE checkout_id = $1 AND payment_id IS NULL', [c.id, pay.id, orderPaymentStatus(pay.status)]);
+    }
     if (ins.rowCount) {
       await audit(q, { userId: a.user_id, actor: 'system', action: 'order.accepted', mode: c.mode, entity: 'order', entityId: ins.rows[0].id, details: { total: c.total_minor } });
     }

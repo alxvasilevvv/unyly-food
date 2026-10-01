@@ -6,7 +6,8 @@ import { formatMinor, money } from '../domain/money.js';
 import { checkCsrf, loadSession, logout, requestLoginCode, safeNext, setSessionCookie, verifyLoginCode, WebSession } from '../auth/session.js';
 import { createPersonalToken, revokeGrantForUser, revokePersonalToken, Scope, SCOPES } from '../auth/oauth.js';
 import { authenticationOptions, deletePasskey, listPasskeys, registrationOptions, stepUpOptions, verifyAuthentication, verifyRegistration } from '../auth/passkeys.js';
-import { approveCheckout, checkoutView, declineCheckout, refreshCheckout, stepUpPolicy, submitOrder } from '../services/checkout.js';
+import { approveCheckout, checkoutPayment, checkoutView, declineCheckout, paymentRequired, refreshCheckout, stepUpPolicy, submitOrder } from '../services/checkout.js';
+import { submissionsEnabled } from '../services/common.js';
 import {
   approveCancellation, cancelOrder, describeOrder, getOrderStatus, loadCancellation, loadOrder, prepareCancellation,
 } from '../services/orders.js';
@@ -27,6 +28,7 @@ import { ASSET_VERSION } from './assets.js';
 import { fmt, intlLocale, Locale, LOCALES, Messages, msg, tr } from './messages.js';
 import { registerShowcase } from './showcase.js';
 import { registerDocsRoutes } from './docs-routes.js';
+import { grabAccountSection, grabLoginButton, registerGrabIdRoutes } from './grabid-routes.js';
 import { CONTACT, instagramUrl, phoneLabel, whatsappUrl } from './contacts.js';
 
 const LANG_COOKIE = 'unyly_lang';
@@ -41,6 +43,21 @@ const KIND: Record<'oauth' | 'token' | 'both' | 'none', T3> = {
 const PASTE: T3 = { ru: 'Вставьте адрес MCP выше', en: 'Paste the MCP URL above', th: 'วางที่อยู่ MCP ด้านบน' };
 const SIGNIN: T3 = { ru: 'Войдите в Unyly и разрешите доступ', en: 'Sign in to Unyly and allow access', th: 'เข้าสู่ระบบ Unyly แล้วกดอนุญาต' };
 const TOKEN: T3 = { ru: 'Или создайте персональный токен в «Подключениях» и выберите авторизацию Bearer', en: 'Or create a personal token under Connections and choose Bearer auth', th: 'หรือสร้างโทเคนส่วนตัวในหน้าการเชื่อมต่อ แล้วเลือกแบบ Bearer' };
+/** Paying with GrabPay before a cashless Live GrabExpress delivery is booked. */
+const PAY_COPY = {
+  button: { ru: 'Оплатить {total} через GrabPay и оформить заказ', en: 'Pay {total} with GrabPay and place the order', th: 'ชำระ {total} ด้วย GrabPay และสั่งซื้อ' },
+  method: { ru: 'GrabPay (вы перейдёте в Grab, чтобы подтвердить оплату)', en: 'GrabPay (you will be redirected to Grab to approve)', th: 'GrabPay (ระบบจะพาคุณไปที่ Grab เพื่ออนุมัติการชำระเงิน)' },
+  continue: { ru: 'Продолжить оплату в GrabPay', en: 'Continue to GrabPay', th: 'ไปชำระเงินต่อที่ GrabPay' },
+  pending: { ru: 'Оплата в GrabPay ещё не завершена. Пока платёж не пройдёт, заказ не оформляется.', en: 'The GrabPay payment is not finished yet. Nothing is ordered until the payment goes through.', th: 'การชำระเงินผ่าน GrabPay ยังไม่เสร็จ จะยังไม่มีการสั่งซื้อจนกว่าการชำระเงินจะสำเร็จ' },
+  failed: { ru: 'Оплата не прошла, деньги не списаны. Можно попробовать ещё раз.', en: 'The payment did not go through and you were not charged. You can try again.', th: 'การชำระเงินไม่สำเร็จและไม่มีการตัดเงิน คุณลองอีกครั้งได้' },
+  checking: { ru: 'Уточняем статус оплаты в GrabPay. Не платите повторно.', en: 'We are confirming the payment with GrabPay. Do not pay again.', th: 'เรากำลังยืนยันการชำระเงินกับ GrabPay อย่าชำระซ้ำ' },
+  placing: { ru: 'Оплата получена. Оформляем заказ в GrabExpress, обновите страницу через несколько секунд.', en: 'Payment received. We are placing the order with GrabExpress; refresh this page in a few seconds.', th: 'ได้รับการชำระเงินแล้ว เรากำลังส่งคำสั่งซื้อไปที่ GrabExpress โปรดรีเฟรชหน้านี้ในอีกไม่กี่วินาที' },
+  refunding: { ru: 'Мы возвращаем оплату {amount} на ваш счёт GrabPay.', en: 'We are refunding your payment of {amount} to GrabPay.', th: 'เรากำลังคืนเงิน {amount} เข้า GrabPay ของคุณ' },
+  refunded: { ru: 'Оплата {amount} возвращена на ваш счёт GrabPay.', en: 'Your payment of {amount} was refunded to GrabPay.', th: 'คืนเงิน {amount} เข้า GrabPay ของคุณแล้ว' },
+  support: { ru: 'По оплате этого заказа с вами свяжется поддержка Unyly.', en: 'Unyly support will contact you about the payment for this order.', th: 'ฝ่ายสนับสนุนของ Unyly จะติดต่อคุณเรื่องการชำระเงินของคำสั่งซื้อนี้' },
+  paused: { ru: 'Новые заказы временно приостановлены. Оплата не начата.', en: 'New orders are temporarily paused. No payment was started.', th: 'การสั่งซื้อใหม่ถูกหยุดชั่วคราว ยังไม่ได้เริ่มการชำระเงิน' },
+};
+
 /** Step-up confirmation copy (confirmation page for large totals). */
 const STEP_UP_COPY = {
   label: { ru: 'Для заказов от {amount} нужен passkey', en: 'Passkey required for orders from {amount}', th: 'คำสั่งซื้อตั้งแต่ {amount} ต้องยืนยันด้วยพาสคีย์' },
@@ -387,6 +404,7 @@ ${r.s?.user.is_guest ? html`<p class="notice small">${tr(r.l, { ru: 'Сейча�
   <button class="btn block" type="button" id="pk-login">${r.m.passkeyLogin}</button>
   <p class="small muted" id="pk-login-status" role="status" aria-live="polite"></p>
 </div>
+${grabLoginButton(ctx, r, next)}
 <div class="divider"><span>${r.m.newAccount}</span></div>
 <form class="card stack" id="pk-register" data-next="/app/mode" ${pkData(r)}>
   <div class="field"><label for="reg-email">${r.m.email}</label><input id="reg-email" name="email" type="email" autocomplete="email" required></div>
@@ -582,7 +600,7 @@ ${u.is_guest ? html`<div class="notice stack small"><span>${tr(r.l, { ru: 'Эт�
   <fieldset style="border:0;padding:0;margin:14px 0 0"><legend class="sr-only">${m.mode}</legend>
     ${opt('demo', m.modeDemo, m.modeDemoDesc, true)}
     ${opt('handoff', m.modeHandoff, m.modeHandoffDesc, true)}
-    ${opt('live', m.modeLive, m.modeLiveDesc, ctx.providers.live.capabilities().submit_order.available)}
+    ${opt('live', m.modeLive, m.modeLiveDesc, ctx.providers.live.capabilities().submit_order.available || ctx.providers.live.capabilities().quote.available)}
   </fieldset>
   <button class="btn" type="submit">${m.save}</button>
 </form>
@@ -608,7 +626,7 @@ ${u.is_guest ? html`<div class="notice stack small"><span>${tr(r.l, { ru: 'Эт�
     const m = r.m;
     const list = await listAddresses(ctx.db, r.s.user.id);
     return html`<h1>${m.addressesTitle}</h1><p class="lead">${m.addressesLead}</p>${note ?? ''}
-${list.length ? html`<ul class="list card">${list.map((a) => html`<li><span><strong>${a.label}</strong> ${a.is_default ? html`<span class="pill ok">${m.defaultBadge}</span>` : ''}<br><span class="small muted">${a.line1}, ${a.district}, ${a.city}</span></span>
+${list.length ? html`<ul class="list card">${list.map((a) => html`<li><span><strong>${a.label}</strong> ${a.is_default ? html`<span class="pill ok">${m.defaultBadge}</span>` : ''}<br><span class="small muted">${a.line1}, ${a.district}, ${a.city}</span>${a.latitude != null ? html`<br><span class="small muted">${a.latitude.toFixed(6)}, ${a.longitude!.toFixed(6)}${a.contact_phone ? html` · ${a.contact_name ?? ''} ${a.contact_phone}` : ''}</span>` : ''}</span>
 <span class="actions">${a.is_default ? '' : html`<form method="post" action="/app/addresses/${a.id}/default">${csrfField(r.s)}<button class="btn secondary" type="submit">${m.makeDefault}</button></form>`}
 <form method="post" action="/app/addresses/${a.id}/delete">${csrfField(r.s)}<button class="btn secondary" type="submit">${m.delete}</button></form></span></li>`)}</ul>` : html`<p class="muted">${m.noAddresses}</p>`}
 <h2>${m.addAddress}</h2>
@@ -623,6 +641,13 @@ ${r.s.user.mode === 'demo' ? html`<p class="notice small">${m.demoAddressHint}</
   </div>
   <input type="hidden" name="country" value="TH">
   <div class="field"><label for="instructions">${m.instructions}</label><input id="instructions" name="instructions" type="text" maxlength="300"></div>
+  <fieldset class="stack" style="border:0;padding:0;margin:0"><legend class="small muted">${tr(r.l, { ru: 'Для Live (GrabExpress и поездки Grab): точные координаты и контакт', en: 'For Live (GrabExpress and Grab rides): exact coordinates and a contact', th: 'สำหรับโหมด Live (GrabExpress และการเดินทาง Grab): พิกัดที่แน่นอนและผู้ติดต่อ' })}</legend>
+  <div class="field"><label for="coordinates">${tr(r.l, { ru: 'Координаты (широта, долгота)', en: 'Coordinates (latitude, longitude)', th: 'พิกัด (ละติจูด, ลองจิจูด)' })}</label><input id="coordinates" name="coordinates" type="text" inputmode="decimal" maxlength="60" placeholder="13.746228, 100.534713">
+    <p class="small muted">${tr(r.l, { ru: 'Скопируйте из приложения карт (долгое нажатие на точку). Нужно не меньше 5 знаков после точки.', en: 'Copy them from a map app (long-press the spot). At least 5 decimal places.', th: 'คัดลอกจากแอปแผนที่ (กดค้างที่ตำแหน่ง) ต้องมีทศนิยมอย่างน้อย 5 ตำแหน่ง' })}</p></div>
+  <div class="grid two">
+    <div class="field"><label for="contact_name">${tr(r.l, { ru: 'Имя контакта', en: 'Contact name', th: 'ชื่อผู้ติดต่อ' })}</label><input id="contact_name" name="contact_name" type="text" maxlength="60" autocomplete="name"></div>
+    <div class="field"><label for="contact_phone">${tr(r.l, { ru: 'Телефон контакта', en: 'Contact phone', th: 'เบอร์โทรผู้ติดต่อ' })}</label><input id="contact_phone" name="contact_phone" type="tel" maxlength="24" placeholder="+66 81 234 5678" autocomplete="tel"></div>
+  </div></fieldset>
   <label class="checks"><label><input type="checkbox" name="default" value="1"> ${m.makeDefault}</label></label>
   <button class="btn" type="submit">${m.addAddress}</button>
 </form>
@@ -640,7 +665,8 @@ ${r.s.user.mode === 'demo' ? html`<p class="notice small">${m.demoAddressHint}</
     checkCsrf(ctx, req, r.s);
     const b = req.body as any;
     try {
-      await addAddress(ctx, r.s.user.id, { label: String(b.label ?? ''), line1: String(b.line1 ?? ''), district: String(b.district ?? ''), city: String(b.city ?? ''), country: String(b.country ?? 'TH'), instructions: b.instructions ? String(b.instructions) : undefined }, b.default === '1');
+      await addAddress(ctx, r.s.user.id, { label: String(b.label ?? ''), line1: String(b.line1 ?? ''), district: String(b.district ?? ''), city: String(b.city ?? ''), country: String(b.country ?? 'TH'), instructions: b.instructions ? String(b.instructions) : undefined,
+        coordinates: b.coordinates ? String(b.coordinates) : undefined, contact_name: b.contact_name ? String(b.contact_name) : undefined, contact_phone: b.contact_phone ? String(b.contact_phone) : undefined }, b.default === '1');
       return reply.redirect('/app/addresses');
     } catch (e) {
       const extra = isDomainError(e) && e.code === 'ADDRESS_AMBIGUOUS' ? html`<div class="notice bad" role="alert">${tr(r.l, { ru: 'Адрес неполный или неоднозначный. Проверьте поля: ', en: 'The address is incomplete or ambiguous. Check: ', th: 'ที่อยู่ไม่ครบหรือไม่ชัดเจน โปรดตรวจสอบ: ' })}${((e.details?.fields as string[]) ?? []).join(', ')}</div>` : errorBox(e);
@@ -744,6 +770,7 @@ ${handoffs.length ? html`<h2>${m.handoffsTitle}</h2><p class="small muted">${m.h
     const idx = STATUS_FLOW.indexOf(o.fulfillment_status as any);
     const bad = o.fulfillment_status === 'cancelled' || o.fulfillment_status === 'failed';
     const placed = (req.query as any)?.placed === '1';
+    const paymentNote = await orderPaymentNote(r.l, row.payment_id);
     const label = (st: string) => fsLabel(m, st, o.service, l);
     const trip = isTripService(o.service);
     const hero = o.fulfillment_status === 'delivered' ? checkBurst(label(o.fulfillment_status)) : bad ? html`<span class="hero-ico bad">${icon('alert')}</span>` : o.service === 'ride' ? car(label(o.fulfillment_status)) : scooter(label(o.fulfillment_status));
@@ -755,6 +782,7 @@ ${handoffs.length ? html`<h2>${m.handoffsTitle}</h2><p class="small muted">${m.h
     return send(reply, r, m.orderTitle, html`
 ${placed ? html`<p class="notice ok" role="status">${icon('check')} ${m.submittedOk}</p>` : ''}
 ${data.notices.map((n) => html`<p class="notice warn" role="status">${n}</p>`)}
+${paymentNote}
 <section class="status-card ${bad ? 'is-bad' : ''}" data-poll="/app/orders/${o.order_id}/status.json" data-status="${o.fulfillment_status}" data-final="${o.is_final ? '1' : ''}">
   <div class="status-hero">
     <div class="status-art">${hero}</div>
@@ -780,7 +808,7 @@ ${data.notices.map((n) => html`<p class="notice warn" role="status">${n}</p>`)}
   <div class="card stack">
     <dl class="facts">
       <div><dt>${trip ? tr(l, TRIP_WORD) : m.deliveryTo}</dt><dd>${trip ? o.trip : o.delivery_to}</dd></div>
-      <div><dt>${m.payment}</dt><dd>${psLabel(m, o.payment_status)}</dd></div>
+      <div><dt>${m.payment}</dt><dd>${row.payment_id ? html`GrabPay · ` : ''}${psLabel(m, o.payment_status)}</dd></div>
       <div><dt>${m.providerRef}</dt><dd class="mono">${o.provider_order_ref}</dd></div>
     </dl>
     ${!o.is_final ? html`<form method="post" action="/app/orders/${o.order_id}/cancel">${csrfField(r.s)}<button class="btn secondary block" type="submit">${m.cancelOrder}</button></form>` : ''}
@@ -788,6 +816,18 @@ ${data.notices.map((n) => html`<p class="notice warn" role="status">${n}</p>`)}
   </div>
 </div>`);
   });
+
+  /** Refund or support notice for an order paid in advance with GrabPay. */
+  async function orderPaymentNote(l: Locale, paymentId: string | null): Promise<SafeHtml | ''> {
+    if (!paymentId) return '';
+    const p = (await ctx.db.query('SELECT p.status, p.amount_minor, p.currency, s.outcome FROM payments p LEFT JOIN live_payment_settlements s ON s.payment_id = p.id WHERE p.id = $1', [paymentId])).rows[0];
+    if (!p) return '';
+    const amount = formatMinor(Number(p.amount_minor), p.currency, l);
+    if (p.outcome === 'support') return html`<p class="notice warn" role="status">${tr(l, PAY_COPY.support)}</p>`;
+    if (p.status === 'refunding') return html`<p class="notice warn" role="status">${fmt(tr(l, PAY_COPY.refunding), { amount })}</p>`;
+    if (p.status === 'refunded') return html`<p class="notice" role="status">${fmt(tr(l, PAY_COPY.refunded), { amount })}</p>`;
+    return '';
+  }
 
   app.post('/app/orders/:id/cancel', async (req, reply) => {
     const r = await authed(req, reply);
@@ -836,20 +876,35 @@ ${data.notices.map((n) => html`<p class="notice warn" role="status">${n}</p>`)}
     }
     // Same cart, fresh price: creates a new confirmation the user still has to press.
     const refreshForm = html`<form method="post" action="/confirm/${c.id}/refresh" class="refresh-price">${csrfField(r.s)}<button class="btn secondary" type="submit">${icon('repeat')} ${tr(r.l, { ru: 'Обновить цену', en: 'Refresh price', th: 'อัปเดตราคา' })}</button></form>`;
+    const needsPay = paymentRequired(ctx, c);
+    const pay = needsPay ? await checkoutPayment(ctx.db, c.id) : null;
+    const paid = !!pay && ['captured', 'refunding', 'refunded'].includes(pay.status);
+    const payAmount = pay ? formatMinor(Number(pay.amount_minor), pay.currency, l) : '';
+    const refundNote = pay?.status === 'refunding'
+      ? html`<p class="notice warn" role="status">${fmt(tr(l, PAY_COPY.refunding), { amount: payAmount })}</p>`
+      : pay?.status === 'refunded' ? html`<p class="notice" role="status">${fmt(tr(l, PAY_COPY.refunded), { amount: payAmount })}</p>` : '';
     const state = (() => {
+      if (needsPay && !v.attempt && c.status === 'approved') {
+        if (pay?.status === 'captured') return html`<p class="notice ok" role="status">${tr(l, PAY_COPY.placing)}</p>`;
+        if (paid) return refundNote;
+        if (pay?.status === 'failed') return html`<p class="notice bad" role="alert">${tr(l, PAY_COPY.failed)}</p>`;
+        if (pay?.status === 'unknown') return html`<p class="notice warn" role="status">${tr(l, PAY_COPY.checking)} <a href="/pay/grab/payments/${pay.id}">${m.refresh}</a></p>`;
+        return html`<p class="notice warn" role="status">${tr(l, PAY_COPY.pending)}</p>`;
+      }
       if (v.attempt) {
         const a = v.attempt;
         if (a.status === 'accepted') return html`<div class="notice ok" role="status">${icon('check')} ${m.submittedOk} ${v.order ? html`<a class="btn" href="/app/orders/${v.order.id}">${m.viewOrder} ${icon('arrow')}</a>` : ''}</div>`;
         if (a.status === 'in_flight') return html`<p class="notice warn" role="status">${m.submissionInFlight}</p>`;
         if (a.status === 'unknown') return html`<p class="notice warn" role="alert">${m.submissionUnknown}</p>`;
-        return html`<p class="notice bad" role="alert">${fmt(m.submissionRejected, { reason: a.error_code ?? '' })}</p>${a.error_code !== 'NOT_RECEIVED_BY_PROVIDER' ? refreshForm : ''}`;
+        return html`<p class="notice bad" role="alert">${fmt(m.submissionRejected, { reason: a.error_code ?? '' })}</p>${refundNote}${a.error_code !== 'NOT_RECEIVED_BY_PROVIDER' ? refreshForm : ''}`;
       }
+      if (paid) return refundNote;
       if (c.status === 'expired') return html`<p class="notice bad" role="alert">${m.confirmExpired}</p>${refreshForm}`;
       if (c.status === 'invalidated') return html`<p class="notice bad" role="alert">${fmt(m.confirmInvalid, { reason: (m as any)[`reason_${c.invalid_reason}`] ?? c.invalid_reason ?? '' })}</p>${['EXPIRED', 'PRICE_CHANGED'].includes(c.invalid_reason ?? '') ? refreshForm : ''}`;
       if (c.status === 'declined') return html`<p class="notice" role="status">${m.confirmDeclined}</p>`;
       return null;
     })();
-    const actionable = c.status === 'awaiting_user' || (c.status === 'approved' && !v.attempt);
+    const actionable = (c.status === 'awaiting_user' || (c.status === 'approved' && !v.attempt)) && !paid && pay?.status !== 'unknown';
     // Step-up for large totals: a passkey assertion bound to this checkout (only when approval is still pending).
     const su = await stepUpPolicy(ctx, r.s.user.id, c);
     const stepUp = c.status === 'awaiting_user' && su.required;
@@ -888,7 +943,7 @@ ${flash ?? ''}${state ?? ''}
     ${v.trip.distance_km_estimate !== null ? html`<div><dt>${icon('clock')} ${tr(l, { ru: 'Маршрут', en: 'Route', th: 'เส้นทาง' })}</dt><dd>≈ ${v.trip.distance_km_estimate} km · ≈ ${v.trip.drive_minutes_estimate} ${min}</dd></div>` : ''}
     ${v.trip.parcel ? html`<div><dt>${icon('receipt')} ${tr(l, { ru: 'Посылка', en: 'Parcel', th: 'พัสดุ' })}</dt><dd>${v.trip.parcel.weight_kg} kg${v.trip.parcel.description ? ` · ${v.trip.parcel.description}` : ''}</dd></div>` : ''}`
       : html`<div><dt>${icon('map')} ${m.deliveryTo}</dt><dd>${v.address ? `${v.address.label}: ${v.address.line1}, ${v.address.district}, ${v.address.city}` : '-'}</dd></div>`}
-    <div><dt>${icon('receipt')} ${m.paymentMethod}</dt><dd>${c.payment_method_label}</dd></div>
+    <div><dt>${icon('receipt')} ${m.paymentMethod}</dt><dd>${needsPay ? tr(l, PAY_COPY.method) : c.payment_method_label}</dd></div>
     <div><dt>${icon('repeat')} ${m.cancelTerms}</dt><dd>${c.cancellation_terms}</dd></div>
   </dl>
   <p class="small muted">${fmt(m.priceSource, { src: v.price_source, time: dt(v.quote_fetched_at, l) })}</p>
@@ -899,7 +954,9 @@ ${actionable ? html`<div class="confirm-actions">
   <form method="post" action="/confirm/${c.id}" ${stepUp
     ? html`id="confirm-form" data-step-up="/confirm/${c.id}/step-up/options" data-csrf="${r.s.csrf}" data-msg-unsupported="${tr(l, STEP_UP_COPY.unsupported)}" data-msg-cancelled="${tr(l, STEP_UP_COPY.cancelled)}" data-msg-not-allowed="${tr(l, STEP_UP_COPY.notAllowed)}" data-msg-failed="${tr(l, STEP_UP_COPY.failed)}" data-msg-working="${m.pkWorking}"`
     : ''}>${csrfField(r.s)}<input type="hidden" name="total_minor" value="${c.total_minor}">${stepUp ? html`<input type="hidden" name="step_up" value="">` : ''}
-    <button class="btn block lg" type="submit">${icon('lock')} ${fmt(m.confirmBtn, { total: formatMinor(b.total.amount_minor, c.currency, l) })}</button>
+    <button class="btn block lg" type="submit">${icon('lock')} ${needsPay && c.status === 'approved'
+      ? tr(l, PAY_COPY.continue)
+      : fmt(needsPay ? tr(l, PAY_COPY.button) : m.confirmBtn, { total: formatMinor(b.total.amount_minor, c.currency, l) })}</button>
     ${stepUp ? html`<p class="small muted center" id="step-up-status" role="status" aria-live="polite">${tr(l, STEP_UP_COPY.hint)}</p><noscript><p class="notice warn small">${tr(l, STEP_UP_COPY.unsupported)}</p></noscript>` : ''}</form>
   <form method="post" action="/confirm/${c.id}/decline">${csrfField(r.s)}<button class="btn ghost block" type="submit">${m.declineBtn}</button></form>
   <p class="small muted center">${tr(l, { ru: 'Эту кнопку можете нажать только вы. Ассистент не может подтвердить заказ за вас.', en: 'Only you can press this button. Your assistant cannot confirm for you.', th: 'มีเพียงคุณที่กดปุ่มนี้ได้ ผู้ช่วยยืนยันแทนคุณไม่ได้' })}</p>
@@ -925,6 +982,16 @@ ${fromTry ? html`<details class="trace"><summary>${icon('code')} ${tr(l, { ru: '
     try {
       const v = await checkoutView(ctx, r.s.user.id, id);
       if (!Number.isSafeInteger(seen) || seen !== Number(v.checkout.total_minor)) throw new DomainError('PRICE_CHANGED', 'The total changed; please review again.');
+      if (paymentRequired(ctx, v.checkout)) {
+        // Cashless Live GrabExpress: consent first (step-up, price re-check), then GrabPay, then the delivery.
+        if (!(await submissionsEnabled(ctx, ctx.db, v.checkout.mode))) throw new DomainError('SUBMISSIONS_PAUSED', tr(r.l, PAY_COPY.paused));
+        const approved = await approveCheckout(ctx, r.s.user.id, id, { stepUp: (req.body as any)?.step_up });
+        const done = (await ctx.db.query('SELECT id FROM orders WHERE checkout_id = $1 AND user_id = $2', [id, r.s.user.id])).rows[0];
+        if (done) return reply.code(303).redirect(`/app/orders/${done.id}`);
+        const pay = await checkoutPayment(ctx.db, id);
+        if (approved.status !== 'approved' || (pay && ['captured', 'refunding', 'refunded', 'unknown'].includes(pay.status))) return reply.code(303).redirect(`/confirm/${id}`);
+        return reply.code(303).header('cache-control', 'no-store').redirect(`/pay/grab/start/${id}?total_minor=${Number(approved.total_minor)}`);
+      }
       await approveCheckout(ctx, r.s.user.id, id, { stepUp: (req.body as any)?.step_up });
       await submitOrder(ctx, { userId: r.s.user.id, via: 'web' }, id);
       const placed = (await ctx.db.query('SELECT id, provider_order_ref FROM orders WHERE checkout_id = $1 AND user_id = $2', [id, r.s.user.id])).rows[0];
@@ -1137,6 +1204,7 @@ ${tokenSection}`, { narrow: true });
 ${pks.length ? html`<ul class="list card">${pks.map((p: any) => html`<li><span><strong>${p.label || (p.device_type === 'multiDevice' ? 'Synced passkey' : 'Device passkey')}</strong><br><span class="small muted">${dt(p.created_at, r.l)}${p.last_used_at ? html` · ${m.lastUsed}: ${dt(p.last_used_at, r.l)}` : ''}</span></span>
 ${pks.length > 1 ? html`<form method="post" action="/app/passkeys/delete">${csrfField(r.s)}<input type="hidden" name="id" value="${p.id}"><button class="btn secondary" type="submit">${m.delete}</button></form>` : ''}</li>`)}</ul>` : html`<p class="muted">${m.noPasskeys}</p>`}
 ${r.s.user.is_guest ? '' : html`<div class="stack" id="pk-add-box" data-csrf="${r.s.csrf}" ${pkData(r)}><button class="btn secondary" type="button" id="pk-add">${m.addPasskey}</button><p class="small muted" id="pk-add-status" role="status" aria-live="polite"></p></div>`}
+${await grabAccountSection(ctx, r, csrfField(r.s), req.query)}
 <h2>${m.exportData}</h2><p class="lead">${m.dataLead} <a href="/privacy">${m.footerPrivacy}</a></p>
 <p><a class="btn secondary" href="/app/data/export">${m.exportData}</a></p>
 <h2>${m.deleteAccount}</h2>
@@ -1173,6 +1241,7 @@ ${r.s.user.is_guest ? '' : html`<div class="stack" id="pk-add-box" data-csrf="${
 
   registerShowcase(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });
   registerDocsRoutes(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });
+  registerGrabIdRoutes(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });
 
   app.setNotFoundHandler(async (req, reply) => {
     if (req.url.startsWith('/mcp') || req.url.startsWith('/oauth') || req.url.startsWith('/.well-known') || req.url.startsWith('/webhooks')) {

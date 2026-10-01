@@ -1,6 +1,9 @@
 // Central configuration. Every value comes from the environment; see .env.example.
 import { existsSync } from 'node:fs';
 import { isIP } from 'node:net';
+import { GrabPayConfig, loadGrabPayConfig } from './payments/grabpay-config.js';
+import { GrabIdConfig, loadGrabIdConfig } from './auth/grabid.js';
+import { GrabConfig, loadGrabConfig, validateExpressPayment, validateGrabConfig } from './providers/grab/config.js';
 
 // Local convenience: load ./.env if present. Variables already set in the environment win.
 if (process.env.NODE_ENV !== 'test' && !process.env.VITEST && existsSync('.env')) process.loadEnvFile('.env');
@@ -41,6 +44,12 @@ export interface Config {
    * Thresholds are in the currency's minor unit. STEP_UP=off disables the check entirely.
    */
   stepUp: { enabled: boolean; thresholds: Record<string, number> };
+  /** GrabPay One-time Charge (src/payments/grabpay-config.ts). GRABPAY=off by default. */
+  grabpay: GrabPayConfig;
+  /** Login with Grab (src/auth/grabid.ts). GRABID=off by default. */
+  grabId: GrabIdConfig;
+  /** GrabExpress and Farefeed for Live mode (src/providers/grab/config.ts). Both off by default. */
+  grab: GrabConfig;
 }
 
 function bool(v: string | undefined, d: boolean): boolean {
@@ -147,6 +156,9 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     refreshTokenTtlSec: num('REFRESH_TOKEN_TTL_SEC', 30 * 24 * 3600, { int: true, positive: true }),
     runJobs: bool(process.env.RUN_JOBS, true),
     stepUp: { enabled: stepUpEnabled(), thresholds: stepUpThresholds() },
+    grabpay: overrides.grabpay ?? loadGrabPayConfig(overrides.webOrigin ?? webOrigin, overrides.env ?? env),
+    grabId: overrides.grabId ?? loadGrabIdConfig({ env: overrides.env ?? env, webOrigin: overrides.webOrigin ?? webOrigin }),
+    grab: overrides.grab ?? loadGrabConfig(process.env),
     ...overrides,
   };
   // Also checked here so that overrides (tests, CLI) cannot smuggle in an invalid value.
@@ -155,6 +167,8 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
   for (const [cur, v] of Object.entries(cfg.stepUp.thresholds)) {
     if (!(Number.isSafeInteger(v) && v > 0)) throw new Error(`STEP_UP_THRESHOLD_${cur} must be a positive integer in minor units`);
   }
+  validateGrabConfig(cfg.grab);
+  validateExpressPayment(cfg.grab, cfg.grabpay);
   if (cfg.env === 'production') {
     if (!process.env.DATABASE_URL && !overrides.databaseUrl) throw new Error('DATABASE_URL must be set in production');
     if (/CHANGE_ME/i.test(cfg.databaseUrl)) throw new Error('DATABASE_URL still contains a placeholder password');

@@ -20,12 +20,15 @@ import { checkCsrf, loadSession, requireSameOrigin } from './auth/session.js';
 import { buildMcpServer } from './mcp/tools.js';
 import { registerServerCard } from './mcp/server-card.js';
 import { ingestWebhook } from './services/orders.js';
+import { registerGrabExpressWebhook } from './providers/grab/webhook.js';
 import { ASSET_VERSION, loadStaticAssets } from './web/assets.js';
 import { html } from './web/html.js';
 import { page } from './web/layout.js';
 import { fmt, Locale, msg } from './web/messages.js';
 import { registerDiscoveryRoutes } from './web/discovery.js';
 import { detectLocale, registerWebRoutes } from './web/routes.js';
+import { registerGrabPayRoutes } from './payments/routes.js';
+import { registerLiveExpressPayment } from './services/live-payment.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -119,7 +122,9 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
         imgSrc: ["'self'", 'data:'],
         connectSrc: ["'self'"],
         frameAncestors: ["'none'"],
-        formAction: ["'self'"],
+        // Chrome applies form-action to the redirects that follow a form post: "Pay with GrabPay" posts to
+        // /confirm, which redirects (via /pay/grab/start) to Grab's consent page.
+        formAction: ["'self'", ...(ctx.cfg.grabpay?.enabled ? [new URL(ctx.cfg.grabpay.apiBase).origin] : [])],
         baseUri: ["'none'"],
         objectSrc: ["'none'"],
         upgradeInsecureRequests: ctx.cfg.webOrigin.startsWith('https://') ? [] : null,
@@ -441,6 +446,8 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   await app.register(async (scope) => {
     scope.removeAllContentTypeParsers();
     scope.addContentTypeParser('*', { parseAs: 'string', bodyLimit: 64 * 1024 }, (_req, body, done) => done(null, body));
+    // GrabExpress tracking webhook (shared-secret Authorization header; 404 while GRAB_EXPRESS=off).
+    registerGrabExpressWebhook(scope, ctx);
     scope.post('/webhooks/demo', async (req, reply) => {
       try {
         const r = await ingestWebhook(ctx, 'demo', String(req.body ?? ''), req.headers as any);
@@ -452,6 +459,9 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     });
   });
 
+  await registerGrabPayRoutes(app, ctx); // GrabPay OTC: every route 404 while GRABPAY=off
+  // Captured payment -> submit the paid Live order; last check before the charge. Once per ctx.
+  registerLiveExpressPayment(ctx);
   registerDiscoveryRoutes(app, ctx);
   registerWebRoutes(app, ctx);
   return app;

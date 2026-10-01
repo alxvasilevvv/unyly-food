@@ -254,8 +254,39 @@ export interface Provider {
   cancelOrder(ref: string, idempotencyKey: string, maxFeeMinor: number): Promise<CancelResult>;
   verifyWebhook(rawBody: string, headers: Record<string, string | string[] | undefined>): ProviderEvent[];
   /** Resolve a free-text place (landmark, district, saved address label) to coordinates for trip pricing. */
-  resolvePlace?(text: string, saved: { id?: string; label: string; district: string; city: string }[]):
+  resolvePlace?(text: string, saved: SavedPlaceInfo[]):
     | { ok: true; place: Place }
     | { ok: false; code: 'PLACE_NOT_FOUND' | 'PLACE_AMBIGUOUS'; message: string; suggestions: string[] };
   handoffUrl?(region: string, service: Service): { url: string; source: string; verified: boolean; verified_at?: string } | null;
+  /**
+   * Ride fare estimates with deep links into the Grab app (Live: Grab Partner Farefeed). Used by
+   * estimate_trip for rides instead of per-vehicle quotes. Nothing is booked.
+   */
+  rideEstimates?(trip: Trip): Promise<RideEstimate[]>;
+}
+
+/** A saved address offered to resolvePlace. Coordinates and contact are present only when the user entered them. */
+export interface SavedPlaceInfo {
+  id?: string;
+  label: string;
+  district: string;
+  city: string;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export interface RideEstimate {
+  service_id: number;
+  name: string;
+  currency: string;
+  min_fare_minor: number;
+  max_fare_minor: number;
+  /** Minutes until a car reaches the pickup. */
+  eta_minutes: number | null;
+  /** Grab surgeNotice: NONE, LOW_SURGE, HIGH_SURGE, FRACTIONAL_SURGE (UNKNOWN for other values). */
+  surge: string;
+  /** https link that opens the Grab app (or store) with the trip prefilled. */
+  deep_link?: string;
+  /** grab:// link, needs the app installed. */
+  direct_deep_link?: string;
 }

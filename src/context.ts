@@ -2,6 +2,7 @@ import type { Config } from './config.js';
 import type { Db, Queryable } from './db/db.js';
 import { DemoProvider } from './providers/demo/provider.js';
 import { HandoffGrabProvider, LiveGrabProvider } from './providers/unavailable.js';
+import { GrabLiveProvider } from './providers/grab/provider.js';
 import type { Mode, Provider } from './providers/types.js';
 import { createMailer, Mailer } from './services/mailer.js';
 
@@ -23,7 +24,8 @@ export class OffsetClock implements Clock {
 export interface Providers {
   demo: DemoProvider;
   handoff: HandoffGrabProvider;
-  live: LiveGrabProvider;
+  /** GrabLiveProvider when GRAB_EXPRESS or GRAB_FAREFEED is on; otherwise everything in Live stays unavailable. */
+  live: LiveGrabProvider | GrabLiveProvider;
 }
 
 export interface Ctx {
@@ -48,7 +50,12 @@ export function createCtx(cfg: Config, db: Db, clock: Clock = new OffsetClock())
   const providers: Providers = {
     demo: new DemoProvider({ db, now: () => clock.now(), webhookSecret: cfg.demoWebhookSecret, timeScale: cfg.demoTimeScale }),
     handoff: new HandoffGrabProvider(),
-    live: new LiveGrabProvider(),
+    live: cfg.grab.express.enabled || cfg.grab.farefeed.enabled
+      ? new GrabLiveProvider({
+        db, cfg: cfg.grab, webOrigin: cfg.webOrigin, submitBudgetMs: cfg.providerTimeoutMs, now: () => clock.now(),
+        log: cfg.env === 'test' ? undefined : (e) => console.log(JSON.stringify(e)),
+      })
+      : new LiveGrabProvider(),
   };
   return {
     cfg,

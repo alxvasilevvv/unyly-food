@@ -128,7 +128,7 @@ async function resolveOne(ctx: Ctx, mode: Mode, userId: string, text: string | u
   if (!raw) throw new DomainError('TRIP_REQUIRED', `${field} is required for this service`, { field });
   const provider = ctx.provider(mode);
   if (!provider.resolvePlace) return { name: raw, kind: 'user_text' };
-  const saved = (await listAddresses(ctx.db, userId)).map((a) => ({ id: a.id, label: a.label, district: a.district, city: a.city }));
+  const saved = (await listAddresses(ctx.db, userId)).map((a) => ({ id: a.id, label: a.label, district: a.district, city: a.city, latitude: a.latitude ?? null, longitude: a.longitude ?? null }));
   const r = provider.resolvePlace(raw, saved);
   if (!r.ok) throw new DomainError(r.code, `${field}: ${r.message}`, { field, suggestions: r.suggestions });
   return r.place;

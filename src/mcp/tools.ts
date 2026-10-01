@@ -8,7 +8,7 @@ import { money } from '../domain/money.js';
 import { prMetadataUrl, type Scope } from '../auth/oauth.js';
 import { estimateTrip, getStore, searchStores } from '../services/catalog.js';
 import { CartState, createCart, describeCart, describeQuote, loadCart, QuoteRow, quoteCart, updateCart } from '../services/carts.js';
-import { CheckoutRow, checkoutStatus, confirmUrl, prepareCheckout, submitOrder } from '../services/checkout.js';
+import { CheckoutRow, checkoutStatus, confirmUrl, paymentRequired, prepareCheckout, submitOrder } from '../services/checkout.js';
 import { createHandoff, getCapabilities } from '../services/handoff.js';
 import { cancelConfirmUrl, cancelOrder, describeCancellation, getOrderStatus, listOrders, prepareCancellation, reorder } from '../services/orders.js';
 import { getUser } from '../services/users.js';
@@ -64,7 +64,7 @@ Shortest paths (demo and live):
 create_cart and update_cart quote the cart and, when nothing blocks it, return in the same result the line items, every fee, the total and confirm_url with its expiry. The user needs that breakdown and the link to decide. When something blocks it, the result lists quote.issues or checkout_blocked with next_actions.
 Handoff mode: create_cart with the user's own words (store_name and item names, or pickup and dropoff) returns the Grab link and a checklist; the user orders in Grab and Unyly cannot see the outcome.
 
-Nothing is ordered or cancelled until the user presses the button on the Unyly confirmation page; pressing Confirm there places the order. A chat message saying they agree is not a confirmation. After the user says they confirmed, one get_checkout_status call shows the result (status, submission, order_id, summary) to report. submit_order is only needed when that status is approved with no submission. submit_order is idempotent: repeating it for the same checkout never creates a second order. On SUBMISSION_UNKNOWN the outcome is still being checked with the provider: no new order should be created; get_checkout_status later shows how it resolved.
+Nothing is ordered or cancelled until the user presses the button on the Unyly confirmation page; pressing Confirm there places the order. A chat message saying they agree is not a confirmation. After the user says they confirmed, one get_checkout_status call shows the result (status, submission, order_id, summary) to report. submit_order is only needed when that status is approved with no submission. awaiting_payment means the user confirmed but still has to approve the GrabPay payment from confirm_url; nothing is ordered until then. submit_order is idempotent: repeating it for the same checkout never creates a second order. On SUBMISSION_UNKNOWN the outcome is still being checked with the provider: no new order should be created; get_checkout_status later shows how it resolved.
 
 Errors include user_action and next_actions. Only missing details need to be asked (for example which airport). Delivery addresses are managed on the Unyly website (link in ADDRESS_REQUIRED); a gift can be sent to someone else with create_cart deliver_to.
 
@@ -114,7 +114,9 @@ function checkoutView(ctx: Ctx, c: CheckoutRow & { step_up_required?: boolean })
     total: money(Number(c.total_minor), c.currency),
     payment_method: c.payment_method_label,
     cancellation_terms: c.cancellation_terms,
-    note: 'Nothing is ordered yet. The user reviews this order on confirm_url; pressing Confirm there places it. Afterwards get_checkout_status shows the result.',
+    note: paymentRequired(ctx, c)
+      ? 'Nothing is ordered yet. The user reviews this order on confirm_url and presses "Pay with GrabPay": Grab asks them to approve the payment, and the courier is booked only after the payment goes through. Afterwards get_checkout_status shows the result.'
+      : 'Nothing is ordered yet. The user reviews this order on confirm_url; pressing Confirm there places it. Afterwards get_checkout_status shows the result.',
   };
 }
 
@@ -140,7 +142,8 @@ function enrich(ctx: Ctx, tool: string, e: DomainError): { err: DomainError; nex
       next = [{ tool: 'quote_cart', why: 'Fresh quote, then prepare_checkout for a new confirmation link' }];
       break;
     case 'CONFIRMATION_REQUIRED':
-      next = [{ tool: 'get_checkout_status', why: 'Once the user says they confirmed on confirm_url' }];
+      if (d.payment_required) ua ??= 'Ask the user to open confirm_url and finish paying with GrabPay. Nothing is ordered until the payment goes through.';
+      next = [{ tool: 'get_checkout_status', why: d.payment_required ? 'Once the user says they paid in GrabPay' : 'Once the user says they confirmed on confirm_url' }];
       break;
     case 'CART_VERSION_CONFLICT':
       next = [{ tool: 'update_cart', why: 'Retry with details.current_version after reviewing the cart' }];
@@ -505,12 +508,14 @@ export function buildMcpServer(ctx: Ctx, actor: Actor): McpServer {
 
   reg('get_checkout_status', {
     title: 'Get checkout status',
-    description: 'Status of a confirmation (awaiting_user, approved, consumed, expired, invalidated, declined), its submission and order_id if placed, plus a one-sentence summary to report. Pressing Confirm on the page normally places the order right away, so after the user confirms this usually already shows the order.',
+    description: 'Status of a confirmation (awaiting_user, awaiting_payment, approved, consumed, expired, invalidated, declined), its submission and order_id if placed, plus a one-sentence summary to report. Pressing Confirm on the page normally places the order right away, so after the user confirms this usually already shows the order. awaiting_payment (Live GrabExpress paid with GrabPay): the user confirmed but must still approve the payment in Grab from confirm_url (see user_action); nothing is ordered yet.',
     annotations: RO,
   }, z.object({ checkout_id: uuid() }), async (a) => {
     const s = await checkoutStatus(ctx, actor, a.checkout_id);
     const next: Next[] = [];
-    if (s.status === 'approved' && !s.submission) next.push({ tool: 'submit_order', why: 'Confirmed by the user but not sent yet' });
+    if (s.status === 'awaiting_payment') next.push({ tool: 'get_checkout_status', why: 'After the user says they paid in GrabPay' });
+    else if (s.status === 'approved' && !s.submission && !s.payment) next.push({ tool: 'submit_order', why: 'Confirmed by the user but not sent yet' });
+    else if (s.status === 'approved' && !s.submission) next.push({ tool: 'get_checkout_status', why: 'Payment received; the order is being placed' });
     if (s.order_id) next.push({ tool: 'get_order_status', why: 'Track the order' });
     if (s.submission?.status === 'unknown' || s.submission?.status === 'in_flight') next.push({ tool: 'get_checkout_status', why: 'Check again later; do not order again' });
     if (['expired', 'invalidated'].includes(s.status) && !s.submission) next.push({ tool: 'quote_cart', why: 'If the user still wants it: fresh quote, then prepare_checkout' });

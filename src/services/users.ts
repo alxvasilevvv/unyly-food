@@ -5,6 +5,7 @@ import type { Queryable } from '../db/db.js';
 import { sha256, stableJson } from '../domain/crypto.js';
 import { DomainError } from '../domain/errors.js';
 import { REGION_CODES } from '../domain/regions.js';
+import { normalizeContactName, normalizePhone, parseCoordinates } from '../providers/grab/places.js';
 import type { DeliveryAddress, Mode } from '../providers/types.js';
 
 export interface UserRow {
@@ -48,10 +49,28 @@ export async function findOrCreateUserByEmail(q: Queryable, email: string, local
   return r.rows[0];
 }
 
+/**
+ * Creates an account only if no active account uses this email; returns null otherwise (never the
+ * existing account). For sign-in methods that must not attach to an existing account (Login with Grab).
+ */
+export async function createUserIfEmailFree(q: Queryable, email: string, locale: Locale, opts: { verified: boolean }): Promise<UserRow | null> {
+  const e = email.trim().toLowerCase();
+  const r = await q.query<UserRow>(
+    `INSERT INTO users (email, locale, email_verified_at) VALUES ($1, $2, CASE WHEN $3::boolean THEN now() END)
+     ON CONFLICT (lower(email)) WHERE deleted_at IS NULL DO NOTHING RETURNING *`,
+    [e, locale, opts.verified],
+  );
+  if (!r.rows[0]) return null;
+  await q.query('INSERT INTO preferences (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [r.rows[0].id]);
+  await q.query(`INSERT INTO provider_connections (user_id, provider, mode, status) VALUES ($1,'demo','demo','connected') ON CONFLICT DO NOTHING`, [r.rows[0].id]);
+  await audit(q, { userId: r.rows[0].id, actor: 'web', action: 'user.created' });
+  return r.rows[0];
+}
+
 export async function setRegionAndMode(ctx: Ctx, userId: string, region: string, mode: Mode) {
   if (!SUPPORTED_REGIONS.includes(region)) throw new DomainError('VALIDATION_FAILED', 'Unsupported region');
   const caps = ctx.provider(mode).capabilities();
-  const usable = mode === 'handoff' ? caps.handoff.available : caps.submit_order.available || caps.search_restaurants.available;
+  const usable = mode === 'handoff' ? caps.handoff.available : caps.submit_order.available || caps.search_restaurants.available || caps.quote.available;
   if (!usable) throw new DomainError('CAPABILITY_UNAVAILABLE', `Mode ${mode} is not available`, { reason: caps.submit_order.reason });
   await ctx.db.tx(async (q) => {
     await q.query('UPDATE users SET region = $2, mode = $3 WHERE id = $1', [userId, region, mode]);
@@ -81,10 +100,17 @@ export interface AddressRow {
   country: string;
   instructions: string | null;
   is_default: boolean;
+  /** Exact coordinates (6 decimals) and contact, entered by the user; needed for Live GrabExpress and Farefeed. */
+  latitude?: number | null;
+  longitude?: number | null;
+  contact_name?: string | null;
+  contact_phone?: string | null;
 }
 
-export function addressFingerprint(a: Pick<AddressRow, 'line1' | 'district' | 'city' | 'country' | 'instructions'>): string {
-  return sha256(stableJson({ line1: a.line1, district: a.district, city: a.city, country: a.country, instructions: a.instructions ?? null }));
+export function addressFingerprint(a: Pick<AddressRow, 'line1' | 'district' | 'city' | 'country' | 'instructions'> & Partial<Pick<AddressRow, 'latitude' | 'longitude' | 'contact_name' | 'contact_phone'>>): string {
+  // Coordinates and contact are included only when set, so fingerprints of older addresses do not change.
+  const live = a.latitude != null || a.contact_phone ? { lat: a.latitude ?? null, lng: a.longitude ?? null, cn: a.contact_name ?? null, cp: a.contact_phone ?? null } : {};
+  return sha256(stableJson({ line1: a.line1, district: a.district, city: a.city, country: a.country, instructions: a.instructions ?? null, ...live }));
 }
 
 export function toDeliveryAddress(a: AddressRow): DeliveryAddress {
@@ -97,8 +123,17 @@ export function maskedAddress(a: AddressRow | null) {
   return { address_id: a.id, label: a.label, area: `${a.district}, ${a.city}` };
 }
 
-export function validateAddressInput(input: { label: string; line1: string; district: string; city: string; country: string; instructions?: string }) {
+export function validateAddressInput(input: {
+  label: string; line1: string; district: string; city: string; country: string; instructions?: string;
+  /** Optional, for Live: "lat, lng" pasted from a map, contact name and phone (E.164). */
+  coordinates?: string; contact_name?: string; contact_phone?: string;
+}) {
+  const coords = parseCoordinates(input.coordinates);
   const clean = {
+    latitude: coords?.latitude ?? null,
+    longitude: coords?.longitude ?? null,
+    contact_name: normalizeContactName(input.contact_name),
+    contact_phone: normalizePhone(input.contact_phone),
     label: input.label.trim().slice(0, 40),
     line1: input.line1.trim().slice(0, 200),
     district: input.district.trim().slice(0, 80),
@@ -138,8 +173,9 @@ export async function addAddress(ctx: Ctx, userId: string, input: Parameters<typ
     const isDefault = makeDefault || count === 0;
     if (isDefault) await q.query('UPDATE addresses SET is_default = false WHERE user_id = $1', [userId]);
     const r = await q.query<AddressRow>(
-      `INSERT INTO addresses (user_id, label, line1, district, city, country, instructions, is_default) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [userId, a.label, a.line1, a.district, a.city, a.country, a.instructions, isDefault],
+      `INSERT INTO addresses (user_id, label, line1, district, city, country, instructions, is_default, latitude, longitude, contact_name, contact_phone)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [userId, a.label, a.line1, a.district, a.city, a.country, a.instructions, isDefault, a.latitude, a.longitude, a.contact_name, a.contact_phone],
     );
     await audit(q, { userId, actor: 'web', action: 'address.added', entity: 'address', entityId: r.rows[0].id });
     return r.rows[0];
@@ -157,7 +193,8 @@ export async function addAddress(ctx: Ctx, userId: string, input: Parameters<typ
 export async function deleteAddress(ctx: Ctx, userId: string, id: string) {
   await ctx.db.tx(async (q) => {
     const r = await q.query(
-      `UPDATE addresses SET deleted_at = now(), is_default = false, label = '[deleted]', line1 = '[deleted]', district = '[deleted]', city = '[deleted]', instructions = NULL
+      `UPDATE addresses SET deleted_at = now(), is_default = false, label = '[deleted]', line1 = '[deleted]', district = '[deleted]', city = '[deleted]', instructions = NULL,
+         latitude = NULL, longitude = NULL, contact_name = NULL, contact_phone = NULL
        WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL RETURNING id`,
       [id, userId],
     );
@@ -210,12 +247,13 @@ export async function exportUserData(q: Queryable, userId: string) {
     exported_at: new Date().toISOString(),
     user: (await one('SELECT id, email, locale, region, mode, onboarded_at, created_at FROM users WHERE id = $1'))[0],
     preferences: (await one('SELECT dietary, allergies, default_party_size, updated_at FROM preferences WHERE user_id = $1'))[0] ?? null,
-    addresses: await one('SELECT label, line1, district, city, country, instructions, is_default, created_at FROM addresses WHERE user_id = $1 AND deleted_at IS NULL ORDER BY created_at'),
+    addresses: await one('SELECT label, line1, district, city, country, instructions, latitude, longitude, contact_name, contact_phone, is_default, created_at FROM addresses WHERE user_id = $1 AND deleted_at IS NULL ORDER BY created_at'),
     passkeys: await one(
       `SELECT left(id, 8) || '…' AS credential_id_prefix, label, device_type, backed_up, created_at, last_used_at
        FROM webauthn_credentials WHERE user_id = $1 ORDER BY created_at`,
     ),
     provider_connections: await one('SELECT provider, mode, status, created_at, revoked_at FROM provider_connections WHERE user_id = $1 ORDER BY created_at'),
+    grab_sign_in: await one('SELECT issuer, created_at, last_login_at FROM grab_identities WHERE user_id = $1'),
     carts: await one(
       `SELECT k.id, k.mode, k.service, k.restaurant_name, k.status, k.created_at, k.updated_at,
          COALESCE((SELECT json_agg(json_build_object('version', v.version, 'items', v.items, 'trip', v.trip, 'created_at', v.created_at) ORDER BY v.version)

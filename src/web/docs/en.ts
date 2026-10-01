@@ -5,7 +5,7 @@ import type { DocMeta, DocSection } from './types.js';
 export const META_EN: DocMeta = {
   title: "Unyly documentation",
   description: "How Unyly works: connect an AI assistant, prepare Grab orders, confirm them yourself, and the MCP tools, errors, limits and data behind it.",
-  updated: "2026-09-30",
+  updated: "2026-10-01",
   labels: { info: "Note", warn: "Important", safety: "Safety", contents: "Contents", updated: "Updated" },
 };
 
@@ -75,11 +75,13 @@ export const DOCS_EN: DocSection[] = [
         ["GrabBike", "1"], ["JustGrab", "4"], ["GrabTaxi (metered, the final fare may differ)", "4"], ["GrabCar Premium", "4"], ["GrabCar SUV", "6"], ["GrabVan", "10"],
       ] },
       { type: "paragraph", text: "In Demo the fare is a formula: base fare plus per-kilometre and per-minute rates, with a 50 THB fee for an airport pickup. Options that fit your number of passengers and cost less come first." },
+      { type: "paragraph", text: "In Live, ride options come from Grab's Partner Farefeed: a fare range, pickup ETA and surge flag per service, and a link that opens the Grab app with the trip filled in. You book and pay in Grab; Unyly does not see the booking. Live is switched off until Grab issues partner keys, see [Modes](#modes)." },
       { type: "subheading", text: "Express (parcels)", id: "services-express" },
       { type: "table", header: ["Vehicle", "Maximum weight"], rows: [
         ["Bike", "20 kg"], ["Car", "100 kg"], ["SUV", "200 kg"], ["Pickup truck", "300 kg"],
       ] },
       { type: "paragraph", text: "The parcel weight is required. If the parcel is too heavy for the chosen vehicle, the quote names the smallest vehicle that fits, and the assistant asks you before switching." },
+      { type: "paragraph", text: "In Live, parcels go through the GrabExpress Delivery API, with exact coordinates and a contact for both addresses. With GrabPay, the button on the confirmation page says **Pay with GrabPay and place the order**: you approve the payment in Grab, and the courier is booked only after the payment goes through. If the price changed in between, nothing is charged. If Grab refuses the delivery, or it is cancelled before the courier picks up the parcel (by you, or by Grab when no driver is found), the payment is refunded in full to GrabPay. After pickup there is no automatic refund; Unyly support contacts you. While the payment is pending the assistant sees `awaiting_payment` and never says the order is placed." },
       { type: "subheading", text: "What the assistant asks you", id: "services-questions" },
       { type: "list", items: [
         "Only the details that are missing: which airport when you just say `airport`, the parcel weight, a choice for each required option.",
@@ -98,10 +100,11 @@ export const DOCS_EN: DocSection[] = [
       { type: "table", header: ["Mode", "Status", "What happens"], rows: [
         ["**Demo**", "Available", "Synthetic Bangkok stores, fares and orders. The full flow for every service: search, cart, quote, confirmation, submission, status timeline, cancellation. Payment status is `not_charged_demo`."],
         ["**Handoff**", "Available", "The assistant writes your list (store and items, or pickup and drop-off). Unyly returns the official Grab page for the service and a checklist. No order is created; you order and pay in Grab, and Unyly cannot see the outcome."],
-        ["**Live**", "Not available", "Real Grab orders placed by Unyly on your behalf. Every Live capability returns `CAPABILITY_UNAVAILABLE` with the reason."],
+        ["**Live**", "Built, switched off", "Integrations built against Grab's public partner APIs: GrabExpress parcels (cash to the courier, or paid in advance with GrabPay), ride fare estimates with a deep link into the Grab app, and Login with Grab. They stay switched off until Grab issues partner keys; until then every Live capability returns `CAPABILITY_UNAVAILABLE` with the reason. Food and Mart stay in Handoff."],
       ] },
-      { type: "subheading", text: "Why Live is not available", id: "modes-live" },
-      { type: "paragraph", text: "Grab does not publish an API that lets a third party search stores, price a cart, place and pay for a GrabFood or GrabMart order, or book a ride on behalf of a customer. Grab's public Food and Mart APIs are for merchants and POS systems, and Grab's terms forbid bots, scripts and scraping, so Unyly does not automate the Grab app. Live needs partner access from Grab. The first candidate is parcels, because the GrabExpress Delivery API exists for business accounts." },
+      { type: "subheading", text: "What Live will do, and why it is off", id: "modes-live" },
+      { type: "paragraph", text: "Live uses only Grab's public partner APIs. **Parcels**: the GrabExpress Delivery API quotes each vehicle, books the courier after you confirm, tracks the delivery and cancels it before pickup. Payment is either cash to the courier at pickup, or GrabPay in advance: you confirm on the Unyly page, approve the payment in Grab, and only then is the courier booked. **Rides**: Grab's Partner Farefeed API returns fare ranges, pickup ETA and surge, with a deep link that opens the Grab app with the trip filled in; you book and pay in Grab, because Grab has no ride booking API for third parties. **Login with Grab** signs you in to Unyly with your Grab account. **Food and Mart** stay Handoff only: Grab has no public API to place those orders for a customer (its Food and Mart APIs are for merchants and POS systems), and its terms forbid bots and scraping, so Unyly does not automate the Grab app." },
+      { type: "callout", kind: "warn", text: "These integrations are switched off until Grab issues partner keys. They are tested against mock servers that follow Grab's published documentation, not yet against Grab's real sandbox." },
       { type: "subheading", text: "No silent fallback", id: "modes-fallback" },
       { type: "paragraph", text: "The provider is chosen by the mode of your account (or of the cart). If a provider is unavailable, you get `PROVIDER_UNAVAILABLE`. Demo data is **never** substituted for real data, and an order status that cannot be refreshed is returned from the database with a notice." },
       { type: "callout", kind: "info", text: "Change the mode and region at [Region and mode](/app/mode). The assistant is told to say so whenever results are demo data." },
@@ -498,6 +501,12 @@ export const DOCS_EN: DocSection[] = [
     id: "changelog",
     title: "Changelog",
     blocks: [
+      { type: "subheading", text: "1 October 2026" },
+      { type: "list", items: [
+        "Live mode integrations built against Grab's public APIs: GrabExpress parcels with cash or optional GrabPay payment, Farefeed ride fare estimates with deep links into the Grab app, and Login with Grab. Switched off until Grab issues partner keys; not yet tested against Grab's real sandbox.",
+        "GrabPay for parcels: you pay in Grab before the courier is booked, with an automatic full refund when the delivery is refused or cancelled before pickup, and `awaiting_payment` in `get_checkout_status`.",
+        "Food and Mart stay in Handoff mode: Grab has no public API to order them for a customer.",
+      ] },
       { type: "subheading", text: "30 September 2026" },
       { type: "list", items: [
         "Documentation section with Markdown downloads in English, Russian and Thai.",

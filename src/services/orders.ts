@@ -9,6 +9,7 @@ import { statusLabel } from '../domain/labels.js';
 import { isTripService, Service } from '../domain/regions.js';
 import { createCart, loadCart } from './carts.js';
 import { callProvider, requireCapability, withTimeout } from './common.js';
+import { settleOrder } from './live-payment.js';
 
 export interface OrderRow {
   id: string;
@@ -31,6 +32,9 @@ export interface OrderRow {
   status_version: number;
   status_updated_at: string;
   eta_at: string | null;
+  /** GrabPay payment that paid this order in advance (cashless Live GrabExpress). */
+  payment_id: string | null;
+  picked_up_at: string | null;
   created_at: string;
 }
 
@@ -55,6 +59,7 @@ export function describeOrder(o: OrderRow, locale: Locale = 'en') {
     fulfillment_status: o.fulfillment_status,
     status_label: statusLabel(o.service, o.fulfillment_status, locale),
     payment_status: o.payment_status,
+    ...(o.payment_id ? { payment_method: 'grabpay' } : {}),
     is_final: TERMINAL.includes(o.fulfillment_status),
     status_updated_at: new Date(o.status_updated_at).toISOString(),
     eta_estimate_at: o.eta_at ? new Date(o.eta_at).toISOString() : null,
@@ -72,9 +77,13 @@ export async function applyEvent(q: Queryable, provider: string, ev: ProviderEve
   if (ev.sequence <= o.status_version) return 'stale';
   if (TERMINAL.includes(o.fulfillment_status) && ev.status !== o.fulfillment_status) return 'stale';
   if (STATUS_RANK[ev.status] === undefined) return 'stale';
+  // An order paid in advance with GrabPay (payment_id) keeps the payment's status; the provider's value
+  // describes Grab's own billing. picked_up_at records the first pickup (refund rules depend on it).
+  const pickedUp = ev.status === 'picked_up' || ev.status === 'delivered';
   await q.query(
-    `UPDATE orders SET fulfillment_status=$2, payment_status=$3, status_version=$4, status_updated_at=$5, eta_at=COALESCE($6, eta_at) WHERE id=$1`,
-    [o.id, ev.status, ev.payment_status, ev.sequence, ev.occurred_at, ev.eta_at ?? null],
+    `UPDATE orders SET fulfillment_status=$2, payment_status=CASE WHEN payment_id IS NULL THEN $3 ELSE payment_status END, status_version=$4, status_updated_at=$5,
+       eta_at=COALESCE($6, eta_at), picked_up_at=CASE WHEN $7::boolean THEN COALESCE(picked_up_at, $5::timestamptz) ELSE picked_up_at END WHERE id=$1`,
+    [o.id, ev.status, ev.payment_status, ev.sequence, ev.occurred_at, ev.eta_at ?? null, pickedUp],
   );
   await audit(q, { userId: o.user_id, actor: `provider:${provider}`, action: 'order.status_changed', mode: o.mode, entity: 'order', entityId: o.id, details: { status: ev.status, seq: ev.sequence } });
   return 'applied';
@@ -285,6 +294,7 @@ export async function cancelOrder(ctx: Ctx, actor: Actor, cancellationId: string
   const c = claimed.go!;
   await executeCancellation(ctx, c, o, actorLabel(actor));
   await getOrderStatus(ctx, actor, o.id).catch(() => undefined);
+  await settleOrder(ctx, o.id); // paid Live order cancelled before pickup: full GrabPay refund
   return describeCancellation(await loadCancellation(ctx.db, actor.userId, c.id));
 }
 
@@ -348,6 +358,7 @@ export async function reconcileCancellations(ctx: Ctx) {
       const s = await ctx.provider(o.mode).getOrderStatus(o.provider_order_ref);
       if (s.status === 'cancelled') {
         await ctx.db.query(`UPDATE cancellation_requests SET status='executed', executed_at=$2 WHERE id=$1 AND status IN ('unknown','executing','approved')`, [c.id, ctx.clock.now()]);
+        await settleOrder(ctx, o.id);
       } else if (TERMINAL.includes(s.status) || STATUS_RANK[s.status] >= STATUS_RANK.picked_up) {
         await ctx.db.query(`UPDATE cancellation_requests SET status='rejected', error_code='TOO_LATE' WHERE id=$1 AND status IN ('unknown','executing','approved')`, [c.id]);
       } else {

@@ -250,6 +250,36 @@ export async function estimateTrip(
   requireCapability(ctx, user.mode, 'quote');
   const provider = ctx.provider(user.mode);
   const trip = await resolveTrip(ctx, user.mode, actor.userId, args.service, args);
+  if (args.service === 'ride' && provider.rideEstimates) {
+    // Live: Grab Farefeed fare ranges with deep links. There is no ride booking API, so booking happens in the Grab app.
+    const est = await callProvider(() => provider.rideEstimates!(trip));
+    return {
+      mode: user.mode,
+      data_as_of: ctx.clock.now().toISOString(),
+      service: args.service,
+      store: { name: 'Grab transport', notice: 'Fares are Grab estimates (a range, not a binding price).' },
+      trip: describeTrip(trip),
+      options: est.map((e) => ({
+        item_id: `ride-${e.service_id}`,
+        name: e.name,
+        estimated_total: money(e.min_fare_minor, e.currency),
+        fare_range: { min: money(e.min_fare_minor, e.currency), max: money(e.max_fare_minor, e.currency) },
+        description: undefined as string | undefined,
+        seats: undefined as number | undefined,
+        max_weight_kg: undefined as number | undefined,
+        // Farefeed eta: minutes until a car reaches the pickup (0 when Grab sends none).
+        eta_estimate_minutes: { min: e.eta_minutes ?? 0, max: e.eta_minutes ?? 0 },
+        note: 'Pickup ETA from Grab; book in the Grab app via deep_link' as string | undefined,
+        surge: e.surge,
+        deep_link: e.deep_link ?? null,
+        direct_deep_link: e.direct_deep_link ?? null,
+        booking: 'in_grab_app' as const,
+        fits: true,
+        issues: [] as string[],
+      })),
+      note: 'Grab fare estimates only. Grab has no API to book a ride for the user: give the user the deep_link of the chosen option; it opens the Grab app with the trip prefilled, and the user books and pays there. Unyly does not see that booking.',
+    };
+  }
   const store = (await callProvider(() => provider.searchRestaurants({ address: null, service: args.service })))[0];
   if (!store) throw new DomainError('CAPABILITY_UNAVAILABLE', `${args.service} is not available in this area`);
   const menu = await callProvider(() => provider.getMenu(store.id, null));

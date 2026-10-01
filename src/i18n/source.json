@@ -26,7 +26,7 @@
  {
   "en": "14 days, then deleted",
   "where": [
-   "src/web/routes.ts:348"
+   "src/web/routes.ts:365"
   ]
  },
  {
@@ -117,7 +117,7 @@
  {
   "en": "Add the URL above in Qwen-Agent or another MCP client running a Qwen model, with Bearer auth and a personal token.",
   "where": [
-   "src/web/routes.ts:118"
+   "src/web/routes.ts:135"
   ]
  },
  {
@@ -135,7 +135,7 @@
  {
   "en": "Addresses and gift recipients",
   "where": [
-   "src/web/routes.ts:353"
+   "src/web/routes.ts:370"
   ]
  },
  {
@@ -154,7 +154,7 @@
  {
   "en": "After you press Confirm, approve with your passkey.",
   "where": [
-   "src/web/routes.ts:55"
+   "src/web/routes.ts:72"
   ]
  },
  {
@@ -217,7 +217,7 @@
  {
   "en": "Allergies and diet",
   "where": [
-   "src/web/routes.ts:355"
+   "src/web/routes.ts:372"
   ]
  },
  {
@@ -251,6 +251,18 @@
   ]
  },
  {
+  "en": "An Unyly account with this email already exists. Sign in with your usual method (passkey or email code), then connect Grab under Data.",
+  "where": [
+   "src/web/grabid-routes.ts:57"
+  ]
+ },
+ {
+  "en": "Another Grab account is already connected to your account. Disconnect it first.",
+  "where": [
+   "src/web/grabid-routes.ts:52"
+  ]
+ },
+ {
   "en": "Antiseptic solution 30 ml",
   "where": [
    "src/providers/demo/catalog.ts:194"
@@ -271,7 +283,7 @@
  {
   "en": "Any MCP client",
   "where": [
-   "src/web/routes.ts:259",
+   "src/web/routes.ts:276",
    "src/web/showcase.ts:169"
   ]
  },
@@ -284,7 +296,7 @@
  {
   "en": "Arrival",
   "where": [
-   "src/web/routes.ts:874"
+   "src/web/routes.ts:929"
   ]
  },
  {
@@ -320,7 +332,7 @@
  {
   "en": "Assistant connections (OAuth)",
   "where": [
-   "src/web/routes.ts:350"
+   "src/web/routes.ts:367"
   ]
  },
  {
@@ -334,7 +346,7 @@
  {
   "en": "Audit log",
   "where": [
-   "src/web/routes.ts:358"
+   "src/web/routes.ts:375"
   ]
  },
  {
@@ -365,6 +377,24 @@
   "en": "Back",
   "where": [
    "src/web/messages.ts:466"
+  ]
+ },
+ {
+  "en": "Back to settings",
+  "where": [
+   "src/web/grabid-routes.ts:29"
+  ]
+ },
+ {
+  "en": "Back to sign-in",
+  "where": [
+   "src/web/grabid-routes.ts:28"
+  ]
+ },
+ {
+  "en": "Back to the order",
+  "where": [
+   "src/payments/routes.ts:27"
   ]
  },
  {
@@ -481,7 +511,7 @@
  {
   "en": "Can the assistant order without me?",
   "where": [
-   "src/web/routes.ts:326"
+   "src/web/routes.ts:343"
   ]
  },
  {
@@ -536,7 +566,7 @@
  {
   "en": "Carts, quotes, orders",
   "where": [
-   "src/web/routes.ts:357"
+   "src/web/routes.ts:374"
   ]
  },
  {
@@ -552,9 +582,21 @@
   ]
  },
  {
+  "en": "Check again",
+  "where": [
+   "src/payments/routes.ts:23"
+  ]
+ },
+ {
   "en": "Check out",
   "where": [
    "src/web/showcase.ts:486"
+  ]
+ },
+ {
+  "en": "Checking the payment",
+  "where": [
+   "src/payments/routes.ts:21"
   ]
  },
  {
@@ -603,7 +645,7 @@
  {
   "en": "claude.ai, Desktop, mobile",
   "where": [
-   "src/web/routes.ts:85"
+   "src/web/routes.ts:102"
   ]
  },
  {
@@ -639,7 +681,7 @@
  {
   "en": "Company",
   "where": [
-   "src/web/routes.ts:303"
+   "src/web/routes.ts:320"
   ]
  },
  {
@@ -710,11 +752,23 @@
   ]
  },
  {
+  "en": "Connect Grab account",
+  "where": [
+   "src/web/grabid-routes.ts:22"
+  ]
+ },
+ {
   "en": "Connect your assistant",
   "where": [
    "src/web/messages.ts:257",
    "src/web/messages.ts:267",
    "src/web/messages.ts:358"
+  ]
+ },
+ {
+  "en": "Connected",
+  "where": [
+   "src/web/grabid-routes.ts:25"
   ]
  },
  {
@@ -744,22 +798,46 @@
  {
   "en": "Connectors",
   "where": [
-   "src/web/routes.ts:100",
-   "src/web/routes.ts:104"
+   "src/web/routes.ts:117",
+   "src/web/routes.ts:121"
   ]
  },
  {
   "en": "Connectors, all plans",
   "where": [
-   "src/web/routes.ts:109"
+   "src/web/routes.ts:126"
+  ]
+ },
+ {
+  "en": "Contact name",
+  "where": [
+   "src/web/routes.ts:648"
+  ]
+ },
+ {
+  "en": "Contact phone",
+  "where": [
+   "src/web/routes.ts:649"
   ]
  },
  {
   "en": "Contacts",
   "where": [
    "src/web/layout.ts:150",
-   "src/web/routes.ts:284",
-   "src/web/routes.ts:287"
+   "src/web/routes.ts:301",
+   "src/web/routes.ts:304"
+  ]
+ },
+ {
+  "en": "Continue to GrabPay",
+  "where": [
+   "src/web/routes.ts:50"
+  ]
+ },
+ {
+  "en": "Continue with Grab",
+  "where": [
+   "src/web/grabid-routes.ts:14"
   ]
  },
  {
@@ -775,6 +853,12 @@
   ]
  },
  {
+  "en": "Coordinates (latitude, longitude)",
+  "where": [
+   "src/web/routes.ts:645"
+  ]
+ },
+ {
   "en": "Copied",
   "where": [
    "src/web/messages.ts:362"
@@ -783,13 +867,13 @@
  {
   "en": "Copilot Studio",
   "where": [
-   "src/web/routes.ts:95"
+   "src/web/routes.ts:112"
   ]
  },
  {
   "en": "Copilot Studio → your agent → Tools → Add an MCP server",
   "where": [
-   "src/web/routes.ts:96"
+   "src/web/routes.ts:113"
   ]
  },
  {
@@ -807,7 +891,13 @@
  {
   "en": "Copy the token now: it will not be shown again.",
   "where": [
-   "src/web/routes.ts:1064"
+   "src/web/routes.ts:1131"
+  ]
+ },
+ {
+  "en": "Copy them from a map app (long-press the spot). At least 5 decimal places.",
+  "where": [
+   "src/web/routes.ts:646"
   ]
  },
  {
@@ -843,19 +933,19 @@
  {
   "en": "Create an account with a passkey",
   "where": [
-   "src/web/routes.ts:54"
+   "src/web/routes.ts:71"
   ]
  },
  {
   "en": "Create an app, paste the MCP URL above, OAuth authentication",
   "where": [
-   "src/web/routes.ts:81"
+   "src/web/routes.ts:98"
   ]
  },
  {
   "en": "Create token",
   "where": [
-   "src/web/routes.ts:1078"
+   "src/web/routes.ts:1145"
   ]
  },
  {
@@ -900,7 +990,7 @@
  {
   "en": "Dashboard → Connections → Revoke access. The token stops working immediately.",
   "where": [
-   "src/web/routes.ts:335"
+   "src/web/routes.ts:352"
   ]
  },
  {
@@ -943,13 +1033,13 @@
  {
   "en": "deleted after 1 day",
   "where": [
-   "src/web/routes.ts:347"
+   "src/web/routes.ts:364"
   ]
  },
  {
   "en": "deleted with all data after 24 hours",
   "where": [
-   "src/web/routes.ts:349"
+   "src/web/routes.ts:366"
   ]
  },
  {
@@ -1083,6 +1173,12 @@
   ]
  },
  {
+  "en": "Disconnect",
+  "where": [
+   "src/web/grabid-routes.ts:23"
+  ]
+ },
+ {
   "en": "Discount",
   "where": [
    "src/web/messages.ts:409"
@@ -1105,7 +1201,7 @@
   "where": [
    "src/web/docs-routes.ts:46",
    "src/web/layout.ts:142",
-   "src/web/routes.ts:338"
+   "src/web/routes.ts:355"
   ]
  },
  {
@@ -1185,7 +1281,7 @@
  {
   "en": "Drop-off",
   "where": [
-   "src/web/routes.ts:887"
+   "src/web/routes.ts:942"
   ]
  },
  {
@@ -1270,7 +1366,7 @@
  {
   "en": "Fare",
   "where": [
-   "src/web/routes.ts:880"
+   "src/web/routes.ts:935"
   ]
  },
  {
@@ -1346,13 +1442,13 @@
  {
   "en": "For assistants that take a bearer token instead of OAuth sign-in: Mistral Le Chat, Copilot Studio, Perplexity, API integrations. A token has the same powers as an OAuth connection: you still confirm every order on an Unyly page.",
   "where": [
-   "src/web/routes.ts:1061"
+   "src/web/routes.ts:1128"
   ]
  },
  {
   "en": "For developers",
   "where": [
-   "src/web/routes.ts:254"
+   "src/web/routes.ts:271"
   ]
  },
  {
@@ -1371,6 +1467,12 @@
   "en": "For groups",
   "where": [
    "src/web/showcase.ts:151"
+  ]
+ },
+ {
+  "en": "For Live (GrabExpress and Grab rides): exact coordinates and a contact",
+  "where": [
+   "src/web/routes.ts:644"
   ]
  },
  {
@@ -1462,25 +1564,25 @@
  {
   "en": "Gemini CLI: add the server to settings.json (httpUrl) and sign in via the browser",
   "where": [
-   "src/web/routes.ts:91"
+   "src/web/routes.ts:108"
   ]
  },
  {
   "en": "Gemini Enterprise and Gemini CLI",
   "where": [
-   "src/web/routes.ts:90"
+   "src/web/routes.ts:107"
   ]
  },
  {
   "en": "Gemini Enterprise: an admin adds an MCP server with the URL above (Streamable HTTP, OAuth)",
   "where": [
-   "src/web/routes.ts:91"
+   "src/web/routes.ts:108"
   ]
  },
  {
   "en": "General questions and press",
   "where": [
-   "src/web/routes.ts:299"
+   "src/web/routes.ts:316"
   ]
  },
  {
@@ -1499,6 +1601,36 @@
   "en": "Go or no-go",
   "where": [
    "src/web/showcase.ts:281"
+  ]
+ },
+ {
+  "en": "Grab account",
+  "where": [
+   "src/web/grabid-routes.ts:16"
+  ]
+ },
+ {
+  "en": "Grab account connected",
+  "where": [
+   "src/web/grabid-routes.ts:24"
+  ]
+ },
+ {
+  "en": "Grab account connected. You can now sign in with Grab.",
+  "where": [
+   "src/web/grabid-routes.ts:26"
+  ]
+ },
+ {
+  "en": "Grab account disconnected.",
+  "where": [
+   "src/web/grabid-routes.ts:27"
+  ]
+ },
+ {
+  "en": "Grab did not share a verified email, so a new account cannot be created. Create an account with a passkey or an email code, then connect Grab under Data.",
+  "where": [
+   "src/web/grabid-routes.ts:62"
   ]
  },
  {
@@ -1523,6 +1655,18 @@
   "en": "Grab services: Food, Mart, rides, Express",
   "where": [
    "src/web/showcase.ts:220"
+  ]
+ },
+ {
+  "en": "Grab sign-in failed. Please try again.",
+  "where": [
+   "src/web/grabid-routes.ts:30"
+  ]
+ },
+ {
+  "en": "Grab sign-in was cancelled.",
+  "where": [
+   "src/web/grabid-routes.ts:34"
   ]
  },
  {
@@ -1574,9 +1718,21 @@
   ]
  },
  {
+  "en": "GrabPay (you will be redirected to Grab to approve)",
+  "where": [
+   "src/web/routes.ts:49"
+  ]
+ },
+ {
   "en": "GrabPay approved on Grab’s side; Unyly never sees cards",
   "where": [
    "src/web/showcase.ts:270"
+  ]
+ },
+ {
+  "en": "GrabPay confirmed your payment of {amount}. We are placing your order.",
+  "where": [
+   "src/payments/routes.ts:20"
   ]
  },
  {
@@ -1632,19 +1788,19 @@
  {
   "en": "Guest demo account",
   "where": [
-   "src/web/routes.ts:534"
+   "src/web/routes.ts:552"
   ]
  },
  {
   "en": "Guest demo accounts",
   "where": [
-   "src/web/routes.ts:349"
+   "src/web/routes.ts:366"
   ]
  },
  {
   "en": "Guest IP hash",
   "where": [
-   "src/web/routes.ts:356"
+   "src/web/routes.ts:373"
   ]
  },
  {
@@ -1680,7 +1836,7 @@
  {
   "en": "Handoff; demo data is Bangkok",
   "where": [
-   "src/web/routes.ts:581"
+   "src/web/routes.ts:599"
   ]
  },
  {
@@ -1692,7 +1848,7 @@
  {
   "en": "Header",
   "where": [
-   "src/web/routes.ts:1066"
+   "src/web/routes.ts:1133"
   ]
  },
  {
@@ -1742,7 +1898,7 @@
   "en": "Home",
   "where": [
    "src/web/messages.ts:339",
-   "src/web/routes.ts:1171"
+   "src/web/routes.ts:1239"
   ]
  },
  {
@@ -1799,19 +1955,19 @@
  {
   "en": "How accurate are allergens?",
   "where": [
-   "src/web/routes.ts:332"
+   "src/web/routes.ts:349"
   ]
  },
  {
   "en": "How do I disconnect an assistant?",
   "where": [
-   "src/web/routes.ts:334"
+   "src/web/routes.ts:351"
   ]
  },
  {
   "en": "How everything works: connecting assistants, confirmation, MCP tools, errors, limits and your data.",
   "where": [
-   "src/web/routes.ts:338"
+   "src/web/routes.ts:355"
   ]
  },
  {
@@ -1885,7 +2041,7 @@
  {
   "en": "If your plan offers custom connectors.",
   "where": [
-   "src/web/routes.ts:106"
+   "src/web/routes.ts:123"
   ]
  },
  {
@@ -1909,7 +2065,7 @@
  {
   "en": "Intelligence → Connectors → Add connector → custom MCP",
   "where": [
-   "src/web/routes.ts:110"
+   "src/web/routes.ts:127"
   ]
  },
  {
@@ -1927,7 +2083,7 @@
  {
   "en": "Is this an official Grab service?",
   "where": [
-   "src/web/routes.ts:324"
+   "src/web/routes.ts:341"
   ]
  },
  {
@@ -1940,7 +2096,7 @@
   "en": "Items",
   "where": [
    "src/web/messages.ts:379",
-   "src/web/routes.ts:880"
+   "src/web/routes.ts:935"
   ]
  },
  {
@@ -1982,13 +2138,13 @@
  {
   "en": "kept with carts and orders",
   "where": [
-   "src/web/routes.ts:354"
+   "src/web/routes.ts:371"
   ]
  },
  {
   "en": "keyed hash for the guest limit, deleted after 24 hours",
   "where": [
-   "src/web/routes.ts:356"
+   "src/web/routes.ts:373"
   ]
  },
  {
@@ -2099,7 +2255,7 @@
  {
   "en": "Manage passkeys",
   "where": [
-   "src/web/routes.ts:53"
+   "src/web/routes.ts:70"
   ]
  },
  {
@@ -2160,13 +2316,13 @@
  {
   "en": "Meetings, the Grab pilot and API access.",
   "where": [
-   "src/web/routes.ts:291"
+   "src/web/routes.ts:308"
   ]
  },
  {
   "en": "Menu labels and plan availability change; checked against each platform's documentation on 2026-09-30.",
   "where": [
-   "src/web/routes.ts:261"
+   "src/web/routes.ts:278"
   ]
  },
  {
@@ -2178,7 +2334,7 @@
  {
   "en": "Meta AI app",
   "where": [
-   "src/web/routes.ts:121"
+   "src/web/routes.ts:138"
   ]
  },
  {
@@ -2202,7 +2358,7 @@
  {
   "en": "min",
   "where": [
-   "src/web/routes.ts:864",
+   "src/web/routes.ts:919",
    "src/web/showcase.ts:470",
    "src/web/showcase.ts:559"
   ]
@@ -2253,13 +2409,13 @@
   "en": "Name",
   "where": [
    "src/web/messages.ts:338",
-   "src/web/routes.ts:1075"
+   "src/web/routes.ts:1142"
   ]
  },
  {
   "en": "name set by the client itself",
   "where": [
-   "src/web/routes.ts:835"
+   "src/web/routes.ts:875"
   ]
  },
  {
@@ -2278,6 +2434,12 @@
   "en": "New account",
   "where": [
    "src/web/messages.ts:284"
+  ]
+ },
+ {
+  "en": "New orders are temporarily paused. No payment was started.",
+  "where": [
+   "src/web/routes.ts:58"
   ]
  },
  {
@@ -2313,7 +2475,7 @@
  {
   "en": "No assistant at hand?",
   "where": [
-   "src/web/routes.ts:269"
+   "src/web/routes.ts:286"
   ]
  },
  {
@@ -2361,7 +2523,7 @@
  {
   "en": "No MCP yet",
   "where": [
-   "src/web/routes.ts:39"
+   "src/web/routes.ts:41"
   ]
  },
  {
@@ -2397,13 +2559,13 @@
  {
   "en": "No. Unyly is an independent concept prepared as a partnership proposal. Real Grab orders through Unyly are not available yet: Grab has no public API for ordering on behalf of a customer.",
   "where": [
-   "src/web/routes.ts:325"
+   "src/web/routes.ts:342"
   ]
  },
  {
   "en": "No. You confirm every order and cancellation on an Unyly page after signing in. The assistant cannot press that button.",
   "where": [
-   "src/web/routes.ts:327"
+   "src/web/routes.ts:344"
   ]
  },
  {
@@ -2459,7 +2621,7 @@
  {
   "en": "Nothing was ordered.",
   "where": [
-   "src/web/routes.ts:71"
+   "src/web/routes.ts:88"
   ]
  },
  {
@@ -2471,7 +2633,7 @@
  {
   "en": "OAuth or token",
   "where": [
-   "src/web/routes.ts:37"
+   "src/web/routes.ts:39"
   ]
  },
  {
@@ -2483,7 +2645,7 @@
  {
   "en": "OAuth sign-in",
   "where": [
-   "src/web/routes.ts:36"
+   "src/web/routes.ts:38"
   ]
  },
  {
@@ -2532,7 +2694,7 @@
  {
   "en": "only a hash is stored; deleted 30 days after revocation or expiry",
   "where": [
-   "src/web/routes.ts:351"
+   "src/web/routes.ts:368"
   ]
  },
  {
@@ -2545,13 +2707,13 @@
  {
   "en": "only after your confirmation",
   "where": [
-   "src/web/routes.ts:913"
+   "src/web/routes.ts:970"
   ]
  },
  {
   "en": "Only you can press this button. Your assistant cannot confirm for you.",
   "where": [
-   "src/web/routes.ts:905"
+   "src/web/routes.ts:962"
   ]
  },
  {
@@ -2569,8 +2731,8 @@
  {
   "en": "Open the demo",
   "where": [
-   "src/web/routes.ts:271",
-   "src/web/routes.ts:1171",
+   "src/web/routes.ts:288",
+   "src/web/routes.ts:1239",
    "src/web/showcase.ts:179"
   ]
  },
@@ -2583,7 +2745,7 @@
  {
   "en": "Or create a personal token under Connections and choose Bearer auth",
   "where": [
-   "src/web/routes.ts:43"
+   "src/web/routes.ts:45"
   ]
  },
  {
@@ -2687,7 +2849,7 @@
   "en": "Parcel",
   "where": [
    "src/domain/labels.ts:54",
-   "src/web/routes.ts:889",
+   "src/web/routes.ts:944",
    "src/web/showcase.ts:45"
   ]
  },
@@ -2731,7 +2893,7 @@
  {
   "en": "Partnership and direct contact",
   "where": [
-   "src/web/routes.ts:291"
+   "src/web/routes.ts:308"
   ]
  },
  {
@@ -2755,13 +2917,13 @@
  {
   "en": "Partnerships, press and security reports (answered within 24 hours).",
   "where": [
-   "src/web/routes.ts:299"
+   "src/web/routes.ts:316"
   ]
  },
  {
   "en": "Pass an Unyly personal token in the authorization field:",
   "where": [
-   "src/web/routes.ts:257"
+   "src/web/routes.ts:274"
   ]
  },
  {
@@ -2773,20 +2935,20 @@
  {
   "en": "Passkey required for orders from {amount}",
   "where": [
-   "src/web/routes.ts:46"
+   "src/web/routes.ts:63"
   ]
  },
  {
   "en": "Passkey verification failed.",
   "where": [
-   "src/web/routes.ts:67"
+   "src/web/routes.ts:84"
   ]
  },
  {
   "en": "Passkeys",
   "where": [
    "src/web/messages.ts:291",
-   "src/web/routes.ts:352"
+   "src/web/routes.ts:369"
   ]
  },
  {
@@ -2798,7 +2960,13 @@
  {
   "en": "Paste the MCP URL above",
   "where": [
-   "src/web/routes.ts:41"
+   "src/web/routes.ts:43"
+  ]
+ },
+ {
+  "en": "Pay {total} with GrabPay and place the order",
+  "where": [
+   "src/web/routes.ts:48"
   ]
  },
  {
@@ -2817,6 +2985,36 @@
   "en": "Payment method",
   "where": [
    "src/web/messages.ts:410"
+  ]
+ },
+ {
+  "en": "Payment not completed",
+  "where": [
+   "src/payments/routes.ts:24"
+  ]
+ },
+ {
+  "en": "Payment not found.",
+  "where": [
+   "src/payments/routes.ts:31"
+  ]
+ },
+ {
+  "en": "Payment received",
+  "where": [
+   "src/payments/routes.ts:19"
+  ]
+ },
+ {
+  "en": "Payment received. We are placing the order with GrabExpress; refresh this page in a few seconds.",
+  "where": [
+   "src/web/routes.ts:54"
+  ]
+ },
+ {
+  "en": "Payment unavailable",
+  "where": [
+   "src/payments/routes.ts:28"
   ]
  },
  {
@@ -2867,7 +3065,7 @@
  {
   "en": "personal token",
   "where": [
-   "src/web/routes.ts:832"
+   "src/web/routes.ts:872"
   ]
  },
  {
@@ -2879,8 +3077,8 @@
  {
   "en": "Personal tokens",
   "where": [
-   "src/web/routes.ts:351",
-   "src/web/routes.ts:1058"
+   "src/web/routes.ts:368",
+   "src/web/routes.ts:1125"
   ]
  },
  {
@@ -2929,7 +3127,7 @@
  {
   "en": "Pickup",
   "where": [
-   "src/web/routes.ts:886"
+   "src/web/routes.ts:941"
   ]
  },
  {
@@ -2977,7 +3175,7 @@
  {
   "en": "Popular assistants",
   "where": [
-   "src/web/routes.ts:250"
+   "src/web/routes.ts:267"
   ]
  },
  {
@@ -3077,7 +3275,7 @@
  {
   "en": "public key only, until you remove it",
   "where": [
-   "src/web/routes.ts:352"
+   "src/web/routes.ts:369"
   ]
  },
  {
@@ -3089,13 +3287,13 @@
  {
   "en": "Qwen-Agent and MCP clients",
   "where": [
-   "src/web/routes.ts:117"
+   "src/web/routes.ts:134"
   ]
  },
  {
   "en": "Reach us about partnerships, questions or bugs. We reply in English, Russian and Thai.",
   "where": [
-   "src/web/routes.ts:288"
+   "src/web/routes.ts:305"
   ]
  },
  {
@@ -3132,7 +3330,7 @@
  {
   "en": "Refresh price",
   "where": [
-   "src/web/routes.ts:838"
+   "src/web/routes.ts:878"
   ]
  },
  {
@@ -3187,7 +3385,7 @@
  {
   "en": "Retention for Thailand (PDPA) must be reviewed by counsel before any Live launch.",
   "where": [
-   "src/web/routes.ts:367"
+   "src/web/routes.ts:384"
   ]
  },
  {
@@ -3266,7 +3464,7 @@
  {
   "en": "Route",
   "where": [
-   "src/web/routes.ts:888"
+   "src/web/routes.ts:943"
   ]
  },
  {
@@ -3359,7 +3557,7 @@
  {
   "en": "Secure confirmation",
   "where": [
-   "src/web/routes.ts:867"
+   "src/web/routes.ts:922"
   ]
  },
  {
@@ -3420,25 +3618,25 @@
  {
   "en": "Settings → Apps → Advanced → Developer mode",
   "where": [
-   "src/web/routes.ts:81"
+   "src/web/routes.ts:98"
   ]
  },
  {
   "en": "Settings → Connectors → Add custom",
   "where": [
-   "src/web/routes.ts:105"
+   "src/web/routes.ts:122"
   ]
  },
  {
   "en": "Settings → Connectors → Add custom (remote MCP)",
   "where": [
-   "src/web/routes.ts:101"
+   "src/web/routes.ts:118"
   ]
  },
  {
   "en": "Settings → Connectors → Add custom connector",
   "where": [
-   "src/web/routes.ts:86"
+   "src/web/routes.ts:103"
   ]
  },
  {
@@ -3477,13 +3675,19 @@
  {
   "en": "Sign in to Unyly and allow access",
   "where": [
-   "src/web/routes.ts:42"
+   "src/web/routes.ts:44"
   ]
  },
  {
   "en": "Sign in to Unyly first so you can grant your assistant access.",
   "where": [
    "src/web/messages.ts:364"
+  ]
+ },
+ {
+  "en": "Sign in to Unyly with your Grab account. We receive only an identifier, name and email; no Grab password or tokens are stored.",
+  "where": [
+   "src/web/grabid-routes.ts:19"
   ]
  },
  {
@@ -3505,6 +3709,12 @@
   ]
  },
  {
+  "en": "Sign in with Grab",
+  "where": [
+   "src/web/grabid-routes.ts:15"
+  ]
+ },
+ {
   "en": "Sign out",
   "where": [
    "src/web/messages.ts:250"
@@ -3513,7 +3723,7 @@
  {
   "en": "Sign-in codes",
   "where": [
-   "src/web/routes.ts:347"
+   "src/web/routes.ts:364"
   ]
  },
  {
@@ -3602,6 +3812,12 @@
   ]
  },
  {
+  "en": "Start the payment from the Unyly confirmation page.",
+  "where": [
+   "src/payments/routes.ts:29"
+  ]
+ },
+ {
   "en": "Starters",
   "where": [
    "src/providers/demo/catalog.ts:86"
@@ -3628,7 +3844,7 @@
  {
   "en": "Step-by-step guide and OAuth details in the docs",
   "where": [
-   "src/web/routes.ts:239"
+   "src/web/routes.ts:256"
   ]
  },
  {
@@ -3658,7 +3874,7 @@
  {
   "en": "Streamable HTTP. Sign-in: OAuth 2.1 with PKCE (S256), dynamic client registration and Client ID Metadata Documents, or a personal token in the Authorization header. Tokens in the URL query are never accepted. Resource metadata:",
   "where": [
-   "src/web/routes.ts:259"
+   "src/web/routes.ts:276"
   ]
  },
  {
@@ -3778,7 +3994,13 @@
  {
   "en": "The address is incomplete or ambiguous. Check:",
   "where": [
-   "src/web/routes.ts:646"
+   "src/web/routes.ts:672"
+  ]
+ },
+ {
+  "en": "The amount you saw is missing. Go back to the order confirmation.",
+  "where": [
+   "src/payments/routes.ts:30"
   ]
  },
  {
@@ -3820,25 +4042,25 @@
  {
   "en": "The confirmation stops being valid. The assistant re-quotes and you confirm the new total.",
   "where": [
-   "src/web/routes.ts:329"
+   "src/web/routes.ts:346"
   ]
  },
  {
   "en": "The connection to the provider dropped after sending. Unyly reconciles the status itself and never resends. Do not order the same food elsewhere until it resolves.",
   "where": [
-   "src/web/routes.ts:331"
+   "src/web/routes.ts:348"
   ]
  },
  {
   "en": "The consumer Copilot app does not connect custom MCP servers.",
   "where": [
-   "src/web/routes.ts:97"
+   "src/web/routes.ts:114"
   ]
  },
  {
   "en": "The consumer Gemini app does not yet connect third-party MCP servers in every country.",
   "where": [
-   "src/web/routes.ts:92"
+   "src/web/routes.ts:109"
   ]
  },
  {
@@ -3850,7 +4072,7 @@
  {
   "en": "The DeepSeek app does not connect MCP servers. Use a DeepSeek model inside an MCP-capable client (a desktop chat client or agent) with an Unyly personal token.",
   "where": [
-   "src/web/routes.ts:114"
+   "src/web/routes.ts:131"
   ]
  },
  {
@@ -3874,13 +4096,19 @@
  {
   "en": "The free plan allows one custom connector. On Team and Enterprise an owner adds the connector first.",
   "where": [
-   "src/web/routes.ts:87"
+   "src/web/routes.ts:104"
   ]
  },
  {
   "en": "The full flow for every service on fictional data, with the same logic live orders will need.",
   "where": [
    "src/web/showcase.ts:240"
+  ]
+ },
+ {
+  "en": "The GrabPay payment is not finished yet. Nothing is ordered until the payment goes through.",
+  "where": [
+   "src/web/routes.ts:51"
   ]
  },
  {
@@ -3892,7 +4120,7 @@
  {
   "en": "The Meta AI app does not connect MCP servers yet. Llama models can be used through an MCP client with a personal token.",
   "where": [
-   "src/web/routes.ts:123"
+   "src/web/routes.ts:140"
   ]
  },
  {
@@ -3922,13 +4150,19 @@
  {
   "en": "The passkey check was cancelled or timed out. Nothing was ordered.",
   "where": [
-   "src/web/routes.ts:61"
+   "src/web/routes.ts:78"
   ]
  },
  {
   "en": "The passkey request expired. Press Confirm to try again.",
   "where": [
-   "src/web/routes.ts:69"
+   "src/web/routes.ts:86"
+  ]
+ },
+ {
+  "en": "The payment did not go through and you were not charged. You can try again.",
+  "where": [
+   "src/web/routes.ts:52"
   ]
  },
  {
@@ -3950,15 +4184,21 @@
   ]
  },
  {
+  "en": "The sign-in request expired or was opened in another browser. Please start again.",
+  "where": [
+   "src/web/grabid-routes.ts:37"
+  ]
+ },
+ {
   "en": "The Unyly community.",
   "where": [
-   "src/web/routes.ts:301"
+   "src/web/routes.ts:318"
   ]
  },
  {
   "en": "the Unyly demo assistant",
   "where": [
-   "src/web/routes.ts:829"
+   "src/web/routes.ts:869"
   ]
  },
  {
@@ -3970,7 +4210,7 @@
  {
   "en": "Then run /mcp and select unyly to sign in via the browser.",
   "where": [
-   "src/web/routes.ts:256"
+   "src/web/routes.ts:273"
   ]
  },
  {
@@ -3982,7 +4222,7 @@
  {
   "en": "This browser cannot use passkeys. Open this page on a device that has your passkey.",
   "where": [
-   "src/web/routes.ts:58"
+   "src/web/routes.ts:75"
   ]
  },
  {
@@ -4006,19 +4246,25 @@
  {
   "en": "This device cannot use your passkey here. Try a device that has your passkey.",
   "where": [
-   "src/web/routes.ts:64"
+   "src/web/routes.ts:81"
+  ]
+ },
+ {
+  "en": "This Grab account is already connected to another Unyly account.",
+  "where": [
+   "src/web/grabid-routes.ts:47"
   ]
  },
  {
   "en": "This is a guest account from the demo and it is deleted after 24 hours. To connect your own AI assistant, create an account with a passkey.",
   "where": [
-   "src/web/routes.ts:535"
+   "src/web/routes.ts:553"
   ]
  },
  {
   "en": "This is a large order. For stronger protection, add a passkey in your account settings: orders like this will then also need your passkey.",
   "where": [
-   "src/web/routes.ts:50"
+   "src/web/routes.ts:67"
   ]
  },
  {
@@ -4036,19 +4282,19 @@
  {
   "en": "This order needs your passkey: press Confirm and approve on your device.",
   "where": [
-   "src/web/routes.ts:68"
+   "src/web/routes.ts:85"
   ]
  },
  {
   "en": "This passkey approval was issued for a different order.",
   "where": [
-   "src/web/routes.ts:70"
+   "src/web/routes.ts:87"
   ]
  },
  {
   "en": "through an MCP client",
   "where": [
-   "src/web/routes.ts:113"
+   "src/web/routes.ts:130"
   ]
  },
  {
@@ -4072,7 +4318,7 @@
  {
   "en": "tokens are deleted on revocation or expiry",
   "where": [
-   "src/web/routes.ts:350"
+   "src/web/routes.ts:367"
   ]
  },
  {
@@ -4117,13 +4363,13 @@
  {
   "en": "Trip",
   "where": [
-   "src/web/routes.ts:552"
+   "src/web/routes.ts:570"
   ]
  },
  {
   "en": "Trips, item notes, parcel descriptions",
   "where": [
-   "src/web/routes.ts:354"
+   "src/web/routes.ts:371"
   ]
  },
  {
@@ -4147,7 +4393,7 @@
  {
   "en": "Try the same flow in the browser: the demo calls the same tools an assistant would.",
   "where": [
-   "src/web/routes.ts:270"
+   "src/web/routes.ts:287"
   ]
  },
  {
@@ -4177,19 +4423,19 @@
  {
   "en": "unlinked from you and scrubbed when you delete the account",
   "where": [
-   "src/web/routes.ts:358"
+   "src/web/routes.ts:375"
   ]
  },
  {
   "en": "until",
   "where": [
-   "src/web/routes.ts:1071"
+   "src/web/routes.ts:1138"
   ]
  },
  {
   "en": "until you delete them; deletion erases the address text",
   "where": [
-   "src/web/routes.ts:353"
+   "src/web/routes.ts:370"
   ]
  },
  {
@@ -4201,7 +4447,7 @@
  {
   "en": "Unyly contacts: partnerships, support, Telegram.",
   "where": [
-   "src/web/routes.ts:306"
+   "src/web/routes.ts:323"
   ]
  },
  {
@@ -4243,7 +4489,13 @@
  {
   "en": "Unyly is not affiliated with or endorsed by Grab. For questions about orders placed in Grab, contact Grab support.",
   "where": [
-   "src/web/routes.ts:306"
+   "src/web/routes.ts:323"
+  ]
+ },
+ {
+  "en": "Unyly support will contact you about the payment for this order.",
+  "where": [
+   "src/web/routes.ts:57"
   ]
  },
  {
@@ -4273,7 +4525,7 @@
  {
   "en": "used only for filtering, until you change them",
   "where": [
-   "src/web/routes.ts:355"
+   "src/web/routes.ts:372"
   ]
  },
  {
@@ -4291,13 +4543,13 @@
  {
   "en": "Valid for, days",
   "where": [
-   "src/web/routes.ts:1077"
+   "src/web/routes.ts:1144"
   ]
  },
  {
   "en": "Valid until",
   "where": [
-   "src/web/routes.ts:1066"
+   "src/web/routes.ts:1133"
   ]
  },
  {
@@ -4328,7 +4580,7 @@
  {
   "en": "Via token and an MCP client",
   "where": [
-   "src/web/routes.ts:38"
+   "src/web/routes.ts:40"
   ]
  },
  {
@@ -4353,6 +4605,24 @@
   "en": "Waiting for your device…",
   "where": [
    "src/web/messages.ts:296"
+  ]
+ },
+ {
+  "en": "We are confirming the payment with GrabPay. Do not pay again.",
+  "where": [
+   "src/web/routes.ts:53"
+  ]
+ },
+ {
+  "en": "We are confirming the payment with GrabPay. Do not pay again. Check again in a couple of minutes.",
+  "where": [
+   "src/payments/routes.ts:22"
+  ]
+ },
+ {
+  "en": "We are refunding your payment of {amount} to GrabPay.",
+  "where": [
+   "src/web/routes.ts:55"
   ]
  },
  {
@@ -4382,7 +4652,7 @@
  {
   "en": "We only show what the restaurant declared. If there is no data we say so. Unyly never calls a dish safe.",
   "where": [
-   "src/web/routes.ts:333"
+   "src/web/routes.ts:350"
   ]
  },
  {
@@ -4394,7 +4664,7 @@
  {
   "en": "We store only what the service needs: email, passkeys, addresses, preferences, carts, trips and orders, assistant connections and an audit log. We never store Grab passwords, SMS codes or payment details. Assistants only receive the address name and area. You can download or delete everything under Data.",
   "where": [
-   "src/web/routes.ts:363"
+   "src/web/routes.ts:380"
   ]
  },
  {
@@ -4406,13 +4676,13 @@
  {
   "en": "web, developer mode",
   "where": [
-   "src/web/routes.ts:80"
+   "src/web/routes.ts:97"
   ]
  },
  {
   "en": "Website sessions",
   "where": [
-   "src/web/routes.ts:348"
+   "src/web/routes.ts:365"
   ]
  },
  {
@@ -4430,19 +4700,19 @@
  {
   "en": "What does \"outcome unknown\" mean?",
   "where": [
-   "src/web/routes.ts:330"
+   "src/web/routes.ts:347"
   ]
  },
  {
   "en": "What if the price changes?",
   "where": [
-   "src/web/routes.ts:328"
+   "src/web/routes.ts:345"
   ]
  },
  {
   "en": "What the assistant did (MCP calls)",
   "where": [
-   "src/web/routes.ts:907"
+   "src/web/routes.ts:964"
   ]
  },
  {
@@ -4472,7 +4742,7 @@
  {
   "en": "when one is added to the account",
   "where": [
-   "src/web/routes.ts:47"
+   "src/web/routes.ts:64"
   ]
  },
  {
@@ -4484,7 +4754,7 @@
  {
   "en": "while the account exists (order history)",
   "where": [
-   "src/web/routes.ts:357"
+   "src/web/routes.ts:374"
   ]
  },
  {
@@ -4546,7 +4816,7 @@
  {
   "en": "Write actions (placing orders) are not available on every plan; account policy decides.",
   "where": [
-   "src/web/routes.ts:82"
+   "src/web/routes.ts:99"
   ]
  },
  {
@@ -4570,7 +4840,13 @@
  {
   "en": "You are in a guest demo. Signing in or creating an account replaces the guest session.",
   "where": [
-   "src/web/routes.ts:384"
+   "src/web/routes.ts:401"
+  ]
+ },
+ {
+  "en": "You cancelled the payment in Grab. You were not charged.",
+  "where": [
+   "src/payments/routes.ts:26"
   ]
  },
  {
@@ -4586,6 +4862,18 @@
   ]
  },
  {
+  "en": "You signed out or switched accounts while connecting. Sign in and connect Grab again.",
+  "where": [
+   "src/web/grabid-routes.ts:42"
+  ]
+ },
+ {
+  "en": "You were not charged. If GrabPay reserved the amount, the hold is released automatically. You can go back to the order and try again.",
+  "where": [
+   "src/payments/routes.ts:25"
+  ]
+ },
+ {
   "en": "You:",
   "where": [
    "src/web/showcase.ts:469",
@@ -4595,7 +4883,7 @@
  {
   "en": "You: confirm on this page",
   "where": [
-   "src/web/routes.ts:912"
+   "src/web/routes.ts:969"
   ]
  },
  {
@@ -4619,7 +4907,7 @@
  {
   "en": "your assistant",
   "where": [
-   "src/web/routes.ts:827"
+   "src/web/routes.ts:867"
   ]
  },
  {
@@ -4644,6 +4932,12 @@
   "en": "Your email is used to contact you and recover access. You will sign in with the passkey.",
   "where": [
    "src/web/messages.ts:286"
+  ]
+ },
+ {
+  "en": "Your payment of {amount} was refunded to GrabPay.",
+  "where": [
+   "src/web/routes.ts:56"
   ]
  },
  {
