@@ -115,13 +115,13 @@ describe('Website Ari demo (/ari)', () => {
 
   it('session resume starts after the newest event, however many there are', async () => {
     const s = await post('/ari/api/session?lang=en');
-    const uid = (await h.db.query('SELECT user_id FROM partner_users WHERE external_user_id = $1', [s.json.user.id])).rows[0].user_id;
-    await h.db.query(
+    const uid = (await h.demoDb.query('SELECT user_id FROM partner_users WHERE external_user_id = $1', [s.json.user.id])).rows[0].user_id;
+    await h.demoDb.query(
       `INSERT INTO partner_webhooks (partner_id, user_id, event_type, payload, status)
        SELECT 'ari-web', $1, 'grab.linked', '{"type":"grab.linked","data":{}}'::jsonb, 'skipped' FROM generate_series(1, 130)`,
       [uid],
     );
-    const max = Number((await h.db.query('SELECT max(id) AS m FROM partner_webhooks WHERE user_id = $1', [uid])).rows[0].m);
+    const max = Number((await h.demoDb.query('SELECT max(id) AS m FROM partner_webhooks WHERE user_id = $1', [uid])).rows[0].m);
     const again = await post('/ari/api/session?lang=en');
     expect(again.json.last_event).toBe(max);
     const rest = await get(`/ari/api/events?after=${again.json.last_event}`);

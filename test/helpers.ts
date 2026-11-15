@@ -5,6 +5,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { buildApp } from '../src/app.js';
 import { Config, loadConfig } from '../src/config.js';
 import { createCtx, Ctx, OffsetClock } from '../src/context.js';
+import { createMemoryDemoCtx, DemoCtxHandle } from '../src/demo-ctx.js';
 import { createDb, Db, Queryable } from '../src/db/db.js';
 import { migrate } from '../src/db/migrate.js';
 import { addAddress } from '../src/services/users.js';
@@ -60,6 +61,10 @@ export interface Harness {
   /** Round-trip counter for everything the app sends to the database. */
   queries: QueryCounter;
   ctx: Ctx;
+  /** Set when the web demo runs on the embedded database (cfg.demoDb 'memory' or ARI_DEMO_DB=memory). */
+  demo: DemoCtxHandle | null;
+  /** The database the web demo (/ari) writes to: the embedded one in memory mode, otherwise the shared one. */
+  demoDb: Db;
   clock: OffsetClock;
   app: FastifyInstance;
   baseUrl: string;
@@ -87,18 +92,24 @@ export async function startHarness(opts: { fresh?: boolean; cfg?: Partial<Config
     demoTimeScale: 1,
     demoGuestSpeed: 12,
     runJobs: false,
+    // ARI_DEMO_DB=memory runs every suite's web demo on the embedded database (an explicit cfg.demoDb wins).
+    ...(process.env.ARI_DEMO_DB === 'memory' ? { demoDb: 'memory' as const } : {}),
     ...opts.cfg,
   });
   const { db, counter } = countingDb(createDb(cfg.databaseUrl, 10));
   const clock = new OffsetClock();
   const ctx = createCtx(cfg, db, clock);
+  const demo = cfg.demoDb === 'memory' ? await createMemoryDemoCtx(cfg, clock, () => {}) : null;
+  if (cfg.demoDb === 'memory' && !demo) throw new Error('the embedded demo database did not start');
+  if (demo) ctx.demoCtx = demo.ctx;
   const app = await buildApp(ctx);
   await app.listen({ port: 0, host: '127.0.0.1' });
   const port = (app.server.address() as any).port;
   return {
-    cfg, db, queries: counter, ctx, clock, app, baseUrl: `http://127.0.0.1:${port}`,
+    cfg, db, queries: counter, ctx, demo, demoDb: demo?.ctx.db ?? db, clock, app, baseUrl: `http://127.0.0.1:${port}`,
     async close() {
       await app.close();
+      await demo?.stop();
       await db.close();
     },
   };

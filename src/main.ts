@@ -1,6 +1,7 @@
 import { buildApp } from './app.js';
 import { loadConfig } from './config.js';
 import { createCtx, OffsetClock } from './context.js';
+import { createMemoryDemoCtx } from './demo-ctx.js';
 import { createDbFromCandidates } from './db/db.js';
 import { migrate } from './db/migrate.js';
 import { startJobs } from './jobs/worker.js';
@@ -10,6 +11,10 @@ const cfg = loadConfig();
 const db = await createDbFromCandidates(cfg.databaseUrl);
 await migrate(db, (m) => console.log(`[migrate] ${m}`));
 const ctx = createCtx(cfg, db, new OffsetClock());
+// DEMO_DB=memory: the public web demo (/ari) gets its own context on an embedded in-process database.
+// If that cannot start, the demo stays on the shared database (one log line, the site starts either way).
+const demo = cfg.demoDb === 'memory' ? await createMemoryDemoCtx(cfg, ctx.clock) : null;
+if (demo) ctx.demoCtx = demo.ctx;
 const app = await buildApp(ctx);
 const stopJobs: () => Promise<void> = cfg.runJobs ? startJobs(ctx) : async () => {};
 
@@ -39,6 +44,7 @@ async function shutdown(sig: string) {
     console.error('[shutdown] error while draining', e?.message ?? e);
     code = 1;
   }
+  await demo?.stop().catch(() => {});
   await db.close().catch(() => {});
   process.exit(code);
 }

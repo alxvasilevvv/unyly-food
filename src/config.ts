@@ -40,6 +40,14 @@ export interface Config {
   refreshTokenTtlSec: number;
   runJobs: boolean;
   /**
+   * Where the public web demo (/ari) keeps its disposable guest data. 'shared': the main database.
+   * 'memory': an embedded Postgres inside this process (src/db/memory-db.ts), no network round trips;
+   * the data is gone on restart. Falls back to 'shared' when the embedded database cannot start.
+   */
+  demoDb: 'shared' | 'memory';
+  /** With demoDb 'memory': if the process uses more memory than this (MB, RSS) after start-up, the embedded database is closed and the shared one is used. */
+  demoDbMaxRssMb: number;
+  /**
    * Step-up confirmation: orders whose total is at or above the threshold for their currency need a
    * fresh passkey assertion on the confirmation page (only for users who have a passkey).
    * Thresholds are in the currency's minor unit. STEP_UP=off disables the check entirely.
@@ -119,6 +127,14 @@ function stepUpEnabled(): boolean {
   throw new Error(`STEP_UP must be on or off, got "${process.env.STEP_UP}"`);
 }
 
+/** DEMO_DB: shared (default) or memory. Anything else is a typo and refused. */
+function demoDbMode(): Config['demoDb'] {
+  const v = (process.env.DEMO_DB ?? '').trim().toLowerCase();
+  if (v === '' || v === 'shared') return 'shared';
+  if (v === 'memory') return 'memory';
+  throw new Error(`DEMO_DB must be shared or memory, got "${process.env.DEMO_DB}"`);
+}
+
 function stepUpThresholds(): Record<string, number> {
   const out: Record<string, number> = { ...DEFAULT_STEP_UP_THRESHOLDS };
   for (const cur of Object.keys(out)) out[cur] = num(`STEP_UP_THRESHOLD_${cur}`, out[cur], { int: true, positive: true });
@@ -157,6 +173,8 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     accessTokenTtlSec: num('ACCESS_TOKEN_TTL_SEC', 3600, { int: true, positive: true }),
     refreshTokenTtlSec: num('REFRESH_TOKEN_TTL_SEC', 30 * 24 * 3600, { int: true, positive: true }),
     runJobs: bool(process.env.RUN_JOBS, true),
+    demoDb: demoDbMode(),
+    demoDbMaxRssMb: num('DEMO_DB_MAX_RSS_MB', 900, { positive: true }),
     stepUp: { enabled: stepUpEnabled(), thresholds: stepUpThresholds() },
     grabpay: overrides.grabpay ?? loadGrabPayConfig(overrides.webOrigin ?? webOrigin, overrides.env ?? env),
     grabId: overrides.grabId ?? loadGrabIdConfig({ env: overrides.env ?? env, webOrigin: overrides.webOrigin ?? webOrigin }),
@@ -167,6 +185,8 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
   // Also checked here so that overrides (tests, CLI) cannot smuggle in an invalid value.
   if (!(MAIL_MODES as readonly string[]).includes(cfg.mail.mode)) throw new Error(`MAIL_MODE must be one of ${MAIL_MODES.join(', ')}`);
   if (!(Number.isFinite(cfg.demoTimeScale) && cfg.demoTimeScale > 0)) throw new Error('DEMO_TIME_SCALE must be greater than 0');
+  if (cfg.demoDb !== 'shared' && cfg.demoDb !== 'memory') throw new Error('DEMO_DB must be shared or memory');
+  if (!(Number.isFinite(cfg.demoDbMaxRssMb) && cfg.demoDbMaxRssMb > 0)) throw new Error('DEMO_DB_MAX_RSS_MB must be greater than 0');
   for (const [cur, v] of Object.entries(cfg.stepUp.thresholds)) {
     if (!(Number.isSafeInteger(v) && v > 0)) throw new Error(`STEP_UP_THRESHOLD_${cur} must be a positive integer in minor units`);
   }

@@ -1244,7 +1244,7 @@ ${await grabAccountSection(ctx, r, csrfField(r.s), req.query)}
   }
 
   registerAriPages(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });
-  registerAriDemo(app, ctx, (req) => detectLocale(req, null));
+  registerAriDemo(app, ctx.demoCtx ?? ctx, (req) => detectLocale(req, null));
   registerShowcase(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });
   registerDocsRoutes(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });
   registerGrabIdRoutes(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });

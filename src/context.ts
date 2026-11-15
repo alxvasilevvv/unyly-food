@@ -35,6 +35,11 @@ export interface Ctx {
   providers: Providers;
   mailer: Mailer;
   provider(mode: Mode): Provider;
+  /**
+   * Set when DEMO_DB=memory: a second context on the embedded in-process database, used by the public web demo
+   * (/ari) only. Same config and clock, its own db and providers. Everything else keeps using this context.
+   */
+  demoCtx?: Ctx;
 }
 
 /** Who is acting. user_id always comes from an authenticated session or token, never from tool arguments. */
