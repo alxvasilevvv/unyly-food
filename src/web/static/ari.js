@@ -252,6 +252,8 @@
   }
 
   function fillOrder(c, card) {
+    // The card is rebuilt on every poll: keep keyboard focus inside it if it was there.
+    const hadFocus = c.contains(document.activeElement);
     c.textContent = '';
     c.className = `ari-card${card.status && card.status.is_final ? ' final' : ''}${card.status && /cancel|fail/.test(card.status.code) ? ' cancelled' : ''}`;
     c.append(el('h4', '', card.title));
@@ -283,7 +285,7 @@
       const cv = el('span', 'cv');
       cv.appendChild(svg(card.service === 'ride' ? 'car' : 'bike'));
       const info = el('div');
-      info.append(el('b', '', `${card.courier.name} · ★ ${card.courier.rating}`), el('br'), document.createTextNode(card.courier.vehicle));
+      info.append(el('b', '', `${card.courier.name} · ★ ${card.courier.rating}`), el('br'), document.createTextNode(card.courier.vehicle));
       cr.append(cv, info, el('span', 'plate', card.courier.plate));
       c.append(cr);
     }
@@ -300,6 +302,7 @@
       c.append(b);
     }
     if (card.footnote) c.append(el('div', 'ac-foot', card.footnote));
+    if (hadFocus) focusCard(c);
     updateIsland(card);
   }
 
@@ -489,6 +492,7 @@
       overlay(call, false);
       try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
       if (before && before !== document.body && before.isConnected && !before.disabled) before.focus({ preventScroll: true });
+      else if (liveCard && orderCards.get(liveCard.id)) focusCard(orderCards.get(liveCard.id));
     };
     call.onkeydown = (e) => { if (e.key === 'Escape') hang(); };
     $('call-no').onclick = hang;
