@@ -250,13 +250,10 @@ describe('Example chips and suggestions work in every language', () => {
 describe('The /ari API refuses malformed input in plain words', () => {
   const raw = (url: string, payload: string) => h.app.inject({ method: 'POST', url, headers: H(), payload, remoteAddress: ip() });
 
-  it('a field of the wrong type is a 400 in the usual envelope, never a 500', async () => {
+  it('an id or tool name of the wrong type is a 400 in the usual envelope, never a 500', async () => {
     await start('en');
     const deep = `${'['.repeat(5000)}${']'.repeat(5000)}`;
     const cases: [string, string][] = [
-      ['/ari/api/message', '{"text":{"toString":1}}'],
-      ['/ari/api/message', `{"text":${deep}}`],
-      ['/ari/api/message', '{"text":42}'],
       ['/ari/api/action', '{"tool":{"toString":1},"arguments":{}}'],
       ['/ari/api/action', `{"tool":${deep}}`],
       ['/ari/api/confirm', '{"checkout_id":{"toString":1},"confirm_hash":"x"}'],
@@ -275,8 +272,12 @@ describe('The /ari API refuses malformed input in plain words', () => {
     // A body that is not an object, and an action whose arguments are a list.
     expect((await raw('/ari/api/message', '"hello"')).statusCode).toBeLessThan(500);
     expect((await raw('/ari/api/action', '{"tool":"search_stores","arguments":[1,2]}')).statusCode).toBeLessThan(500);
-    // A missing text is an empty message: Ari greets.
-    expect((await post('/ari/api/message?lang=en', {})).reply).toMatch(/^Hi!/);
+    // A message that is missing or not text is an empty message: Ari greets (200), nothing is coerced.
+    for (const payload of ['{}', '{"text":{"toString":1}}', `{"text":${deep}}`, '{"text":42}', '{"text":["order","pad thai"]}']) {
+      const r = await raw('/ari/api/message?lang=en', payload);
+      expect(r.statusCode, payload.slice(0, 40)).toBe(200);
+      expect((r.json() as any).reply, payload.slice(0, 40)).toMatch(/^Hi!/);
+    }
   });
 
   it('a hand-made action shows a human line in the chat language, not developer text', async () => {

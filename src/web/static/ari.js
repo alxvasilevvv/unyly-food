@@ -493,6 +493,7 @@
     sheet.className = 'ari-sheet';
     overlay(sheet, false);
   };
+  // Resolves when Face ID is accepted (the green tick), so the order is sent while the sheet closes.
   const faceId = () => new Promise((ok) => {
     // The sheet of a chat that was reset must not touch the sheet of the next one.
     const g = gen;
@@ -505,9 +506,9 @@
       if (g !== gen) { ok(); return; }
       sheet.className = 'ari-sheet ok';
       if (sheetLabel) sheetLabel.textContent = S.faceid;
+      ok();
       setTimeout(() => {
         if (g === gen) closeSheet();
-        ok();
       }, 650);
     }, 1150);
   });
@@ -516,14 +517,17 @@
     if (busy) return;
     setBusy(true);
     const g = gen;
+    let dots = null;
     node.querySelectorAll('button').forEach((b) => (b.disabled = true));
     try {
       // The app may always ask for Face ID; it must when the card says biometric.
       await faceId();
       if (g !== gen) return;
       loading(btn, true);
+      dots = typing();
       const r = await api('POST', withLang('/ari/api/confirm'), { checkout_id: card.id, confirm_hash: action.endpoint.body.confirm_hash, user_verification: 'biometric' });
       if (g !== gen) return;
+      dots.remove();
       addTrace(r.trace);
       markDone(node, S.confirmed, true);
       say('ari', r.reply);
@@ -543,6 +547,7 @@
       say('ari', errText(e));
       node.querySelectorAll('button').forEach((b) => (b.disabled = false));
     } finally {
+      if (dots) dots.remove();
       loading(btn, false);
       if (g === gen) setBusy(false);
     }

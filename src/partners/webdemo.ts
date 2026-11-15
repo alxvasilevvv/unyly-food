@@ -940,7 +940,9 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     try {
       guard(req);
       const u = await current(req);
-      const text = field(req.body, 'text');
+      // A message that is not text is an empty message (Ari greets); it is never coerced: String() of a crafted object throws.
+      const t0 = (req.body as any)?.text;
+      const text = typeof t0 === 'string' ? t0 : '';
       return send(reply, { ok: true, ...(await ariRespond(ctx, u, text)) });
     } catch (e) {
       return fail(reply, e, req);

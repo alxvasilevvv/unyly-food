@@ -2,7 +2,7 @@
  {
   "en": "\"{place}\" is outside the demo area: rides and parcels here run within Bangkok only. Try one of these:",
   "where": [
-   "src/partners/webdemo.ts:785"
+   "src/partners/webdemo.ts:786"
   ]
  },
  {
@@ -116,13 +116,13 @@
  {
   "en": "{n} seat",
   "where": [
-   "src/partners/cards.ts:160"
+   "src/partners/cards.ts:165"
   ]
  },
  {
   "en": "{n} seats",
   "where": [
-   "src/partners/cards.ts:161"
+   "src/partners/cards.ts:166"
   ]
  },
  {
@@ -853,7 +853,7 @@
  {
   "en": "Bangkok has two airports. Which one?",
   "where": [
-   "src/partners/webdemo.ts:782"
+   "src/partners/webdemo.ts:783"
   ]
  },
  {
@@ -1045,13 +1045,13 @@
  {
   "en": "Cancel this order?",
   "where": [
-   "src/partners/core.ts:457"
+   "src/partners/core.ts:459"
   ]
  },
  {
   "en": "Cancellation fee",
   "where": [
-   "src/partners/core.ts:458",
+   "src/partners/core.ts:460",
    "src/web/messages.ts:431"
   ]
  },
@@ -1071,7 +1071,7 @@
  {
   "en": "Cancelled.",
   "where": [
-   "src/partners/webdemo.ts:1052"
+   "src/partners/webdemo.ts:1062"
   ]
  },
  {
@@ -1193,13 +1193,13 @@
  {
   "en": "Choose a courier",
   "where": [
-   "src/partners/core.ts:128"
+   "src/partners/core.ts:130"
   ]
  },
  {
   "en": "Choose a ride",
   "where": [
-   "src/partners/core.ts:128"
+   "src/partners/core.ts:130"
   ]
  },
  {
@@ -1235,7 +1235,7 @@
  {
   "en": "Closed right now",
   "where": [
-   "src/partners/cards.ts:190"
+   "src/partners/cards.ts:195"
   ]
  },
  {
@@ -1543,7 +1543,7 @@
  {
   "en": "Courier and plate are fictional in the demo.",
   "where": [
-   "src/partners/core.ts:427"
+   "src/partners/core.ts:429"
   ]
  },
  {
@@ -1992,7 +1992,7 @@
  {
   "en": "Does not fit",
   "where": [
-   "src/partners/core.ts:119"
+   "src/partners/core.ts:121"
   ]
  },
  {
@@ -2010,7 +2010,7 @@
  {
   "en": "Done! I'll keep you posted and call you when it matters.",
   "where": [
-   "src/partners/webdemo.ts:979"
+   "src/partners/webdemo.ts:989"
   ]
  },
  {
@@ -2060,7 +2060,7 @@
  {
   "en": "Driver and plate are fictional in the demo.",
   "where": [
-   "src/partners/core.ts:426"
+   "src/partners/core.ts:428"
   ]
  },
  {
@@ -2159,7 +2159,7 @@
  {
   "en": "ETA",
   "where": [
-   "src/partners/core.ts:253",
+   "src/partners/core.ts:255",
    "src/web/ari-pages.ts:208"
   ]
  },
@@ -2232,7 +2232,7 @@
  {
   "en": "Excluded allergens not declared",
   "where": [
-   "src/partners/core.ts:56",
+   "src/partners/core.ts:58",
    "src/partners/webdemo.ts:619"
   ]
  },
@@ -2312,7 +2312,7 @@
  {
   "en": "Finish in Grab",
   "where": [
-   "src/partners/core.ts:182"
+   "src/partners/core.ts:184"
   ]
  },
  {
@@ -2437,7 +2437,7 @@
  {
   "en": "Free cancellation (demo).",
   "where": [
-   "src/partners/cards.ts:194"
+   "src/partners/cards.ts:199"
   ]
  },
  {
@@ -3020,7 +3020,7 @@
  {
   "en": "Here are the cancellation terms:",
   "where": [
-   "src/partners/webdemo.ts:1034"
+   "src/partners/webdemo.ts:1044"
   ]
  },
  {
@@ -3038,7 +3038,7 @@
  {
   "en": "Here is everything with the final price. Tap Confirm when you are ready.",
   "where": [
-   "src/partners/webdemo.ts:953"
+   "src/partners/webdemo.ts:963"
   ]
  },
  {
@@ -3056,7 +3056,7 @@
  {
   "en": "Hi, I'm Ari. Tell me what you need from Grab and I'll take care of it. Nothing is ordered until you confirm.",
   "where": [
-   "src/partners/webdemo.ts:922"
+   "src/partners/webdemo.ts:932"
   ]
  },
  {
@@ -3087,7 +3087,7 @@
   "en": "Home",
   "where": [
    "src/partners/webdemo.ts:516",
-   "src/partners/webdemo.ts:858",
+   "src/partners/webdemo.ts:868",
    "src/web/messages.ts:339"
   ]
  },
@@ -3249,7 +3249,7 @@
  {
   "en": "I can't find that order or card any more. Please ask me again.",
   "where": [
-   "src/partners/webdemo.ts:807"
+   "src/partners/webdemo.ts:809"
   ]
  },
  {
@@ -3267,13 +3267,13 @@
  {
   "en": "I could not find \"{place}\" on the Bangkok demo map. Try one of these:",
   "where": [
-   "src/partners/webdemo.ts:787"
+   "src/partners/webdemo.ts:788"
   ]
  },
  {
   "en": "I could not find that place on the Bangkok demo map. Try one of these:",
   "where": [
-   "src/partners/webdemo.ts:788"
+   "src/partners/webdemo.ts:789"
   ]
  },
  {
@@ -3539,7 +3539,7 @@
  {
   "en": "kg",
   "where": [
-   "src/partners/core.ts:236"
+   "src/partners/core.ts:238"
   ]
  },
  {
@@ -3970,7 +3970,7 @@
  {
   "en": "Needs a change before ordering",
   "where": [
-   "src/partners/core.ts:161"
+   "src/partners/core.ts:163"
   ]
  },
  {
@@ -4151,7 +4151,7 @@
  {
   "en": "No problem, nothing was ordered.",
   "where": [
-   "src/partners/webdemo.ts:994"
+   "src/partners/webdemo.ts:1004"
   ]
  },
  {
@@ -4213,8 +4213,8 @@
  {
   "en": "Not available right now",
   "where": [
-   "src/partners/core.ts:66",
-   "src/partners/core.ts:84"
+   "src/partners/core.ts:68",
+   "src/partners/core.ts:86"
   ]
  },
  {
@@ -5405,7 +5405,7 @@
  {
   "en": "Restaurants for you",
   "where": [
-   "src/partners/core.ts:100"
+   "src/partners/core.ts:102"
   ]
  },
  {
@@ -5638,13 +5638,13 @@
  {
   "en": "Seats {seats} only",
   "where": [
-   "src/partners/core.ts:115"
+   "src/partners/core.ts:117"
   ]
  },
  {
   "en": "Seats {seats}, passengers {passengers}",
   "where": [
-   "src/partners/cards.ts:192"
+   "src/partners/cards.ts:197"
   ]
  },
  {
@@ -5814,7 +5814,7 @@
  {
   "en": "Shops near you",
   "where": [
-   "src/partners/core.ts:100"
+   "src/partners/core.ts:102"
   ]
  },
  {
@@ -5986,7 +5986,7 @@
  {
   "en": "Something went wrong. Please try again.",
   "where": [
-   "src/partners/webdemo.ts:796",
+   "src/partners/webdemo.ts:798",
    "src/web/ari-pages.ts:211"
   ]
  },
@@ -6330,7 +6330,7 @@
  {
   "en": "That did not go through and nothing was ordered. Please try again.",
   "where": [
-   "src/partners/webdemo.ts:811"
+   "src/partners/webdemo.ts:813"
   ]
  },
  {
@@ -6414,7 +6414,7 @@
  {
   "en": "The cancellation did not go through; the order continues.",
   "where": [
-   "src/partners/webdemo.ts:1053"
+   "src/partners/webdemo.ts:1063"
   ]
  },
  {
@@ -6462,7 +6462,7 @@
  {
   "en": "The courier is on the way: {fee} THB cancellation fee (demo, not charged).",
   "where": [
-   "src/partners/cards.ts:199"
+   "src/partners/cards.ts:204"
   ]
  },
  {
@@ -6480,7 +6480,7 @@
  {
   "en": "The demo is busy right now. Please try again in a few minutes.",
   "where": [
-   "src/partners/webdemo.ts:809"
+   "src/partners/webdemo.ts:811"
   ]
  },
  {
@@ -6498,7 +6498,7 @@
  {
   "en": "The demo session ended. Start again.",
   "where": [
-   "src/partners/webdemo.ts:808"
+   "src/partners/webdemo.ts:810"
   ]
  },
  {
@@ -6510,7 +6510,7 @@
  {
   "en": "The driver is on the way: {fee} THB cancellation fee (demo, not charged).",
   "where": [
-   "src/partners/cards.ts:198"
+   "src/partners/cards.ts:203"
   ]
  },
  {
@@ -6582,7 +6582,7 @@
  {
   "en": "The order is being prepared: 50% cancellation fee (demo, not charged).",
   "where": [
-   "src/partners/cards.ts:201"
+   "src/partners/cards.ts:206"
   ]
  },
  {
@@ -6750,13 +6750,13 @@
  {
   "en": "This card has expired and nothing was ordered. Ask me again for a fresh price.",
   "where": [
-   "src/partners/webdemo.ts:805"
+   "src/partners/webdemo.ts:807"
   ]
  },
  {
   "en": "This card is out of date: the order changed after it was shown, so nothing was ordered. Please use the newest card.",
   "where": [
-   "src/partners/webdemo.ts:804"
+   "src/partners/webdemo.ts:806"
   ]
  },
  {
@@ -6816,8 +6816,8 @@
  {
   "en": "This order can no longer be cancelled.",
   "where": [
-   "src/partners/cards.ts:189",
-   "src/partners/webdemo.ts:806"
+   "src/partners/cards.ts:194",
+   "src/partners/webdemo.ts:808"
   ]
  },
  {
@@ -6835,7 +6835,7 @@
  {
   "en": "This total needs Face ID or the device passcode before I can place the order.",
   "where": [
-   "src/partners/webdemo.ts:810"
+   "src/partners/webdemo.ts:812"
   ]
  },
  {
@@ -7151,7 +7151,7 @@
  {
   "en": "Up to {kg} kg only",
   "where": [
-   "src/partners/core.ts:111"
+   "src/partners/core.ts:113"
   ]
  },
  {
@@ -7527,7 +7527,7 @@
  {
   "en": "Which one do you mean?",
   "where": [
-   "src/partners/webdemo.ts:783",
+   "src/partners/webdemo.ts:784",
    "src/web/showcase.ts:395"
   ]
  },
@@ -7584,7 +7584,7 @@
  {
   "en": "Within budget",
   "where": [
-   "src/partners/core.ts:53",
+   "src/partners/core.ts:55",
    "src/partners/webdemo.ts:618"
   ]
  },
@@ -7663,7 +7663,7 @@
  {
   "en": "You declined this order earlier, so nothing was ordered. Ask me again and I will prepare a fresh card.",
   "where": [
-   "src/partners/webdemo.ts:803"
+   "src/partners/webdemo.ts:805"
   ]
  },
  {
