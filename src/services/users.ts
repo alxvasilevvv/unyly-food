@@ -1,5 +1,5 @@
 import type { Locale } from '../domain/locales.js';
-import type { Ctx } from '../context.js';
+import type { Actor, Ctx } from '../context.js';
 import { audit } from '../context.js';
 import type { Queryable } from '../db/db.js';
 import { sha256, stableJson } from '../domain/crypto.js';
@@ -27,6 +27,44 @@ export async function getUser(q: Queryable, id: string): Promise<UserRow> {
   const r = await q.query<UserRow>('SELECT * FROM users WHERE id = $1 AND deleted_at IS NULL', [id]);
   if (!r.rows[0]) throw new DomainError('AUTH_REQUIRED', 'Account not found or deleted');
   return r.rows[0];
+}
+
+// ---------------- Per-call read memo ----------------
+// One tool call reads the same user row and address list several times. While a call is running
+// (beginActorMemo .. endActorMemo, see the tool wrapper in src/mcp/tools.ts) those two plain, unlocked
+// reads are done once and shared. Outside a call nothing is remembered: every read goes to the database.
+// Reads inside transactions and locked reads are never memoized.
+interface ActorMemo { user?: UserRow; addresses?: AddressRow[] }
+const memos = new WeakMap<Actor, ActorMemo>();
+
+/** Start of a call. `seed`: rows the caller read for this same request. */
+export function beginActorMemo(actor: Actor, seed: ActorMemo = {}) {
+  memos.set(actor, { ...seed });
+}
+
+/** End of a call: nothing read during it is reused afterwards. */
+export function endActorMemo(actor: Actor) {
+  memos.delete(actor);
+}
+
+/** After this call wrote an address. */
+export function forgetActorAddresses(actor: Actor) {
+  const m = memos.get(actor);
+  if (m) m.addresses = undefined;
+}
+
+/** The acting user's row: read once per call, or on every use outside a call. */
+export async function actorUser(ctx: Ctx, actor: Actor): Promise<UserRow> {
+  const m = memos.get(actor);
+  if (!m) return getUser(ctx.db, actor.userId);
+  return (m.user ??= await getUser(ctx.db, actor.userId));
+}
+
+/** The acting user's saved addresses (default first): read once per call, or on every use outside a call. */
+export async function actorAddresses(ctx: Ctx, actor: Actor): Promise<AddressRow[]> {
+  const m = memos.get(actor);
+  if (!m) return listAddresses(ctx.db, actor.userId);
+  return (m.addresses ??= await listAddresses(ctx.db, actor.userId));
 }
 
 /**

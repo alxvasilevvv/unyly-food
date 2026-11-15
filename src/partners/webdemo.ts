@@ -54,7 +54,7 @@ async function traced<T>(trace: TraceEntry[], call: string, grab: string | null,
 const EXAMPLES: Record<'en' | 'ru' | 'th', string[]> = {
   en: ['Taxi from Siam Paragon to Suvarnabhumi airport', 'Dinner for two under 600 baht, no nuts', 'Send a 3 kg parcel to ICONSIAM', 'Red roses with a gift box', 'Paracetamol and plasters', 'Groceries: rice, eggs and water', 'Chocolate cake for a birthday'],
   ru: ['Такси от Сиам Парагона до аэропорта Суварнабхуми', 'Ужин на двоих до 600 бат, без орехов', 'Отправить посылку 3 кг в Айконсиам', 'Букет роз в подарочной коробке', 'Парацетамол и пластыри', 'Продукты: рис, яйца и вода', 'Шоколадный торт на день рождения'],
-  th: ['เรียกแท็กซี่จากสยามพารากอนไปสนามบินสุวรรณภูมิ', 'มื้อเย็นสำหรับ 2 คน ไม่เกิน 600 บาท ไม่ใส่ถั่ว', 'ส่งพัสดุ 3 กก ไปไอคอนสยาม', 'ช่อดอกกุหลาบพร้อมกล่องของขวัญ', 'พาราเซตามอลกับพลาสเตอร์', 'ของชำ ข้าวสาร ไข่ไก่ น้ำดื่ม', 'เค้กช็อกโกแลตวันเกิด'],
+  th: ['เรียกแท็กซี่จากสยามพารากอนไปสนามบินสุวรรณภูมิ', 'มื้อเย็นสำหรับ 2 คน ไม่เกิน 600 บาท ไม่ใส่ถั่ว', 'ส่งพัสดุ 3 กก. ไปไอคอนสยาม', 'ช่อดอกกุหลาบพร้อมกล่องของขวัญ', 'พาราเซตามอลกับพลาสเตอร์', 'ของชำ ข้าวสาร ไข่ไก่ น้ำดื่ม', 'เค้กช็อกโกแลตวันเกิด'],
 };
 export const ariExamples = (l: Locale) => (EXAMPLES as Record<string, string[]>)[l] ?? EXAMPLES.en;
 
@@ -67,7 +67,7 @@ const TRACK = /where(?: i|')s my|\b(?:order|delivery|ride) status\b|\btrack\b|ho
 const HELP_TEXT: Tri = {
   en: 'I can order any Grab service for you: a ride, food, groceries, flowers, pharmacy items, a cake or a parcel. Say it in your own words, pick an option, then confirm on the card. Nothing is ordered until you confirm.',
   ru: 'Я закажу любой сервис Grab: поездку, еду, продукты, цветы, товары из аптеки, торт или посылку. Скажите своими словами, выберите вариант и подтвердите на карточке. Без подтверждения ничего не заказывается.',
-  th: 'Ari สั่งบริการ Grab ได้ทุกอย่างค่ะ ทั้งเรียกรถ อาหาร ของชำ ดอกไม้ ร้านยา เค้ก หรือส่งพัสดุ พิมพ์บอกได้เลย เลือกตัวเลือก แล้วกดยืนยันบนการ์ด ไม่มีการสั่งจนกว่าคุณจะยืนยันค่ะ',
+  th: 'Ari สั่งบริการของ Grab ให้ได้ทุกอย่างค่ะ ทั้งเรียกรถ สั่งอาหาร ของชำ ดอกไม้ ยาสามัญ เค้ก หรือส่งพัสดุ บอก Ari ด้วยคำพูดของคุณเอง เลือกตัวเลือก แล้วแตะยืนยันบนการ์ด Ari จะยังไม่สั่งอะไรจนกว่าคุณจะยืนยันค่ะ',
 };
 
 /** "Where is my order" and "cancel my order" act on the latest order, like the buttons on its card. */
@@ -87,13 +87,13 @@ async function latestOrderTurn(ctx: Ctx, u: PartnerUser, l: Locale, cancel: bool
   }
   const card = await traced(trace, `GET ${base}/orders/${o.id}`, 'GrabExpress · GET /v1/deliveries/{id}', () => orderCard(ctx, P, u, o.id, { refresh: true }));
   if (!cancel) {
-    return { reply: t(l, { en: `Your latest order: ${card.status?.label ?? ''}.`, ru: `Ваш последний заказ: ${card.status?.label ?? ''}.`, th: `คำสั่งซื้อล่าสุด: ${card.status?.label ?? ''}` }), card, order_id: o.id, trace };
+    return { reply: t(l, { en: `Your latest order: ${card.status?.label ?? ''}.`, ru: `Ваш последний заказ: ${card.status?.label ?? ''}.`, th: `คำสั่งซื้อล่าสุด: ${card.status?.label ?? ''}ค่ะ` }), card, order_id: o.id, trace };
   }
   if (!card.actions.some((a) => a.kind === 'prepare_cancel')) {
     return { reply: t(l, { en: 'This order can no longer be cancelled.', ru: 'Этот заказ уже нельзя отменить.', th: 'คำสั่งซื้อนี้ยกเลิกไม่ได้แล้วค่ะ' }), card, order_id: o.id, trace };
   }
   const r = await traced(trace, `POST ${base}/orders/${o.id}/cancel`, null, () => prepareCancelPartner(ctx, P, u, o.id));
-  return { reply: t(l, { en: 'Here are the cancellation terms:', ru: 'Условия отмены:', th: 'เงื่อนไขการยกเลิก:' }), card: r.card, trace };
+  return { reply: t(l, { en: 'Here are the cancellation terms:', ru: 'Условия отмены:', th: 'นี่คือเงื่อนไขการยกเลิกค่ะ' }), card: r.card, trace };
 }
 
 interface TripAsk { service: string; pickup?: string; dropoff?: string; weight_kg?: number }
@@ -105,8 +105,8 @@ function placeChip(l: Locale, ask: TripAsk | undefined, field: string | undefine
   const kg = ask?.weight_kg;
   if (ask?.service === 'express') {
     return from
-      ? t(l, { en: `Send a ${kg ? `${kg} kg ` : ''}parcel from ${from} to ${to}`, ru: `Отправить посылку${kg ? ` ${kg} кг` : ''} от ${from} до ${to}`, th: `ส่งพัสดุ${kg ? ` ${kg} กก` : ''} จาก ${from} ไป ${to}` })
-      : t(l, { en: `Send a ${kg ? `${kg} kg ` : ''}parcel to ${to}`, ru: `Отправить посылку${kg ? ` ${kg} кг` : ''} в ${to}`, th: `ส่งพัสดุ${kg ? ` ${kg} กก` : ''} ไป ${to}` });
+      ? t(l, { en: `Send a ${kg ? `${kg} kg ` : ''}parcel from ${from} to ${to}`, ru: `Отправить посылку${kg ? ` ${kg} кг` : ''} от ${from} до ${to}`, th: `ส่งพัสดุ${kg ? ` ${kg} กก.` : ''} จาก ${from} ไป ${to}` })
+      : t(l, { en: `Send a ${kg ? `${kg} kg ` : ''}parcel to ${to}`, ru: `Отправить посылку${kg ? ` ${kg} кг` : ''} в ${to}`, th: `ส่งพัสดุ${kg ? ` ${kg} กก.` : ''} ไป ${to}` });
   }
   return from
     ? t(l, { en: `Taxi from ${from} to ${to}`, ru: `Такси от ${from} до ${to}`, th: `แท็กซี่จาก ${from} ไป ${to}` })
@@ -121,12 +121,12 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
   const q = text.replace(/\s+/g, ' ').trim().slice(0, 300);
   if (!q || (GREET.test(q) && q.split(' ').length <= 3)) {
     return {
-      reply: t(l, { en: 'Hi! I can order any Grab service for you: a ride, food, groceries, flowers, pharmacy or a parcel. What do you need?', ru: 'Здравствуйте! Я закажу любой сервис Grab: поездку, еду, продукты, цветы, аптеку или посылку. Что нужно?', th: 'สวัสดีค่ะ Ari สั่งบริการ Grab ได้ทุกอย่าง ทั้งเรียกรถ อาหาร ของชำ ดอกไม้ ร้านยา หรือส่งพัสดุ ให้ Ari ช่วยอะไรดีคะ' }),
+      reply: t(l, { en: 'Hi! I can order any Grab service for you: a ride, food, groceries, flowers, pharmacy or a parcel. What do you need?', ru: 'Здравствуйте! Я закажу любой сервис Grab: поездку, еду, продукты, цветы, товары из аптеки или посылку. Что нужно?', th: 'สวัสดีค่ะ Ari สั่งบริการของ Grab ให้ได้ทุกอย่าง ทั้งเรียกรถ สั่งอาหาร ของชำ ดอกไม้ ยาสามัญ หรือส่งพัสดุ ให้ Ari ช่วยอะไรดีคะ' }),
       chips: ariExamples(l).slice(0, 4), trace,
     };
   }
   if (THANKS.test(q) && q.length < 40) {
-    return { reply: t(l, { en: 'You are welcome! Anything else from Grab?', ru: 'Пожалуйста! Что-нибудь ещё из Grab?', th: 'ยินดีค่ะ ต้องการอะไรจาก Grab อีกไหมคะ' }), chips: ariExamples(l).slice(0, 3), trace };
+    return { reply: t(l, { en: 'You\'re welcome! Anything else from Grab?', ru: 'Пожалуйста! Заказать в Grab что-нибудь ещё?', th: 'ยินดีค่ะ ต้องการอะไรจาก Grab อีกไหมคะ' }), chips: ariExamples(l).slice(0, 3), trace };
   }
   if (HELP.test(q)) return { reply: t(l, HELP_TEXT), chips: ariExamples(l).slice(0, 4), trace };
   const si = detectService(q);
@@ -178,7 +178,7 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
       // Nothing in the sentence names a service or a meal: say what Ari can do instead of guessing restaurants.
       if (!hasFoodCue(q)) {
         return {
-          reply: t(l, { en: 'I did not catch which Grab service you need. I can book a ride, order food, groceries, flowers or pharmacy items, or send a parcel. Try one of these:', ru: 'Не поняла, какой сервис Grab нужен. Могу вызвать такси, заказать еду, продукты, цветы, товары из аптеки или отправить посылку. Например:', th: 'Ari ยังไม่แน่ใจว่าต้องการบริการไหนของ Grab ค่ะ เรียกรถ สั่งอาหาร ของชำ ดอกไม้ ร้านยา หรือส่งพัสดุได้เลย ลองแบบนี้ดูนะคะ' }),
+          reply: t(l, { en: 'I did not catch which Grab service you need. I can book a ride, order food, groceries, flowers or pharmacy items, or send a parcel. Try one of these:', ru: 'Не поняла, какой сервис Grab нужен. Могу вызвать такси, заказать еду, продукты, цветы, товары из аптеки или отправить посылку. Например:', th: 'Ari ยังไม่แน่ใจว่าคุณต้องการบริการไหนของ Grab ค่ะ Ari เรียกรถ สั่งอาหาร ของชำ ดอกไม้ ยาสามัญ หรือส่งพัสดุให้ได้ ลองแบบนี้ดูนะคะ' }),
           chips: ariExamples(l).slice(0, 4), trace,
         };
       }
@@ -196,14 +196,14 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
       const people = Number(args.party_size);
       const budget = args.budget_total_major ? ` ${t(l, { en: `under ฿${args.budget_total_major}`, ru: `до ${args.budget_total_major} бат`, th: `ไม่เกิน ${args.budget_total_major} บาท` })}` : '';
       const allergy = intent.exclude_allergens.length
-        ? t(l, { en: ' Restaurants did not declare the allergens you excluded, but I never mark a dish as safe.', ru: ' Рестораны не заявили исключённые аллергены, но я никогда не называю блюдо безопасным.', th: ' ร้านไม่ได้ระบุสารก่อภูมิแพ้ที่คุณยกเว้น แต่ Ari จะไม่รับรองว่าปลอดภัย' })
+        ? t(l, { en: ' Restaurants did not declare the allergens you excluded, but I never mark a dish as safe.', ru: ' Рестораны не заявили исключённые аллергены, но я никогда не называю блюдо безопасным.', th: ' ร้านไม่ได้ระบุว่ามีสารก่อภูมิแพ้ที่คุณยกเว้น แต่ Ari ไม่รับรองว่าเมนูใดปลอดภัยนะคะ' })
         : '';
       const fits = (r.result?.stores ?? []).some((s: any) => s.suggestion?.within_budget === true);
       const reply = n && args.budget_total_major && !fits
-        ? t(l, { en: `Nothing fits ฿${args.budget_total_major} for ${people}. These are the closest options:`, ru: `В ${args.budget_total_major} бат на ${people} чел. уложиться не получится. Вот самые близкие варианты:`, th: `ยังไม่มีร้านที่อยู่ในงบ ${args.budget_total_major} บาทสำหรับ ${people} คนค่ะ นี่คือตัวเลือกที่ใกล้เคียงที่สุด` })
+        ? t(l, { en: `Nothing fits ฿${args.budget_total_major} for ${people}. These are the closest options:`, ru: `В ${args.budget_total_major} бат на ${people} чел. уложиться не получится. Вот самые близкие варианты:`, th: `ยังไม่มีร้านที่อยู่ในงบ ${args.budget_total_major} บาทสำหรับ ${people} คนค่ะ นี่คือตัวเลือกที่ใกล้เคียงที่สุดค่ะ` })
         : n
         ? t(l, { en: `${n} ${n === 1 ? 'option' : 'options'} for ${people}${budget}.${allergy} Tap one:`, ru: `Вариантов: ${n} (на ${people} чел.${budget}).${allergy} Выберите:`, th: `${n} ตัวเลือกสำหรับ ${people} คน${budget}${allergy} เลือกได้เลยค่ะ` })
-        : t(l, { en: 'Nothing matches right now. Try a bigger budget or fewer restrictions.', ru: 'Сейчас ничего не подходит. Попробуйте увеличить бюджет или убрать ограничения.', th: 'ยังไม่มีร้านที่ตรง ลองเพิ่มงบหรือลดเงื่อนไขค่ะ' });
+        : t(l, { en: 'Nothing matches right now. Try a bigger budget or fewer restrictions.', ru: 'Сейчас ничего не подходит. Попробуйте увеличить бюджет или убрать ограничения.', th: 'ตอนนี้ยังไม่มีร้านที่ตรงกับเงื่อนไขค่ะ ลองเพิ่มงบหรือลดเงื่อนไขดูนะคะ' });
       // No selectable restaurant: a card of greyed-out rows would only confuse.
       return { reply, card: n ? r.card : null, chips: n ? undefined : ariExamples(l).slice(1, 2), trace };
     }
@@ -215,7 +215,7 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
     if (!r.ok) return errorTurn(l, r.error, trace);
     const names = plan.lines.map((x) => x.name).join(', ');
     return {
-      reply: t(l, { en: `${plan.store_name}: ${names}. Here is the total with every fee. Confirm when ready.`, ru: `${plan.store_name}: ${names}. Вот итог со всеми сборами. Подтвердите, когда будете готовы.`, th: `${plan.store_name}: ${names} นี่คือยอดรวมพร้อมค่าธรรมเนียมทั้งหมด กดยืนยันเมื่อพร้อมค่ะ` }),
+      reply: t(l, { en: `${plan.store_name}: ${names}. Here is the total with every fee. Confirm when ready.`, ru: `${plan.store_name}: ${names}. Вот итог со всеми сборами. Подтвердите, когда будете готовы.`, th: `${plan.store_name}: ${names} นี่คือยอดรวมที่รวมค่าธรรมเนียมทุกรายการแล้ว แตะยืนยันเมื่อพร้อมนะคะ` }),
       card: r.card, trace,
     };
   } catch (e) {
@@ -231,7 +231,7 @@ function errorTurn(l: Locale, err: any, trace: TraceEntry[], ask?: TripAsk): Ari
     return {
       reply: code === 'PLACE_AMBIGUOUS'
         ? t(l, { en: 'Which one do you mean?', ru: 'Какое место вы имеете в виду?', th: 'หมายถึงที่ไหนคะ' })
-        : t(l, { en: 'I could not find that place on the Bangkok demo map. Try one of these:', ru: 'Не нашла это место на демо-карте Бангкока. Например:', th: 'ไม่พบสถานที่นี้บนแผนที่เดโมกรุงเทพฯ ลองเลือกจากนี้ค่ะ' }),
+        : t(l, { en: 'I could not find that place on the Bangkok demo map. Try one of these:', ru: 'Не нашла это место на демо-карте Бангкока. Например:', th: 'Ari หาสถานที่นี้บนแผนที่เดโมของกรุงเทพฯ ไม่พบค่ะ ลองเลือกจากรายการนี้นะคะ' }),
       chips: sug.map((s) => placeChip(l, ask, err.details?.field, s)), trace,
     };
   }
@@ -311,7 +311,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       }
       return send(reply, {
         ok: true, user: { id: u.external_user_id }, grab: await grabLinkStatus(ctx, u), examples: ariExamples(l), last_event: await lastPartnerEventSeq(ctx, u.user_id),
-        greeting: tr(l, { en: 'Hi, I\'m Ari. Tell me what you need from Grab and I\'ll take care of it. Nothing is ordered until you confirm.', ru: 'Здравствуйте, я Ari. Скажите, что нужно от Grab, и я всё сделаю. Ничего не заказывается без вашего подтверждения.', th: 'สวัสดีค่ะ Ari เองค่ะ บอกได้เลยว่าต้องการอะไรจาก Grab ไม่มีการสั่งจนกว่าคุณจะยืนยันค่ะ' }),
+        greeting: tr(l, { en: 'Hi, I\'m Ari. Tell me what you need from Grab and I\'ll take care of it. Nothing is ordered until you confirm.', ru: 'Здравствуйте, я Ari. Скажите, что нужно от Grab, и я всё сделаю. Ничего не заказывается без вашего подтверждения.', th: 'สวัสดีค่ะ Ari เองค่ะ บอกได้เลยว่าต้องการอะไรจาก Grab เดี๋ยว Ari จัดการให้ และจะยังไม่สั่งอะไรจนกว่าคุณจะยืนยันค่ะ' }),
       });
     } catch (e) {
       return fail(reply, e);
@@ -342,7 +342,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       if (!r.ok) return send(reply, { ok: true, ...errorTurn(cardLocale(u.locale), r.error, trace) });
       const l = cardLocale(u.locale);
       const reply2 = r.card?.type === 'checkout'
-        ? tr(l, { en: 'Here is everything with the final price. Tap Confirm when you are ready.', ru: 'Вот всё с итоговой ценой. Нажмите «Подтвердить», когда будете готовы.', th: 'นี่คือรายละเอียดพร้อมราคาสุดท้าย กดยืนยันเมื่อพร้อมค่ะ' })
+        ? tr(l, { en: 'Here is everything with the final price. Tap Confirm when you are ready.', ru: 'Вот всё с итоговой ценой. Нажмите «Подтвердить», когда будете готовы.', th: 'นี่คือรายละเอียดทั้งหมดพร้อมราคาสุทธิ แตะยืนยันเมื่อพร้อมนะคะ' })
         : '';
       return send(reply, { ok: true, reply: reply2, card: r.card, trace });
     } catch (e) {
@@ -366,7 +366,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const l = cardLocale(u.locale);
       return send(reply, {
         ok: true,
-        reply: tr(l, { en: 'Done! I\'ll keep you posted and call you when it matters.', ru: 'Готово! Я буду сообщать о статусе и позвоню, когда это важно.', th: 'เรียบร้อยค่ะ Ari จะแจ้งสถานะและโทรหาเมื่อถึงเวลาสำคัญ' }),
+        reply: tr(l, { en: 'Done! I\'ll keep you posted and call you when it matters.', ru: 'Готово! Буду сообщать о статусе и позвоню, когда будет важно.', th: 'เรียบร้อยค่ะ Ari จะคอยแจ้งสถานะ และโทรหาเมื่อถึงจังหวะสำคัญนะคะ' }),
         card: r.order?.card ?? null, order_id: r.order?.id ?? null, trace,
       });
     } catch (e) {
@@ -381,7 +381,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const id = String((req.body as any)?.checkout_id ?? '');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Checkout not found');
       await declineCheckoutPartner(ctx, P, u, id);
-      return send(reply, { ok: true, reply: tr(cardLocale(u.locale),{ en: 'No problem, nothing was ordered.', ru: 'Хорошо, ничего не заказано.', th: 'ได้ค่ะ ไม่มีการสั่งซื้อ' }), card: await checkoutCard(ctx, P, u, id) });
+      return send(reply, { ok: true, reply: tr(cardLocale(u.locale),{ en: 'No problem, nothing was ordered.', ru: 'Хорошо, ничего не заказано.', th: 'ได้ค่ะ ยังไม่ได้สั่งอะไรนะคะ' }), card: await checkoutCard(ctx, P, u, id) });
     } catch (e) {
       return fail(reply, e);
     }
@@ -417,7 +417,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const id = String((req.body as any)?.order_id ?? '');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Order not found');
       const r = await prepareCancelPartner(ctx, P, u, id);
-      return send(reply, { ok: true, reply: tr(cardLocale(u.locale),{ en: 'Here are the cancellation terms:', ru: 'Условия отмены:', th: 'เงื่อนไขการยกเลิก:' }), card: r.card });
+      return send(reply, { ok: true, reply: tr(cardLocale(u.locale),{ en: 'Here are the cancellation terms:', ru: 'Условия отмены:', th: 'นี่คือเงื่อนไขการยกเลิกค่ะ' }), card: r.card });
     } catch (e) {
       return fail(reply, e);
     }

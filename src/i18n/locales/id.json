@@ -932,6 +932,7 @@
  "GrabExpress, Login with Grab and GrabPay on staging keys; run Grab's full happy and unhappy test suite; security review by Grab.": "GrabExpress, Login with Grab, dan GrabPay dengan kunci staging; menjalankan seluruh rangkaian tes happy dan unhappy dari Grab; tinjauan keamanan oleh Grab.",
  "GrabID client for Login with Grab (openid, profile.read, phone)": "Klien GrabID untuk Login with Grab (openid, profile.read, phone)",
  "GrabID, GrabPay, pricing, brand and fulfilment remain Grab's. Ari is a front door, not a reseller.": "GrabID, GrabPay, harga, merek, dan pemenuhan pesanan tetap milik Grab. Ari adalah pintu masuk, bukan reseller.",
+ "GrabID, GrabPay, pricing, brand and fulfillment remain Grab's. Ari is a front door, not a reseller.": "GrabID, GrabPay, harga, merek, dan pemenuhan pesanan tetap milik Grab. Ari adalah pintu masuk, bukan reseller.",
  "GrabPay merchant (One-time Charge now, Tokenisation in SG/MY/PH next)": "Merchant GrabPay (One-time Charge sekarang, Tokenisation di SG/MY/PH berikutnya)",
  "GrabPay One-time Charge with HMAC and proof-of-possession, automatic idempotent refunds.": "GrabPay One-time Charge dengan HMAC dan proof-of-possession, refund otomatis yang idempoten.",
  "Groceries, flowers, pharmacy and cakes from one sentence, with required options and limits respected.": "Belanjaan, bunga, obat, dan kue dari satu kalimat, dengan opsi wajib dan batasan yang dipatuhi.",
@@ -1055,6 +1056,7 @@
  "To order, an Ari user links a Grab account and pays with GrabPay. Grab keeps the customer.": "Untuk memesan, pengguna Ari menautkan akun Grab dan membayar dengan GrabPay. Pelanggan tetap di Grab.",
  "Today": "Saat ini",
  "Tokenised charges for orders Ari books as the merchant (Tokenisation does not pay for orders placed in the Grab app).": "Penagihan bertoken untuk pesanan yang dibuat Ari sebagai merchant (Tokenisation tidak membayar pesanan yang dibuat di aplikasi Grab).",
+ "Tokenized charges for orders Ari books as the merchant (Tokenisation does not pay for orders placed in the Grab app).": "Penagihan bertoken untuk pesanan yang dibuat Ari sebagai merchant (Tokenisation tidak membayar pesanan yang dibuat di aplikasi Grab).",
  "Tool definitions and system instructions for your LLM": "Definisi tool dan instruksi sistem untuk LLM-mu",
  "Toyota Corolla Altis, silver": "Toyota Corolla Altis, perak",
  "Trips run at demo speed: a whole ride takes about two minutes.": "Perjalanan berlangsung dengan kecepatan demo: satu perjalanan penuh sekitar dua menit.",
@@ -1102,5 +1104,6 @@
  "Where should I pick you up? For example \"from Siam Paragon\".": "Kamu mau dijemput di mana? Misalnya \"dari Siam Paragon\".",
  "Where should the courier pick the parcel up? For example \"from Siam Paragon\".": "Kurir mengambil paketnya di mana? Misalnya \"dari Siam Paragon\".",
  "You are welcome! Anything else from Grab?": "Sama-sama! Ada lagi yang kamu butuhkan dari Grab?",
+ "You're welcome! Anything else from Grab?": "Sama-sama! Ada lagi yang kamu butuhkan dari Grab?",
  "You have no orders yet. What would you like from Grab?": "Kamu belum punya pesanan. Mau pesan apa dari Grab?"
 }

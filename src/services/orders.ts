@@ -73,25 +73,30 @@ export function describeOrder(o: OrderRow, locale: Locale = 'en') {
  * provider sequence; terminal states are never left.
  */
 export async function applyEvent(q: Queryable, provider: string, ev: ProviderEvent): Promise<'applied' | 'stale' | 'order_unknown'> {
+  return (await applyEventRow(q, provider, ev)).outcome;
+}
+
+/** applyEvent that also hands back the order row as it is after the event (the locked row when nothing changed). */
+async function applyEventRow(q: Queryable, provider: string, ev: ProviderEvent): Promise<{ outcome: 'applied' | 'stale' | 'order_unknown'; order?: OrderRow }> {
   const o = (await q.query<OrderRow>('SELECT * FROM orders WHERE provider = $1 AND provider_order_ref = $2 FOR UPDATE', [provider, ev.order_ref])).rows[0];
-  if (!o) return 'order_unknown';
-  if (ev.sequence <= o.status_version) return 'stale';
-  if (TERMINAL.includes(o.fulfillment_status) && ev.status !== o.fulfillment_status) return 'stale';
-  if (STATUS_RANK[ev.status] === undefined) return 'stale';
+  if (!o) return { outcome: 'order_unknown' };
+  if (ev.sequence <= o.status_version) return { outcome: 'stale', order: o };
+  if (TERMINAL.includes(o.fulfillment_status) && ev.status !== o.fulfillment_status) return { outcome: 'stale', order: o };
+  if (STATUS_RANK[ev.status] === undefined) return { outcome: 'stale', order: o };
   // An order paid in advance with GrabPay (payment_id) keeps the payment's status; the provider's value
   // describes Grab's own billing. picked_up_at records the first pickup (refund rules depend on it).
   const pickedUp = ev.status === 'picked_up' || ev.status === 'delivered';
-  await q.query(
+  const updated = (await q.query<OrderRow>(
     `UPDATE orders SET fulfillment_status=$2, payment_status=CASE WHEN payment_id IS NULL THEN $3 ELSE payment_status END, status_version=$4, status_updated_at=$5,
-       eta_at=COALESCE($6, eta_at), picked_up_at=CASE WHEN $7::boolean THEN COALESCE(picked_up_at, $5::timestamptz) ELSE picked_up_at END WHERE id=$1`,
+       eta_at=COALESCE($6, eta_at), picked_up_at=CASE WHEN $7::boolean THEN COALESCE(picked_up_at, $5::timestamptz) ELSE picked_up_at END WHERE id=$1 RETURNING *`,
     [o.id, ev.status, ev.payment_status, ev.sequence, ev.occurred_at, ev.eta_at ?? null, pickedUp],
-  );
+  )).rows[0];
   await audit(q, { userId: o.user_id, actor: `provider:${provider}`, action: 'order.status_changed', mode: o.mode, entity: 'order', entityId: o.id, details: { status: ev.status, seq: ev.sequence } });
   // Partner apps (Ari) get the change as an event; no-op for regular users.
   if (ev.status !== o.fulfillment_status) {
     await enqueueOrderStatus(q, { ...o, eta_at: ev.eta_at ?? o.eta_at }, ev.status, TERMINAL.includes(ev.status));
   }
-  return 'applied';
+  return { outcome: 'applied', order: updated };
 }
 
 /** Persist first, then process. Duplicates are dropped by UNIQUE(provider, event_id). */
@@ -152,6 +157,15 @@ export async function ingestWebhook(ctx: Ctx, providerKey: 'demo', rawBody: stri
 
 /** Refresh one order from the provider when stale. On provider failure, return stored data with a notice. */
 export async function getOrderStatus(ctx: Ctx, actor: Actor, orderId: string) {
+  const r = await refreshOrder(ctx, actor, orderId);
+  return { order: describeOrder(r.row), data_as_of: r.data_as_of, notices: r.notices };
+}
+
+/**
+ * getOrderStatus with the stored row: one read of the order, one provider call for an order that is
+ * still moving, and a write only when the provider reports something newer than what is stored.
+ */
+export async function refreshOrder(ctx: Ctx, actor: Actor, orderId: string): Promise<{ row: OrderRow; data_as_of: string; notices: string[] }> {
   let o = await loadOrder(ctx.db, actor.userId, orderId);
   const notices: string[] = [];
   let dataAsOf = new Date(o.status_updated_at).toISOString();
@@ -159,20 +173,26 @@ export async function getOrderStatus(ctx: Ctx, actor: Actor, orderId: string) {
     try {
       const provider = ctx.provider(o.mode);
       const s = await withTimeout(provider.getOrderStatus(o.provider_order_ref), ctx.cfg.providerTimeoutMs, () => new ProviderOutcomeUnknownError('timeout'));
-      await ctx.db.tx((q) =>
-        applyEvent(q, provider.providerName, {
-          event_id: `poll:${s.provider_order_ref}:${s.sequence}`, order_ref: s.provider_order_ref, sequence: s.sequence, type: 'order.status_changed',
-          status: s.status, payment_status: s.payment_status, occurred_at: ctx.clock.now().toISOString(), eta_at: s.eta_at,
-        }),
-      );
-      o = await loadOrder(ctx.db, actor.userId, orderId);
+      // A sequence that is not newer than the stored one changes nothing (applyEvent would lock the row and
+      // return "stale"; status_version only ever grows), so a poll with no news does not open a transaction.
+      if (s.sequence > o.status_version) {
+        const applied = await ctx.db.tx((q) =>
+          applyEventRow(q, provider.providerName, {
+            event_id: `poll:${s.provider_order_ref}:${s.sequence}`, order_ref: s.provider_order_ref, sequence: s.sequence, type: 'order.status_changed',
+            status: s.status, payment_status: s.payment_status, occurred_at: ctx.clock.now().toISOString(), eta_at: s.eta_at,
+          }),
+        );
+        // The row as written (or as locked, when a concurrent event got there first). Same user: it was loaded by id and user above.
+        if (applied.order && applied.order.id === o.id) o = applied.order;
+        else o = await loadOrder(ctx.db, actor.userId, orderId);
+      }
       dataAsOf = ctx.clock.now().toISOString();
     } catch (e) {
       if (!(e instanceof ProviderUnavailableError || e instanceof ProviderOutcomeUnknownError)) throw e;
       notices.push(`PROVIDER_UNAVAILABLE: showing the last known status from ${dataAsOf}. This is real stored data, not demo data.`);
     }
   }
-  return { order: describeOrder(o), data_as_of: dataAsOf, notices };
+  return { row: o, data_as_of: dataAsOf, notices };
 }
 
 export async function listOrders(ctx: Ctx, actor: Actor, args: { limit?: number; before?: string }) {

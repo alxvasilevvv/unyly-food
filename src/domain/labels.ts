@@ -9,20 +9,20 @@ type L = Locale;
 type Tri = { ru: string; en: string; th: string };
 
 const COMMON: Partial<Record<FulfillmentStatus, Tri>> = {
-  submitted: { en: 'Sent', ru: 'Отправлен', th: 'ส่งแล้ว' },
+  submitted: { en: 'Sent', ru: 'Отправлен', th: 'ส่งคำสั่งซื้อแล้ว' },
   cancelled: { en: 'Cancelled', ru: 'Отменён', th: 'ยกเลิกแล้ว' },
   failed: { en: 'Failed', ru: 'Не выполнен', th: 'ไม่สำเร็จ' },
 };
 
 const BY_SERVICE: Record<Service, Partial<Record<FulfillmentStatus, Tri>>> = {
   food: {
-    accepted: { en: 'Restaurant accepted', ru: 'Ресторан принял заказ', th: 'ร้านรับออร์เดอร์แล้ว' },
+    accepted: { en: 'Restaurant accepted', ru: 'Ресторан принял заказ', th: 'ร้านรับคำสั่งซื้อแล้ว' },
     preparing: { en: 'Preparing', ru: 'Готовится', th: 'กำลังเตรียมอาหาร' },
     picked_up: { en: 'On the way', ru: 'Курьер в пути', th: 'ไรเดอร์กำลังไปส่ง' },
     delivered: { en: 'Delivered', ru: 'Доставлен', th: 'ส่งถึงแล้ว' },
   },
   mart: {
-    accepted: { en: 'Store accepted', ru: 'Магазин принял заказ', th: 'ร้านรับออร์เดอร์แล้ว' },
+    accepted: { en: 'Store accepted', ru: 'Магазин принял заказ', th: 'ร้านรับคำสั่งซื้อแล้ว' },
     preparing: { en: 'Picking items', ru: 'Собирают заказ', th: 'กำลังจัดสินค้า' },
     picked_up: { en: 'On the way', ru: 'Курьер в пути', th: 'ไรเดอร์กำลังไปส่ง' },
     delivered: { en: 'Delivered', ru: 'Доставлен', th: 'ส่งถึงแล้ว' },
@@ -34,8 +34,8 @@ const BY_SERVICE: Record<Service, Partial<Record<FulfillmentStatus, Tri>>> = {
     delivered: { en: 'Arrived', ru: 'Поездка завершена', th: 'ถึงที่หมายแล้ว' },
   },
   express: {
-    accepted: { en: 'Courier assigned', ru: 'Курьер назначен', th: 'ได้ผู้ส่งแล้ว' },
-    preparing: { en: 'Courier heading to pickup', ru: 'Курьер едет за посылкой', th: 'ผู้ส่งกำลังไปรับพัสดุ' },
+    accepted: { en: 'Courier assigned', ru: 'Курьер назначен', th: 'ได้ไรเดอร์แล้ว' },
+    preparing: { en: 'Courier heading to pickup', ru: 'Курьер едет за посылкой', th: 'ไรเดอร์กำลังไปรับพัสดุ' },
     picked_up: { en: 'Parcel in transit', ru: 'Посылка в пути', th: 'พัสดุกำลังจัดส่ง' },
     delivered: { en: 'Parcel delivered', ru: 'Посылка доставлена', th: 'ส่งพัสดุถึงแล้ว' },
   },
@@ -50,6 +50,6 @@ export function statusLabel(service: Service, status: FulfillmentStatus, l: L = 
 export const SERVICE_NAME: Record<Service, Tri> = {
   food: { en: 'Food', ru: 'Еда', th: 'อาหาร' },
   mart: { en: 'Mart', ru: 'Магазины', th: 'มาร์ท' },
-  ride: { en: 'Ride', ru: 'Поездка', th: 'เดินทาง' },
+  ride: { en: 'Ride', ru: 'Поездка', th: 'เรียกรถ' },
   express: { en: 'Parcel', ru: 'Посылка', th: 'ส่งพัสดุ' },
 };

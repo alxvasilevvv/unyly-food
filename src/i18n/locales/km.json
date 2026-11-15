@@ -932,6 +932,7 @@
  "GrabExpress, Login with Grab and GrabPay on staging keys; run Grab's full happy and unhappy test suite; security review by Grab.": "GrabExpress, Login with Grab និង GrabPay លើសោ staging ដំណើរការឈុតតេស្ត happy និង unhappy ទាំងមូលរបស់ Grab និងការត្រួតពិនិត្យសុវត្ថិភាពដោយ Grab។",
  "GrabID client for Login with Grab (openid, profile.read, phone)": "Client GrabID សម្រាប់ Login with Grab (openid, profile.read, phone)",
  "GrabID, GrabPay, pricing, brand and fulfilment remain Grab's. Ari is a front door, not a reseller.": "GrabID, GrabPay តម្លៃ ម៉ាក និងការបំពេញការបញ្ជាទិញ នៅតែជារបស់ Grab។ Ari គឺជាច្រកចូល មិនមែនជាអ្នកលក់បន្តទេ។",
+ "GrabID, GrabPay, pricing, brand and fulfillment remain Grab's. Ari is a front door, not a reseller.": "GrabID, GrabPay តម្លៃ ម៉ាក និងការបំពេញការបញ្ជាទិញ នៅតែជារបស់ Grab។ Ari គឺជាច្រកចូល មិនមែនជាអ្នកលក់បន្តទេ។",
  "GrabPay merchant (One-time Charge now, Tokenisation in SG/MY/PH next)": "ពាណិជ្ជករ GrabPay (ឥឡូវ One-time Charge បន្ទាប់មក Tokenisation នៅ SG/MY/PH)",
  "GrabPay One-time Charge with HMAC and proof-of-possession, automatic idempotent refunds.": "GrabPay One-time Charge ជាមួយ HMAC និង proof-of-possession ការសងប្រាក់វិញដោយស្វ័យប្រវត្តិ និង idempotent។",
  "Groceries, flowers, pharmacy and cakes from one sentence, with required options and limits respected.": "ទំនិញប្រចាំថ្ងៃ ផ្កា ឱសថ និងនំខេក ពីមួយប្រយោគ ដោយគោរពជម្រើសចាំបាច់ និងដែនកំណត់។",
@@ -1055,6 +1056,7 @@
  "To order, an Ari user links a Grab account and pays with GrabPay. Grab keeps the customer.": "ដើម្បីបញ្ជាទិញ អ្នកប្រើ Ari ភ្ជាប់គណនី Grab ហើយបង់ដោយ GrabPay។ Grab រក្សាអតិថិជន។",
  "Today": "បច្ចុប្បន្ន",
  "Tokenised charges for orders Ari books as the merchant (Tokenisation does not pay for orders placed in the Grab app).": "ការគិតប្រាក់ដោយ token សម្រាប់ការបញ្ជាទិញដែល Ari កក់ក្នុងនាមជាពាណិជ្ជករ (Tokenisation មិនបង់សម្រាប់ការបញ្ជាទិញដែលដាក់ក្នុងកម្មវិធី Grab ទេ)។",
+ "Tokenized charges for orders Ari books as the merchant (Tokenisation does not pay for orders placed in the Grab app).": "ការគិតប្រាក់ដោយ token សម្រាប់ការបញ្ជាទិញដែល Ari កក់ក្នុងនាមជាពាណិជ្ជករ (Tokenisation មិនបង់សម្រាប់ការបញ្ជាទិញដែលដាក់ក្នុងកម្មវិធី Grab ទេ)។",
  "Tool definitions and system instructions for your LLM": "និយមន័យឧបករណ៍ និងការណែនាំប្រព័ន្ធសម្រាប់ LLM របស់អ្នក",
  "Toyota Corolla Altis, silver": "Toyota Corolla Altis ពណ៌ប្រាក់",
  "Trips run at demo speed: a whole ride takes about two minutes.": "ដំណើរក្នុង Demo លឿនជាងធម្មតា៖ ការធ្វើដំណើរទាំងមូលចំណាយប្រហែលពីរនាទី។",
@@ -1102,5 +1104,6 @@
  "Where should I pick you up? For example \"from Siam Paragon\".": "តើគួរទទួលអ្នកនៅឯណា? ឧទាហរណ៍ \"ពី Siam Paragon\"។",
  "Where should the courier pick the parcel up? For example \"from Siam Paragon\".": "តើអ្នកដឹកជញ្ជូនគួរមកយកកញ្ចប់ឥវ៉ាន់នៅឯណា? ឧទាហរណ៍ \"ពី Siam Paragon\"។",
  "You are welcome! Anything else from Grab?": "មិនអីទេ! តើត្រូវការអ្វីផ្សេងទៀតពី Grab ទេ?",
+ "You're welcome! Anything else from Grab?": "មិនអីទេ! តើត្រូវការអ្វីផ្សេងទៀតពី Grab ទេ?",
  "You have no orders yet. What would you like from Grab?": "អ្នកមិនទាន់មានការបញ្ជាទិញនៅឡើយទេ។ តើអ្នកចង់បានអ្វីពី Grab?"
 }

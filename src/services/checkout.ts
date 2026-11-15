@@ -112,6 +112,18 @@ export async function stepUpPolicy(ctx: Ctx, userId: string, c: Pick<CheckoutRow
   return { large, required, threshold_minor: threshold };
 }
 
+export type CheckoutWithQuoteExpiry = CheckoutRow & { quote_expires_at: string | Date | null };
+
+/** Unlocked read of a checkout together with the expiry of the provider quote behind it. */
+export async function loadCheckoutWithQuoteExpiry(q: Queryable, userId: string, id: string): Promise<CheckoutWithQuoteExpiry> {
+  const r = await q.query<CheckoutWithQuoteExpiry>(
+    'SELECT c.*, (SELECT expires_at FROM quotes WHERE id = c.quote_id) AS quote_expires_at FROM checkouts c WHERE c.id = $1 AND c.user_id = $2',
+    [id, userId],
+  );
+  if (!r.rows[0]) throw new DomainError('NOT_FOUND', 'Checkout not found');
+  return r.rows[0];
+}
+
 export async function loadCheckout(q: Queryable, userId: string, id: string, lock = false): Promise<CheckoutRow> {
   const r = await q.query<CheckoutRow>(`SELECT * FROM checkouts WHERE id = $1 AND user_id = $2 ${lock ? 'FOR UPDATE' : ''}`, [id, userId]);
   if (!r.rows[0]) throw new DomainError('NOT_FOUND', 'Checkout not found');
@@ -123,16 +135,24 @@ export async function loadCheckout(q: Queryable, userId: string, id: string, loc
  * content, same quote, not expired. Returns the reason code when something changed.
  */
 export async function validityProblem(ctx: Ctx, q: Queryable, c: CheckoutRow): Promise<string | null> {
-  if (new Date(c.expires_at).getTime() <= ctx.clock.now().getTime()) return 'EXPIRED';
+  return (await checkValidity(ctx, q, c)).problem;
+}
+
+/**
+ * validityProblem plus the cart it was checked against. With no problem, that cart is the open cart at
+ * exactly the checkout's version, so its items, address and trip are what the human approved.
+ */
+async function checkValidity(ctx: Ctx, q: Queryable, c: CheckoutRow): Promise<{ problem: string | null; cart: CartState | null }> {
+  if (new Date(c.expires_at).getTime() <= ctx.clock.now().getTime()) return { problem: 'EXPIRED', cart: null };
   // The payment method is part of what the user approved (cash at pickup versus GrabPay in advance).
   const live = ctx.providers.live;
-  if (c.mode === 'live' && live instanceof GrabLiveProvider && c.payment_method_label !== live.paymentLabel()) return 'PAYMENT_METHOD_CHANGED';
+  if (c.mode === 'live' && live instanceof GrabLiveProvider && c.payment_method_label !== live.paymentLabel()) return { problem: 'PAYMENT_METHOD_CHANGED', cart: null };
   const cart = await loadCart(q, c.user_id, c.cart_id);
-  if (cart.status !== 'open') return 'CART_NOT_OPEN';
-  if (cart.version !== c.cart_version) return 'CART_CHANGED';
+  if (cart.status !== 'open') return { problem: 'CART_NOT_OPEN', cart };
+  if (cart.version !== c.cart_version) return { problem: 'CART_CHANGED', cart };
   const fp = await locationFingerprint(q, c.user_id, cart);
-  if (!fp || fp !== c.address_fingerprint) return 'ADDRESS_CHANGED';
-  return null;
+  if (!fp || fp !== c.address_fingerprint) return { problem: 'ADDRESS_CHANGED', cart };
+  return { problem: null, cart };
 }
 
 export async function markInvalid(q: Queryable, id: string, reason: string) {
@@ -147,9 +167,10 @@ function reasonToError(reason: string): DomainError {
 }
 
 export async function prepareCheckout(
-  ctx: Ctx, actor: Actor, args: { cart_id: string; quote_id: string }, opts: { createdBy?: string } = {},
+  ctx: Ctx, actor: Actor, args: { cart_id: string; quote_id: string }, opts: { createdBy?: string; cart?: Pick<CartState, 'id' | 'user_id' | 'mode'> } = {},
 ): Promise<CheckoutRow & { step_up_required: boolean }> {
-  const cart = await loadCart(ctx.db, actor.userId, args.cart_id);
+  // opts.cart: the cart this same call just quoted. Only its mode is used here; everything that matters is re-read under the lock below.
+  const cart = opts.cart && opts.cart.id === args.cart_id && opts.cart.user_id === actor.userId ? opts.cart : await loadCart(ctx.db, actor.userId, args.cart_id);
   requireCapability(ctx, cart.mode, 'checkout');
   if (!(await submissionsEnabled(ctx, ctx.db, cart.mode))) {
     throw new DomainError('SUBMISSIONS_PAUSED', 'New orders are temporarily paused. Order status and history remain available.');
@@ -170,15 +191,19 @@ export async function prepareCheckout(
     }
     const fp = await locationFingerprint(q, actor.userId, locked);
     if (!fp || fp !== qr.address_fingerprint) throw new DomainError('QUOTE_EXPIRED', 'Delivery address or trip changed; quote again');
-    // Only one pending confirmation per cart.
-    await q.query(`UPDATE checkouts SET status='invalidated', invalid_reason='SUPERSEDED' WHERE cart_id = $1 AND status IN ('awaiting_user','approved')`, [locked.id]);
+    // Only one pending confirmation per cart: the earlier ones are superseded, the new one is stored and
+    // audited, all in one statement (the UPDATE works on the statement snapshot, so it cannot touch the new row).
     const expires = new Date(now.getTime() + CHECKOUT_MAX_TTL_MS);
     const r = await q.query<CheckoutRow>(
-      `INSERT INTO checkouts (user_id, cart_id, cart_version, quote_id, mode, address_fingerprint, total_minor, currency, payment_method_label, cancellation_terms, status, expires_at, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'awaiting_user',$11,$12) RETURNING *`,
-      [actor.userId, locked.id, locked.version, qr.id, locked.mode, qr.address_fingerprint, qr.total_minor, qr.currency, qr.payment_method_label, qr.cancellation_terms, expires, opts.createdBy ?? actorLabel(actor)],
+      `WITH sup AS (UPDATE checkouts SET status='invalidated', invalid_reason='SUPERSEDED' WHERE cart_id = $2 AND status IN ('awaiting_user','approved')),
+            ins AS (
+              INSERT INTO checkouts (user_id, cart_id, cart_version, quote_id, mode, address_fingerprint, total_minor, currency, payment_method_label, cancellation_terms, status, expires_at, created_by)
+              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'awaiting_user',$11,$12) RETURNING *),
+            a AS (INSERT INTO audit_log (user_id, actor, action, mode, entity, entity_id, details) SELECT ins.user_id, $13, 'checkout.prepared', ins.mode, 'checkout', ins.id::text, $14::jsonb FROM ins)
+       SELECT * FROM ins`,
+      [actor.userId, locked.id, locked.version, qr.id, locked.mode, qr.address_fingerprint, qr.total_minor, qr.currency, qr.payment_method_label, qr.cancellation_terms, expires, opts.createdBy ?? actorLabel(actor),
+        actorLabel(actor), JSON.stringify({ total: qr.total_minor })],
     );
-    await audit(q, { userId: actor.userId, actor: actorLabel(actor), action: 'checkout.prepared', mode: locked.mode, entity: 'checkout', entityId: r.rows[0].id, details: { total: qr.total_minor } });
     return r.rows[0];
   });
   return { ...row, step_up_required: (await stepUpPolicy(ctx, actor.userId, row)).required };
@@ -246,17 +271,45 @@ export async function refreshCheckout(ctx: Ctx, userId: string, checkoutId: stri
 
 /** Full, human-readable view of what is being approved. Used by the confirmation page and get_checkout_status. */
 export async function checkoutView(ctx: Ctx, userId: string, id: string, locale: Locale = 'en') {
-  let c = await loadCheckout(ctx.db, userId, id);
+  // Everything the view shows in one statement: the checkout, its quote, the cart, the approved cart version,
+  // the address, the submission attempt and the order (at most one of each: UNIQUE(checkout_id)).
+  const row = (await ctx.db.query<Record<string, any>>(
+    `SELECT c.*,
+       q.lines AS j_lines, q.subtotal_minor AS j_subtotal_minor, q.delivery_fee_minor AS j_delivery_fee_minor, q.service_fee_minor AS j_service_fee_minor,
+       q.small_order_fee_minor AS j_small_order_fee_minor, q.discount_minor AS j_discount_minor, q.total_minor AS j_total_minor,
+       q.eta_min_minutes AS j_eta_min_minutes, q.eta_max_minutes AS j_eta_max_minutes, q.price_source AS j_price_source, q.fetched_at AS j_fetched_at,
+       k.restaurant_name AS j_restaurant_name, k.restaurant_id AS j_restaurant_id, k.service AS j_service,
+       v.items AS j_items, v.trip AS j_trip, to_jsonb(ad) AS j_address, to_jsonb(a) AS j_attempt,
+       o.id AS j_order_id, o.fulfillment_status AS j_order_status
+     FROM checkouts c
+     JOIN quotes q ON q.id = c.quote_id
+     JOIN carts k ON k.id = c.cart_id AND k.user_id = c.user_id
+     JOIN cart_versions v ON v.cart_id = c.cart_id AND v.version = c.cart_version
+     LEFT JOIN addresses ad ON ad.id = v.address_id
+     LEFT JOIN submission_attempts a ON a.checkout_id = c.id
+     LEFT JOIN orders o ON o.checkout_id = c.id
+     WHERE c.id = $1 AND c.user_id = $2`,
+    [id, userId],
+  )).rows[0];
+  if (!row) throw new DomainError('NOT_FOUND', 'Checkout not found');
+  const j: Record<string, any> = {};
+  const own: Record<string, any> = {};
+  for (const [key, val] of Object.entries(row)) (key.startsWith('j_') ? j : own)[key.startsWith('j_') ? key.slice(2) : key] = val;
+  let c = own as CheckoutRow;
   if ((c.status === 'awaiting_user' || c.status === 'approved') && new Date(c.expires_at).getTime() <= ctx.clock.now().getTime()) {
     await markInvalid(ctx.db, c.id, 'EXPIRED');
     c = await loadCheckout(ctx.db, userId, id);
   }
-  const qr = (await ctx.db.query<QuoteRow>('SELECT * FROM quotes WHERE id = $1', [c.quote_id])).rows[0];
-  const cart = await loadCart(ctx.db, userId, c.cart_id);
-  const v = (await ctx.db.query('SELECT items, address_id, trip FROM cart_versions WHERE cart_id = $1 AND version = $2', [c.cart_id, c.cart_version])).rows[0];
-  const addr = v.address_id ? await ctx.db.query('SELECT * FROM addresses WHERE id = $1', [v.address_id]).then((r) => r.rows[0]) : null;
-  const attempt = (await ctx.db.query<AttemptRow>('SELECT * FROM submission_attempts WHERE checkout_id = $1', [c.id])).rows[0];
-  const order = (await ctx.db.query('SELECT id, fulfillment_status FROM orders WHERE checkout_id = $1', [c.id])).rows[0];
+  const qr = j as Pick<QuoteRow, 'lines' | 'subtotal_minor' | 'delivery_fee_minor' | 'service_fee_minor' | 'small_order_fee_minor' | 'discount_minor' | 'total_minor' | 'eta_min_minutes' | 'eta_max_minutes' | 'price_source' | 'fetched_at'>;
+  const cart = { restaurant_name: j.restaurant_name as string, restaurant_id: j.restaurant_id as string | null, service: j.service as CartState['service'] };
+  const v = { items: j.items, trip: j.trip };
+  const addr = j.address ?? null;
+  // The attempt comes back as JSON: timestamps become Date again, like a plain row read.
+  const asDate = (x: unknown) => (x == null ? null : new Date(x as string));
+  const attempt: AttemptRow | undefined = j.attempt
+    ? { ...j.attempt, started_at: asDate(j.attempt.started_at), finished_at: asDate(j.attempt.finished_at), next_reconcile_at: asDate(j.attempt.next_reconcile_at) }
+    : undefined;
+  const order = j.order_id ? { id: j.order_id as string, fulfillment_status: j.order_status as string } : undefined;
   const m = (n: number) => money(n, c.currency, locale);
   return {
     checkout: c,
@@ -379,10 +432,12 @@ export async function repriceProblem(ctx: Ctx, c: CheckoutRow): Promise<string |
  */
 export async function approveCheckout(
   ctx: Ctx, userId: string, id: string,
-  opts: { stepUp?: unknown; via?: string; partnerVerification?: 'tap' | 'biometric' | 'passcode' } = {},
+  opts: { stepUp?: unknown; via?: string; partnerVerification?: 'tap' | 'biometric' | 'passcode'; pre?: CheckoutWithQuoteExpiry } = {},
 ) {
   const via = opts.via ?? 'web';
-  const pre = await loadCheckout(ctx.db, userId, id);
+  // opts.pre: the row the caller read a moment ago in this same request. It only decides the unlocked
+  // pre-checks (step-up, stale quote); the approval itself re-reads the checkout under a row lock.
+  const pre = opts.pre && opts.pre.id === id && opts.pre.user_id === userId ? opts.pre : await loadCheckoutWithQuoteExpiry(ctx.db, userId, id);
   // Step-up: a large order from a user with a passkey is approved only with a fresh passkey assertion
   // bound to this checkout. Checked before anything else; the challenge is consumed either way.
   // Partner apps verify the user on the device (Face ID or passcode); src/partners/checkout.ts enforces
@@ -395,8 +450,7 @@ export async function approveCheckout(
   let staleQuoteProblem: string | null = null;
   let repriced = false;
   if (pre.status === 'awaiting_user' && new Date(pre.expires_at).getTime() > ctx.clock.now().getTime()) {
-    const qr = (await ctx.db.query<QuoteRow>('SELECT expires_at FROM quotes WHERE id = $1', [pre.quote_id])).rows[0];
-    if (!qr || new Date(qr.expires_at).getTime() <= ctx.clock.now().getTime()) {
+    if (!pre.quote_expires_at || new Date(pre.quote_expires_at).getTime() <= ctx.clock.now().getTime()) {
       // Provider call outside the transaction; the cart version and location are re-checked under the lock below.
       staleQuoteProblem = await repriceProblem(ctx, pre);
       repriced = true;
@@ -462,8 +516,9 @@ export function describeAttempt(a: AttemptRow) {
  * Safe to call repeatedly and concurrently: the checkout row lock plus the UNIQUE(checkout_id)
  * constraint on submission_attempts guarantee a single provider call from Unyly's side.
  */
-export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string) {
-  const pre = await loadCheckout(ctx.db, actor.userId, checkoutId);
+export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string, opts: { pre?: Pick<CheckoutRow, 'id' | 'user_id' | 'mode' | 'cart_id'> } = {}) {
+  // opts.pre: mode and cart id of the checkout as the caller just read them (both never change); the checkout is re-read under its lock below.
+  const pre = opts.pre && opts.pre.id === checkoutId && opts.pre.user_id === actor.userId ? opts.pre : await loadCheckout(ctx.db, actor.userId, checkoutId);
   requireCapability(ctx, pre.mode, 'submit_order');
   const prepared = await ctx.db.tx(async (q) => {
     // Lock order: cart, then checkout (same as prepareCheckout) to serialize all submissions of a cart.
@@ -490,10 +545,10 @@ export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string) {
     if (!(await submissionsEnabled(ctx, q, c.mode))) {
       throw new DomainError('SUBMISSIONS_PAUSED', 'New orders are temporarily paused. Your confirmation stays valid until it expires.');
     }
-    const problem = await validityProblem(ctx, q, c);
-    if (problem) {
-      await markInvalid(q, c.id, problem); // committed, then reported
-      return { invalid: reasonToError(problem) };
+    const { problem, cart: checked } = await checkValidity(ctx, q, c);
+    if (problem || !checked) {
+      await markInvalid(q, c.id, problem ?? 'CART_CHANGED'); // committed, then reported
+      return { invalid: reasonToError(problem ?? 'CART_CHANGED') };
     }
     const now = ctx.clock.now();
     await q.query(`UPDATE checkouts SET status='consumed', consumed_at=$2 WHERE id=$1`, [c.id, now]);
@@ -502,10 +557,9 @@ export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string) {
        VALUES ($1,$2,$3,$4,'in_flight',$5,$6) RETURNING *`,
       [c.id, actor.userId, c.mode, `unyly-${c.id}`, new Date(now.getTime() + ctx.cfg.providerTimeoutMs + 5000), now],
     );
-    // Send exactly the approved cart version (validityProblem above guarantees it is also the current one).
-    const cartRow = await loadCart(q, actor.userId, c.cart_id);
-    const v = await loadCartVersion(q, c.cart_id, c.cart_version);
-    const cart: CartState = { ...cartRow, items: v.items, address_id: v.address_id, trip: v.trip };
+    // Send exactly the approved cart version: the validity check above read the cart under the cart lock
+    // taken at the top of this transaction and found it open at the checkout's version, so that read is it.
+    const cart: CartState = checked;
     const addr = isTripService(cart.service) ? null : await getAddress(q, actor.userId, cart.address_id!);
     await audit(q, { userId: actor.userId, actor: actorLabel(actor), action: 'submission.started', mode: c.mode, entity: 'checkout', entityId: c.id });
     return { attempt: a.rows[0], checkout: c, cart, addr };
@@ -549,7 +603,8 @@ export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string) {
   }
 
   if (result.outcome === 'accepted') {
-    await recordAccepted(ctx, attempt.id, result.provider_order_ref, result.status, result.payment_status, result.eta_at);
+    const done = await recordAccepted(ctx, attempt.id, result.provider_order_ref, result.status, result.payment_status, result.eta_at);
+    if (done) return describeAttempt(done);
   } else {
     await finishAttempt(ctx, attempt.id, 'rejected', { code: result.code, detail: result.message });
     await audit(ctx.db, { userId: actor.userId, actor: actorLabel(actor), action: 'submission.rejected', mode: checkout.mode, entity: 'submission', entityId: attempt.id, details: { code: result.code } });
@@ -578,22 +633,33 @@ async function markUnknown(ctx: Ctx, id: string, detail: string) {
 }
 
 /** Persist an accepted order. Idempotent: the order row is unique per checkout and per provider ref. */
-export async function recordAccepted(ctx: Ctx, attemptId: string, ref: string, status: string, paymentStatus: string, etaAt?: string) {
-  await ctx.db.tx(async (q) => {
+export async function recordAccepted(ctx: Ctx, attemptId: string, ref: string, status: string, paymentStatus: string, etaAt?: string): Promise<AttemptRow | undefined> {
+  return ctx.db.tx(async (q) => {
     const a = (await q.query<AttemptRow>('SELECT * FROM submission_attempts WHERE id = $1 FOR UPDATE', [attemptId])).rows[0];
     // A provider-side rejection is final. Only "not received" may later turn out to be accepted.
-    if (a.status === 'rejected' && a.error_code !== 'NOT_RECEIVED_BY_PROVIDER') return;
-    await q.query(
-      `UPDATE submission_attempts SET status='accepted', provider_order_ref=$2, finished_at=COALESCE(finished_at,$3), next_reconcile_at=NULL, error_code=NULL WHERE id=$1`,
+    if (a.status === 'rejected' && a.error_code !== 'NOT_RECEIVED_BY_PROVIDER') return a;
+    const accepted = (await q.query<AttemptRow>(
+      `UPDATE submission_attempts SET status='accepted', provider_order_ref=$2, finished_at=COALESCE(finished_at,$3), next_reconcile_at=NULL, error_code=NULL WHERE id=$1 RETURNING *`,
       [attemptId, ref, ctx.clock.now()],
-    );
-    const c = (await q.query<CheckoutRow>('SELECT * FROM checkouts WHERE id = $1', [a.checkout_id])).rows[0];
-    const cart = await loadCart(q, a.user_id, c.cart_id);
+    )).rows[0];
     // The order is what the human approved: the checkout's cart version, never whatever the cart holds now.
-    const v = await loadCartVersion(q, c.cart_id, c.cart_version);
-    const qr = (await q.query<QuoteRow>('SELECT * FROM quotes WHERE id = $1', [c.quote_id])).rows[0];
-    const addr = v.address_id ? (await q.query('SELECT * FROM addresses WHERE id = $1', [v.address_id])).rows[0] : null;
-    const where = isTripService(cart.service) ? tripLabel(v.trip) ?? 'trip' : maskedAddress(addr)?.label ?? 'address';
+    // Checkout, cart, that cart version, its quote lines, the address label and a prepaid payment in one read.
+    const j = (await q.query(
+      `SELECT c.id, c.mode, c.total_minor, c.currency, k.id AS cart_id, k.restaurant_id, k.restaurant_name, k.service, v.trip, q.lines, ad.label AS address_label,
+         p.id AS pay_id, p.status AS pay_status
+       FROM checkouts c
+       JOIN carts k ON k.id = c.cart_id AND k.user_id = c.user_id
+       JOIN cart_versions v ON v.cart_id = c.cart_id AND v.version = c.cart_version
+       JOIN quotes q ON q.id = c.quote_id
+       LEFT JOIN addresses ad ON ad.id = v.address_id
+       LEFT JOIN LATERAL (SELECT id, status FROM payments WHERE checkout_id = c.id AND status IN ('captured','refunding','refunded') LIMIT 1) p ON true
+       WHERE c.id = $1`,
+      [a.checkout_id],
+    )).rows[0];
+    const c = { id: j.id as string, mode: j.mode as CheckoutRow['mode'], total_minor: j.total_minor as number, currency: j.currency as string };
+    const cart = { id: j.cart_id as string, restaurant_id: j.restaurant_id as string | null, restaurant_name: j.restaurant_name as string, service: j.service as CartState['service'] };
+    const qr = { lines: j.lines as any[] };
+    const where = isTripService(cart.service) ? tripLabel(j.trip ?? null) ?? 'trip' : (j.address_label as string | null) ?? 'address';
     const ins = await q.query(
       `INSERT INTO orders (user_id, checkout_id, submission_id, cart_id, mode, provider, provider_order_ref, restaurant_id, restaurant_name, items, address_label,
          total_minor, currency, fulfillment_status, payment_status, status_version, eta_at, service, picked_up_at)
@@ -604,9 +670,8 @@ export async function recordAccepted(ctx: Ctx, attemptId: string, ref: string, s
     );
     await q.query(`UPDATE carts SET status='ordered', updated_at=now() WHERE id=$1`, [cart.id]);
     // An order paid with GrabPay in advance shows that payment, not the provider's payment status.
-    const pay = (await q.query<PaymentRow>(`SELECT * FROM payments WHERE checkout_id = $1 AND status IN ('captured','refunding','refunded') LIMIT 1`, [c.id])).rows[0];
-    if (pay) {
-      await q.query('UPDATE orders SET payment_id = $2, payment_status = $3 WHERE checkout_id = $1 AND payment_id IS NULL', [c.id, pay.id, orderPaymentStatus(pay.status)]);
+    if (j.pay_id) {
+      await q.query('UPDATE orders SET payment_id = $2, payment_status = $3 WHERE checkout_id = $1 AND payment_id IS NULL', [c.id, j.pay_id, orderPaymentStatus(j.pay_status as PaymentRow['status'])]);
     }
     if (ins.rowCount) {
       await audit(q, { userId: a.user_id, actor: 'system', action: 'order.accepted', mode: c.mode, entity: 'order', entityId: ins.rows[0].id, details: { total: c.total_minor } });
@@ -622,6 +687,7 @@ export async function recordAccepted(ctx: Ctx, attemptId: string, ref: string, s
         }, status as FulfillmentStatus, l),
       });
     }
+    return accepted;
   });
 }
 

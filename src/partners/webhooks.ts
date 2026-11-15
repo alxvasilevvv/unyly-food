@@ -47,11 +47,11 @@ export function orderNotify(o: OrderLike, status: FulfillmentStatus, l: Locale):
   if (status === 'preparing' && o.service === 'ride') {
     level = 'urgent';
     suggestCall = true;
-    body = tr(l, { en: 'Your driver is on the way to the pickup point.', ru: 'Водитель уже едет к точке посадки.', th: 'คนขับกำลังไปยังจุดรับ' });
+    body = tr(l, { en: 'Your driver is on the way to the pickup point.', ru: 'Водитель уже едет к точке посадки.', th: 'คนขับกำลังเดินทางไปยังจุดรับ' });
   }
   if (status === 'picked_up' && !trip) {
     level = 'important';
-    body = tr(l, { en: `${what}: the courier is on the way to you.`, ru: `${what}: курьер едет к вам.`, th: `${what}: ไรเดอร์กำลังไปหาคุณ` });
+    body = tr(l, { en: `${what}: the courier is on the way to you.`, ru: `${what}: курьер едет к вам.`, th: `${what}: ไรเดอร์กำลังนำส่งถึงคุณ` });
   }
   if (status === 'delivered') {
     level = 'important';

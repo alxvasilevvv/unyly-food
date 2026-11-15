@@ -932,6 +932,7 @@
  "GrabExpress, Login with Grab and GrabPay on staging keys; run Grab's full happy and unhappy test suite; security review by Grab.": "Staging key များဖြင့် GrabExpress၊ Login with Grab နှင့် GrabPay၊ Grab ၏ happy နှင့် unhappy စမ်းသပ်မှုအစုံ အပြည့်အစုံ လုပ်ဆောင်ခြင်း၊ Grab ၏ လုံခြုံရေး စစ်ဆေးမှု။",
  "GrabID client for Login with Grab (openid, profile.read, phone)": "Login with Grab အတွက် GrabID client (openid, profile.read, phone)",
  "GrabID, GrabPay, pricing, brand and fulfilment remain Grab's. Ari is a front door, not a reseller.": "GrabID၊ GrabPay၊ ဈေးနှုန်း၊ အမှတ်တံဆိပ်နှင့် အော်ဒါဖြည့်ဆည်းမှုတို့သည် Grab ၏ အပိုင်အဖြစ် ဆက်ရှိသည်။ Ari သည် ဝင်ပေါက်တစ်ခုသာ ဖြစ်ပြီး ပြန်လည်ရောင်းချသူ မဟုတ်ပါ။",
+ "GrabID, GrabPay, pricing, brand and fulfillment remain Grab's. Ari is a front door, not a reseller.": "GrabID၊ GrabPay၊ ဈေးနှုန်း၊ အမှတ်တံဆိပ်နှင့် အော်ဒါဖြည့်ဆည်းမှုတို့သည် Grab ၏ အပိုင်အဖြစ် ဆက်ရှိသည်။ Ari သည် ဝင်ပေါက်တစ်ခုသာ ဖြစ်ပြီး ပြန်လည်ရောင်းချသူ မဟုတ်ပါ။",
  "GrabPay merchant (One-time Charge now, Tokenisation in SG/MY/PH next)": "GrabPay ကုန်သည် (ယခု One-time Charge၊ နောက်တွင် SG/MY/PH ၌ Tokenisation)",
  "GrabPay One-time Charge with HMAC and proof-of-possession, automatic idempotent refunds.": "HMAC နှင့် proof-of-possession ပါသော GrabPay One-time Charge၊ အလိုအလျောက် idempotent ငွေပြန်အမ်းမှုများ။",
  "Groceries, flowers, pharmacy and cakes from one sentence, with required options and limits respected.": "စကားတစ်ခွန်းဖြင့် ကုန်စုံ၊ ပန်း၊ ဆေးဝါးနှင့် ကိတ်မုန့်များ၊ မဖြစ်မနေ ရွေးရမည့်အရာများနှင့် ကန့်သတ်ချက်များကို လိုက်နာလျက်။",
@@ -1055,6 +1056,7 @@
  "To order, an Ari user links a Grab account and pays with GrabPay. Grab keeps the customer.": "မှာယူရန် Ari အသုံးပြုသူက Grab အကောင့်ကို ချိတ်ဆက်ပြီး GrabPay ဖြင့် ပေးချေသည်။ ဖောက်သည်က Grab ထံမှာပင် ရှိသည်။",
  "Today": "ယခု",
  "Tokenised charges for orders Ari books as the merchant (Tokenisation does not pay for orders placed in the Grab app).": "Ari က ကုန်သည်အဖြစ် ဘွတ်ကင်လုပ်သော အော်ဒါများအတွက် token ဖြင့် ငွေကောက်ခံခြင်း (Tokenisation သည် Grab အက်ပ်ထဲတွင် တင်သော အော်ဒါများအတွက် မပေးချေပါ)။",
+ "Tokenized charges for orders Ari books as the merchant (Tokenisation does not pay for orders placed in the Grab app).": "Ari က ကုန်သည်အဖြစ် ဘွတ်ကင်လုပ်သော အော်ဒါများအတွက် token ဖြင့် ငွေကောက်ခံခြင်း (Tokenisation သည် Grab အက်ပ်ထဲတွင် တင်သော အော်ဒါများအတွက် မပေးချေပါ)။",
  "Tool definitions and system instructions for your LLM": "သင့် LLM အတွက် tool အဓိပ္ပာယ်သတ်မှတ်ချက်များနှင့် စနစ်ညွှန်ကြားချက်များ",
  "Toyota Corolla Altis, silver": "Toyota Corolla Altis၊ ငွေရောင်",
  "Trips run at demo speed: a whole ride takes about two minutes.": "ခရီးစဉ်များသည် demo အရှိန်ဖြင့် သွားသည် - ခရီးတစ်ခုလုံး နှစ်မိနစ်ခန့် ကြာသည်။",
@@ -1102,5 +1104,6 @@
  "Where should I pick you up? For example \"from Siam Paragon\".": "ဘယ်မှာ လာကြိုရမလဲ။ ဥပမာ \"Siam Paragon ကနေ\"။",
  "Where should the courier pick the parcel up? For example \"from Siam Paragon\".": "ပို့ဆောင်သူက ပါဆယ်ကို ဘယ်မှာ လာယူရမလဲ။ ဥပမာ \"Siam Paragon ကနေ\"။",
  "You are welcome! Anything else from Grab?": "ရပါတယ်! Grab ကနေ တခြား ဘာလိုသေးလဲ။",
+ "You're welcome! Anything else from Grab?": "ရပါတယ်! Grab ကနေ တခြား ဘာလိုသေးလဲ။",
  "You have no orders yet. What would you like from Grab?": "သင့်မှာ အော်ဒါ မရှိသေးပါ။ Grab ကနေ ဘာလိုချင်ပါသလဲ။"
 }

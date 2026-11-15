@@ -52,7 +52,7 @@ function optionsFromStores(env: ToolEnvelope, args: Record<string, unknown>, l: 
       if (sug?.within_budget === true) badges.push(tr(l, { en: 'Within budget', ru: 'В бюджете', th: 'อยู่ในงบ' }));
       const excluded: string[] = r.applied_filters?.exclude_allergens ?? [];
       if (sug && excluded.length && sug.items.every((i: any) => i.allergen_check?.status === 'not_declared')) {
-        badges.push(tr(l, { en: 'Excluded allergens not declared', ru: 'Исключённые аллергены не заявлены', th: 'ไม่มีการระบุสารก่อภูมิแพ้ที่ยกเว้น' }));
+        badges.push(tr(l, { en: 'Excluded allergens not declared', ru: 'Исключённые аллергены не заявлены', th: 'ร้านไม่ได้ระบุสารก่อภูมิแพ้ที่ยกเว้น' }));
       }
       const blocked = !sug || notes.length || (sug.blocking_issues ?? []).length;
       options.push({
@@ -157,7 +157,7 @@ function issuesCard(env: ToolEnvelope, l: Locale): Card | null {
   if (!issues.length && !blocked) return null;
   return {
     schema: 'unyly.card.v1', type: 'message', id: `cart:${r.cart_id}`, service: r.service,
-    title: tr(l, { en: 'Needs a change before ordering', ru: 'Нужно поправить заказ', th: 'ต้องแก้ไขก่อนสั่ง' }),
+    title: tr(l, { en: 'Needs a change before ordering', ru: 'Нужно поправить заказ', th: 'ต้องแก้ไขก่อนสั่งซื้อ' }),
     subtitle: [blocked, ...issues.map((i) => i.message)].filter(Boolean).join(' '),
     demo: env.mode === 'demo', actions: [],
   };
@@ -428,7 +428,7 @@ export async function cancellationCard(ctx: Ctx, p: PartnerConfig, u: PartnerUse
   const fee = money(Number(c.fee_minor), c.currency, l).formatted;
   return {
     schema: 'unyly.card.v1', type: 'cancellation', id: c.id, service: o.service,
-    title: tr(l, { en: 'Cancel this order?', ru: 'Отменить заказ?', th: 'ยกเลิกคำสั่งซื้อนี้?' }),
+    title: tr(l, { en: 'Cancel this order?', ru: 'Отменить заказ?', th: 'ยกเลิกคำสั่งซื้อนี้ใช่ไหม' }),
     subtitle: `${isTripService(o.service) ? o.items[0]?.name ?? '' : o.restaurant_name} · ${tr(l, { en: 'Cancellation fee', ru: 'Плата за отмену', th: 'ค่าธรรมเนียมการยกเลิก' })}: ${fee}`,
     demo: o.mode === 'demo',
     actions: open

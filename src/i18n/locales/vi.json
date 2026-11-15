@@ -932,6 +932,7 @@
  "GrabExpress, Login with Grab and GrabPay on staging keys; run Grab's full happy and unhappy test suite; security review by Grab.": "GrabExpress, Login with Grab và GrabPay trên khóa staging; chạy toàn bộ bộ kiểm thử happy và unhappy của Grab; Grab đánh giá bảo mật.",
  "GrabID client for Login with Grab (openid, profile.read, phone)": "Client GrabID cho Login with Grab (openid, profile.read, phone)",
  "GrabID, GrabPay, pricing, brand and fulfilment remain Grab's. Ari is a front door, not a reseller.": "GrabID, GrabPay, giá cả, thương hiệu và khâu thực hiện đơn vẫn thuộc về Grab. Ari là một cửa ngõ, không phải bên bán lại.",
+ "GrabID, GrabPay, pricing, brand and fulfillment remain Grab's. Ari is a front door, not a reseller.": "GrabID, GrabPay, giá cả, thương hiệu và khâu thực hiện đơn vẫn thuộc về Grab. Ari là một cửa ngõ, không phải bên bán lại.",
  "GrabPay merchant (One-time Charge now, Tokenisation in SG/MY/PH next)": "Merchant GrabPay (hiện tại là One-time Charge, tiếp theo là Tokenisation tại SG/MY/PH)",
  "GrabPay One-time Charge with HMAC and proof-of-possession, automatic idempotent refunds.": "GrabPay One-time Charge với HMAC và proof-of-possession, hoàn tiền tự động và idempotent.",
  "Groceries, flowers, pharmacy and cakes from one sentence, with required options and limits respected.": "Tạp hóa, hoa, thuốc và bánh chỉ từ một câu nói, tuân thủ các tùy chọn bắt buộc và giới hạn.",
@@ -1055,6 +1056,7 @@
  "To order, an Ari user links a Grab account and pays with GrabPay. Grab keeps the customer.": "Để đặt hàng, người dùng Ari liên kết tài khoản Grab và thanh toán bằng GrabPay. Grab giữ khách hàng.",
  "Today": "Hiện tại",
  "Tokenised charges for orders Ari books as the merchant (Tokenisation does not pay for orders placed in the Grab app).": "Thu tiền bằng token cho các đơn Ari đặt với tư cách merchant (Tokenisation không dùng để thanh toán cho đơn đặt trong ứng dụng Grab).",
+ "Tokenized charges for orders Ari books as the merchant (Tokenisation does not pay for orders placed in the Grab app).": "Thu tiền bằng token cho các đơn Ari đặt với tư cách merchant (Tokenisation không dùng để thanh toán cho đơn đặt trong ứng dụng Grab).",
  "Tool definitions and system instructions for your LLM": "Định nghĩa công cụ và chỉ dẫn hệ thống cho LLM của bạn",
  "Toyota Corolla Altis, silver": "Toyota Corolla Altis, màu bạc",
  "Trips run at demo speed: a whole ride takes about two minutes.": "Chuyến đi chạy ở tốc độ demo: cả chuyến mất khoảng hai phút.",
@@ -1102,5 +1104,6 @@
  "Where should I pick you up? For example \"from Siam Paragon\".": "Tôi nên đón bạn ở đâu? Ví dụ \"từ Siam Paragon\".",
  "Where should the courier pick the parcel up? For example \"from Siam Paragon\".": "Người giao hàng nên lấy bưu kiện ở đâu? Ví dụ \"từ Siam Paragon\".",
  "You are welcome! Anything else from Grab?": "Không có gì! Bạn còn cần gì nữa từ Grab không?",
+ "You're welcome! Anything else from Grab?": "Không có gì! Bạn còn cần gì nữa từ Grab không?",
  "You have no orders yet. What would you like from Grab?": "Bạn chưa có đơn hàng nào. Bạn muốn đặt gì từ Grab?"
 }

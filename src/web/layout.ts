@@ -121,7 +121,7 @@ ${(o.scripts ?? []).map((x) => html`<script src="/static/${x}?v=${ASSET_VERSION}
   <span>${tr(l, {
     ru: 'Ari × Grab: предложение о партнёрстве от CSA PROJECT - FZCO. Договорённости с Grab нет. Проект не связан с Grab и не одобрен Grab. Демо-данные вымышлены.',
     en: 'Ari × Grab is a partnership proposal by CSA PROJECT - FZCO. No agreement with Grab exists. Not affiliated with or endorsed by Grab. Demo data is fictional.',
-    th: 'Ari × Grab เป็นข้อเสนอความร่วมมือจาก CSA PROJECT - FZCO ยังไม่มีข้อตกลงกับ Grab ไม่ได้เกี่ยวข้องหรือได้รับการรับรองจาก Grab ข้อมูลเดโมเป็นข้อมูลสมมติ',
+    th: 'Ari × Grab เป็นข้อเสนอความร่วมมือจาก CSA PROJECT - FZCO ยังไม่มีข้อตกลงกับ Grab ไม่มีส่วนเกี่ยวข้องกับ Grab และไม่ได้รับการรับรองจาก Grab ข้อมูลเดโมเป็นข้อมูลสมมติ',
   })} <a href="/for-grab#disclaimer">${tr(l, { ru: 'Подробнее', en: 'Details', th: 'รายละเอียด' })}</a></span>
 </div></aside>
 <header class="site"><div class="wrap">
@@ -158,7 +158,7 @@ ${!o.noBanner && o.mode === 'handoff' ? html`<div class="banner handoff" role="s
       <a href="/ari">${tr(l, { ru: 'Живое демо Ari', en: 'Ari live demo', th: 'เดโมสดของ Ari' })}</a>
       <a href="/#how">${m.navHow}</a>
       <a href="/developers">${tr(l, { ru: 'Partner API', en: 'Partner API', th: 'Partner API' })}</a>
-      <a href="/assistants">${tr(l, { ru: 'Другие ИИ-ассистенты (MCP)', en: 'Other AI assistants (MCP)', th: 'ผู้ช่วย AI อื่นๆ (MCP)' })}</a>
+      <a href="/assistants">${tr(l, { ru: 'Другие ИИ-ассистенты (MCP)', en: 'Other AI assistants (MCP)', th: 'ผู้ช่วย AI อื่น ๆ (MCP)' })}</a>
       <a href="/connect">${m.connectTitle}</a>
       <a href="/docs">${tr(l, { ru: 'Документация', en: 'Documentation', th: 'เอกสาร' })}</a>
     </div>

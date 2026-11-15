@@ -82,17 +82,67 @@
     return s;
   };
   const scroll = () => requestAnimationFrame(() => (chat.scrollTop = chat.scrollHeight));
-  const api = async (method, url, body) => {
-    const r = await fetch(url, {
-      method, credentials: 'same-origin',
-      headers: { 'x-ari-demo': '1', ...(body ? { 'content-type': 'application/json' } : {}) },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    const j = await r.json().catch(() => ({ ok: false, error: { message: S.error } }));
-    if (!j.ok) throw Object.assign(new Error(j.error?.message || S.error), { code: j.error?.code });
+  const withLang = (u) => `${u}${u.includes('?') ? '&' : '?'}lang=${encodeURIComponent(lang)}`;
+  const failure = (code, status, message) => Object.assign(new Error(message || ''), { code, status });
+  const request = async (method, url, body) => {
+    let r;
+    try {
+      r = await fetch(url, {
+        method, credentials: 'same-origin',
+        headers: { 'x-ari-demo': '1', ...(body ? { 'content-type': 'application/json' } : {}) },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (e) {
+      throw failure('NETWORK', 0);
+    }
+    const j = await r.json().catch(() => null);
+    if (!j || !j.ok) {
+      const err = (j && j.error) || {};
+      throw failure(err.code || (r.status === 429 ? 'RATE_LIMITED' : 'HTTP'), r.status, err.message);
+    }
     return j;
   };
-  const withLang = (u) => `${u}${u.includes('?') ? '&' : '?'}lang=${encodeURIComponent(lang)}`;
+  // The demo session lives in a cookie. When it is gone (expired, cleared), start a new one quietly
+  // and repeat the request once; an order that belonged to the old session is no longer tracked.
+  let renewing = null;
+  const renew = () => {
+    if (!renewing) {
+      renewing = request('POST', withLang('/ari/api/session')).then((r) => {
+        lastEvent = r.last_event || 0;
+        dropOrder();
+      }).finally(() => { renewing = null; });
+    }
+    return renewing;
+  };
+  const api = async (method, url, body) => {
+    try {
+      return await request(method, url, body);
+    } catch (e) {
+      if (e.code !== 'AUTH_REQUIRED' || method !== 'POST' || url.includes('/ari/api/session')) throw e;
+      await renew();
+      return request(method, url, body);
+    }
+  };
+  // Server error texts are English: show a localized line for everything the user cannot act on.
+  const errText = (e) => {
+    if (e && e.code === 'NETWORK') return S.offline || S.error;
+    if (e && (e.code === 'RATE_LIMITED' || e.status === 429)) return S.busy || S.error;
+    if (!e || !e.message || lang !== 'en' || e.status >= 500 || ['HTTP', 'INTERNAL', 'AUTH_REQUIRED'].includes(e.code)) return S.error;
+    return e.message;
+  };
+  // One request at a time: while Ari answers, sending is off and cards do not take taps.
+  const setBusy = (on) => {
+    busy = on;
+    app.classList.toggle('busy', on);
+    chat.setAttribute('aria-busy', on ? 'true' : 'false');
+    $('ari-send').disabled = on;
+  };
+  const loading = (btn, on) => {
+    if (!btn) return;
+    btn.classList.toggle('is-loading', on);
+    if (on) btn.setAttribute('aria-busy', 'true');
+    else btn.removeAttribute('aria-busy');
+  };
 
   // ---------------- clock
   const tick = () => {
@@ -195,7 +245,7 @@
         else b.addEventListener('click', () => {
           if (busy) return;
           b.classList.add('picked');
-          choose(o, list);
+          choose(o, list, b);
         });
         list.appendChild(b);
       });
@@ -229,13 +279,13 @@
         const b = el('button', 'ac-btn');
         b.type = 'button';
         b.append(svg('faceid'), document.createTextNode(confirm.label));
-        b.addEventListener('click', () => doConfirm(card, confirm, c));
+        b.addEventListener('click', () => doConfirm(card, confirm, c, b));
         c.append(b);
       }
       if (decline) {
         const b = el('button', 'ac-act secondary', decline.label);
         b.type = 'button';
-        b.addEventListener('click', () => doDecline(card, c));
+        b.addEventListener('click', () => doDecline(card, c, b));
         c.append(b);
       }
       if (card.footnote) c.append(el('div', 'ac-foot', card.footnote));
@@ -249,7 +299,7 @@
       if (confirm) {
         const b = el('button', 'ac-act destructive', confirm.label);
         b.type = 'button';
-        b.addEventListener('click', () => doCancelConfirm(card, confirm, c));
+        b.addEventListener('click', () => doCancelConfirm(card, confirm, c, b));
         c.append(b);
       }
       if (keep) {
@@ -346,7 +396,7 @@
   async function ask(text) {
     const q = String(text || '').trim();
     if (!q || busy) return;
-    busy = true;
+    setBusy(true);
     const g = gen;
     input.value = '';
     say('me', q);
@@ -364,18 +414,21 @@
     } catch (e) {
       if (g !== gen) return;
       t.remove();
-      say('ari', e.message || S.error);
+      say('ari', errText(e));
       setChips(EX.slice(0, 3));
+      // Nothing was sent: give the text back so one tap repeats it.
+      if (!input.value) input.value = q;
     } finally {
-      if (g === gen) busy = false;
+      if (g === gen) setBusy(false);
     }
   }
 
-  async function choose(opt, list) {
+  async function choose(opt, list, btn) {
     if (busy) return;
-    busy = true;
+    setBusy(true);
     const g = gen;
     list.querySelectorAll('button').forEach((b) => (b.disabled = true));
+    loading(btn, true);
     say('me', opt.title);
     const t = typing();
     try {
@@ -390,13 +443,14 @@
     } catch (e) {
       if (g !== gen) return;
       t.remove();
-      say('ari', e.message || S.error);
+      say('ari', errText(e));
       list.querySelectorAll('button').forEach((b) => {
         b.disabled = false;
         b.classList.remove('picked');
       });
     } finally {
-      if (g === gen) busy = false;
+      loading(btn, false);
+      if (g === gen) setBusy(false);
     }
   }
 
@@ -431,15 +485,16 @@
     }, 1150);
   });
 
-  async function doConfirm(card, action, node) {
+  async function doConfirm(card, action, node, btn) {
     if (busy) return;
-    busy = true;
+    setBusy(true);
     const g = gen;
     node.querySelectorAll('button').forEach((b) => (b.disabled = true));
     try {
       // The app may always ask for Face ID; it must when the card says biometric.
       await faceId();
       if (g !== gen) return;
+      loading(btn, true);
       const r = await api('POST', withLang('/ari/api/confirm'), { checkout_id: card.id, confirm_hash: action.endpoint.body.confirm_hash, user_verification: 'biometric' });
       if (g !== gen) return;
       addTrace(r.trace);
@@ -458,48 +513,61 @@
       }
     } catch (e) {
       if (g !== gen) return;
-      say('ari', e.message || S.error);
+      say('ari', errText(e));
       node.querySelectorAll('button').forEach((b) => (b.disabled = false));
     } finally {
-      if (g === gen) busy = false;
+      loading(btn, false);
+      if (g === gen) setBusy(false);
     }
   }
 
-  async function doDecline(card, node) {
-    node.querySelectorAll('button').forEach((b) => (b.disabled = true));
+  // Decline, cancel and cancel-confirm share one shape: lock the card, show progress on the pressed
+  // button and the typing dots, then either apply the answer or unlock the card again.
+  async function cardAction(node, btn, call, done) {
+    if (busy) return;
+    setBusy(true);
+    const g = gen;
+    const buttons = [...node.querySelectorAll('button')].filter((b) => !b.disabled);
+    buttons.forEach((b) => (b.disabled = true));
+    loading(btn, true);
+    const t = typing();
     try {
-      const g = gen;
-      const r = await api('POST', withLang('/ari/api/decline'), { checkout_id: card.id });
+      const r = await call();
       if (g !== gen) return;
+      t.remove();
+      loading(btn, false);
+      done(r);
+    } catch (e) {
+      if (g !== gen) return;
+      t.remove();
+      loading(btn, false);
+      say('ari', errText(e));
+      buttons.forEach((b) => { if (b.isConnected) b.disabled = false; });
+    } finally {
+      if (g === gen) setBusy(false);
+    }
+  }
+
+  function doDecline(card, node, btn) {
+    return cardAction(node, btn, () => api('POST', withLang('/ari/api/decline'), { checkout_id: card.id }), (r) => {
       markDone(node, S.declined, false);
       say('ari', r.reply);
       setChips(EX.slice(0, 4));
-    } catch (e) {
-      say('ari', e.message || S.error);
-    }
+    });
   }
 
-  async function doCancel(orderId, btn) {
-    btn.disabled = true;
-    try {
-      const g = gen;
-      const r = await api('POST', withLang('/ari/api/cancel'), { order_id: orderId });
-      if (g !== gen) return;
+  function doCancel(orderId, btn) {
+    // The order card is rebuilt by polling, so the pressed button may be replaced meanwhile.
+    return cardAction(btn.parentElement, btn, () => api('POST', withLang('/ari/api/cancel'), { order_id: orderId }), (r) => {
       addTrace(r.trace);
       say('ari', r.reply);
-      if (r.card) renderCard(r.card);
-    } catch (e) {
-      say('ari', e.message || S.error);
-      btn.disabled = false;
-    }
+      if (r.card) focusCard(renderCard(r.card));
+      else if (btn.isConnected) btn.disabled = false;
+    });
   }
 
-  async function doCancelConfirm(card, action, node) {
-    node.querySelectorAll('button').forEach((b) => (b.disabled = true));
-    try {
-      const g = gen;
-      const r = await api('POST', withLang('/ari/api/cancel/confirm'), { cancellation_id: card.id, confirm_hash: action.endpoint.body.confirm_hash });
-      if (g !== gen) return;
+  function doCancelConfirm(card, action, node, btn) {
+    return cardAction(node, btn, () => api('POST', withLang('/ari/api/cancel/confirm'), { cancellation_id: card.id, confirm_hash: action.endpoint.body.confirm_hash }), (r) => {
       addTrace(r.trace);
       say('ari', r.reply);
       if (r.card) {
@@ -507,9 +575,7 @@
         if (c) fillOrder(c, r.card);
         else renderCard(r.card);
       }
-    } catch (e) {
-      say('ari', e.message || S.error);
-    }
+    });
   }
 
   // ---------------- live updates: Live Activity, pushes and a call from Ari
@@ -614,7 +680,20 @@
     setTimeout(() => { if (hangCall === hang && !call.classList.contains('active')) hang(); }, 15000);
   }
 
+  // A slow network must not stack polls: the next tick is skipped while one is still running.
+  let pollBusy = false;
+  function dropOrder() {
+    activeOrder = null;
+    liveCard = null;
+    remember(null);
+    stopPolling();
+    clearTimeout(ringTimer);
+    island.classList.remove('live', 'ended', 'done');
+  }
   async function pollOnce() {
+    if (pollBusy) return;
+    pollBusy = true;
+    const g0 = gen;
     try {
       const ev = await api('GET', withLang(`/ari/api/events?after=${lastEvent}`));
       let latestNotify = null;
@@ -629,7 +708,8 @@
         const r = await api('GET', withLang(`/ari/api/orders/${activeOrder}`));
         if (g !== gen || activeOrder !== oidNow) return;
         const c = orderCards.get(activeOrder);
-        if (c) fillOrder(c, r.card);
+        // Do not rebuild the card under a pressed button (cancel in progress) unless the order ended.
+        if (c && (!busy || !c.querySelector('.is-loading') || (r.card.status && r.card.status.is_final))) fillOrder(c, r.card);
         liveCard = r.card;
         if (latestNotify) {
           if (latestNotify.n.level !== 'info') showPush(latestNotify.n);
@@ -662,7 +742,10 @@
         }
       }
     } catch (e) {
-      /* transient; try again on the next tick */
+      // The session or the order is gone: stop asking. Anything else is transient, try on the next tick.
+      if (g0 === gen && e && (e.code === 'AUTH_REQUIRED' || e.code === 'NOT_FOUND')) dropOrder();
+    } finally {
+      pollBusy = false;
     }
   }
   function startPolling() {
@@ -707,13 +790,13 @@
       b.querySelector('span').textContent = S.linked;
       showPush({ title: 'Grab', body: S.linkedNote || S.linked });
     } catch (e) {
-      say('ari', e.message || S.error);
+      say('ari', errText(e));
     }
   });
   // Back to a clean chat at any moment, also in the middle of an order, Face ID or a call.
   function reset() {
     gen += 1;
-    busy = false;
+    setBusy(false);
     stopPolling();
     clearTimeout(ringTimer);
     clearTimeout(islandTimer);
@@ -797,8 +880,28 @@
     } catch (e) {
       if (g !== gen) return;
       t.remove();
-      say('ari', e.message || S.error);
+      // No session (rate limit, offline): say why and offer one button that tries again.
+      say('ari', errText(e));
+      const b = el('button', 'ac-act secondary ari-retry', S.retry || 'Try again');
+      b.type = 'button';
+      b.addEventListener('click', () => {
+        if (b.disabled) return;
+        b.disabled = true;
+        loading(b, true);
+        reset();
+      });
+      chat.appendChild(b);
+      scroll();
+      if (document.activeElement === document.body || app.contains(document.activeElement)) b.focus({ preventScroll: true });
     }
   }
+  // On-screen keyboard or rotation changes the visible height: keep the latest message in view.
+  const onViewport = () => {
+    scroll();
+    if (document.activeElement === input) requestAnimationFrame(() => $('ari-form').scrollIntoView({ block: 'nearest' }));
+  };
+  window.addEventListener('resize', onViewport);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', onViewport);
+  input.addEventListener('focus', () => setTimeout(onViewport, 250));
   start(false);
 })();

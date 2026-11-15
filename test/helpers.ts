@@ -5,15 +5,60 @@ import { createHash, randomBytes } from 'node:crypto';
 import { buildApp } from '../src/app.js';
 import { Config, loadConfig } from '../src/config.js';
 import { createCtx, Ctx, OffsetClock } from '../src/context.js';
-import { createDb, Db } from '../src/db/db.js';
+import { createDb, Db, Queryable } from '../src/db/db.js';
 import { migrate } from '../src/db/migrate.js';
 import { addAddress } from '../src/services/users.js';
 
 export const TEST_DB = process.env.TEST_DATABASE_URL || 'postgres://postgres@localhost:5432/unyly_test';
 
+/** Counts database round trips: one per statement, plus BEGIN and COMMIT for every transaction. */
+export interface QueryCounter {
+  /** Statements (inside and outside transactions). */
+  statements: number;
+  transactions: number;
+  /** What a remote database sees: statements + 2 per transaction. */
+  roundTrips: number;
+  log: string[];
+  reset(): void;
+}
+
+export function countingDb(db: Db): { db: Db; counter: QueryCounter } {
+  const counter: QueryCounter = {
+    statements: 0, transactions: 0, roundTrips: 0, log: [],
+    reset() {
+      this.statements = 0;
+      this.transactions = 0;
+      this.roundTrips = 0;
+      this.log = [];
+    },
+  };
+  const note = (sql: string, inTx: boolean) => {
+    counter.statements++;
+    counter.roundTrips++;
+    counter.log.push(`${inTx ? '  tx ' : ''}${sql.replace(/\s+/g, ' ').trim().slice(0, 110)}`);
+  };
+  const wrapped: Db = {
+    query: (sql, params) => {
+      note(sql, false);
+      return db.query(sql, params);
+    },
+    tx: (fn) => {
+      counter.transactions++;
+      counter.roundTrips += 2;
+      counter.log.push('BEGIN..COMMIT');
+      return db.tx((q) => fn({ query: (sql, params) => { note(sql, true); return q.query(sql, params); } } as Queryable));
+    },
+    close: () => db.close(),
+    ping: () => db.ping(),
+  };
+  return { db: wrapped, counter };
+}
+
 export interface Harness {
   cfg: Config;
   db: Db;
+  /** Round-trip counter for everything the app sends to the database. */
+  queries: QueryCounter;
   ctx: Ctx;
   clock: OffsetClock;
   app: FastifyInstance;
@@ -44,14 +89,14 @@ export async function startHarness(opts: { fresh?: boolean; cfg?: Partial<Config
     runJobs: false,
     ...opts.cfg,
   });
-  const db = createDb(cfg.databaseUrl, 10);
+  const { db, counter } = countingDb(createDb(cfg.databaseUrl, 10));
   const clock = new OffsetClock();
   const ctx = createCtx(cfg, db, clock);
   const app = await buildApp(ctx);
   await app.listen({ port: 0, host: '127.0.0.1' });
   const port = (app.server.address() as any).port;
   return {
-    cfg, db, ctx, clock, app, baseUrl: `http://127.0.0.1:${port}`,
+    cfg, db, queries: counter, ctx, clock, app, baseUrl: `http://127.0.0.1:${port}`,
     async close() {
       await app.close();
       await db.close();

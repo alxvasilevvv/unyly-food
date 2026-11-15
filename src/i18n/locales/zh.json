@@ -932,6 +932,7 @@
  "GrabExpress, Login with Grab and GrabPay on staging keys; run Grab's full happy and unhappy test suite; security review by Grab.": "GrabExpress、Login with Grab 和 GrabPay 使用预发布密钥；跑完 Grab 的全部正常与异常测试用例；由 Grab 进行安全审查。",
  "GrabID client for Login with Grab (openid, profile.read, phone)": "用于 Login with Grab 的 GrabID 客户端（openid、profile.read、phone）",
  "GrabID, GrabPay, pricing, brand and fulfilment remain Grab's. Ari is a front door, not a reseller.": "GrabID、GrabPay、定价、品牌和履约仍归 Grab。Ari 是入口，不是转售方。",
+ "GrabID, GrabPay, pricing, brand and fulfillment remain Grab's. Ari is a front door, not a reseller.": "GrabID、GrabPay、定价、品牌和履约仍归 Grab。Ari 是入口，不是转售方。",
  "GrabPay merchant (One-time Charge now, Tokenisation in SG/MY/PH next)": "GrabPay 商户（现在是 One-time Charge，接下来是新加坡/马来西亚/菲律宾的 Tokenisation）",
  "GrabPay One-time Charge with HMAC and proof-of-possession, automatic idempotent refunds.": "GrabPay One-time Charge，带 HMAC 和持有证明（proof-of-possession），自动幂等退款。",
  "Groceries, flowers, pharmacy and cakes from one sentence, with required options and limits respected.": "一句话搞定生鲜杂货、鲜花、药品和蛋糕，并遵守必选项和限制。",
@@ -1055,6 +1056,7 @@
  "To order, an Ari user links a Grab account and pays with GrabPay. Grab keeps the customer.": "要下单，Ari 用户需关联 Grab 账号并用 GrabPay 付款。客户仍留在 Grab。",
  "Today": "现在",
  "Tokenised charges for orders Ari books as the merchant (Tokenisation does not pay for orders placed in the Grab app).": "对 Ari 作为商户预订的订单进行令牌化扣款（Tokenisation 不用于支付在 Grab 应用内下的订单）。",
+ "Tokenized charges for orders Ari books as the merchant (Tokenisation does not pay for orders placed in the Grab app).": "对 Ari 作为商户预订的订单进行令牌化扣款（Tokenisation 不用于支付在 Grab 应用内下的订单）。",
  "Tool definitions and system instructions for your LLM": "供你的 LLM 使用的工具定义和系统指令",
  "Toyota Corolla Altis, silver": "丰田 Corolla Altis，银色",
  "Trips run at demo speed: a whole ride takes about two minutes.": "行程以演示速度进行：整趟行程约两分钟。",
@@ -1102,5 +1104,6 @@
  "Where should I pick you up? For example \"from Siam Paragon\".": "在哪里接你？例如“从 Siam Paragon 出发”。",
  "Where should the courier pick the parcel up? For example \"from Siam Paragon\".": "骑手到哪里取包裹？例如“从 Siam Paragon 取件”。",
  "You are welcome! Anything else from Grab?": "不客气！还需要 Grab 的其他服务吗？",
+ "You're welcome! Anything else from Grab?": "不客气！还需要 Grab 的其他服务吗？",
  "You have no orders yet. What would you like from Grab?": "你还没有订单。想从 Grab 订点什么？"
 }

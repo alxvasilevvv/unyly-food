@@ -11,7 +11,7 @@ import { buildTrip } from '../providers/demo/places.js';
 import { DEMO_CITY, DEMO_DISTRICTS } from '../providers/demo/catalog.js';
 import type { CartLine, Mode, Place, SelectedModifier, Trip } from '../providers/types.js';
 import { callProvider, newLineId, requireCapability } from './common.js';
-import { AddressRow, addressFingerprint, getAddress, getDefaultAddress, getUser, listAddresses, maskedAddress, toDeliveryAddress } from './users.js';
+import { actorAddresses, actorUser, AddressRow, addressFingerprint, forgetActorAddresses, getAddress, listAddresses, maskedAddress, toDeliveryAddress } from './users.js';
 
 export const MAX_LINES = 30;
 export const MAX_QTY = 20;
@@ -59,7 +59,18 @@ export type CartOp =
 
 /** Load a cart the actor owns. Other users' carts are indistinguishable from missing ones. */
 export async function loadCart(q: Queryable, userId: string, cartId: string, lock = false): Promise<CartState> {
-  const r = await q.query<CartRow>(`SELECT * FROM carts WHERE id = $1 AND user_id = $2 ${lock ? 'FOR UPDATE' : ''}`, [cartId, userId]);
+  if (!lock) {
+    // Plain read: the cart and its current version in one statement (one snapshot, one round trip).
+    const r = await q.query<CartState>(
+      `SELECT c.*, v.items, v.address_id, v.trip FROM carts c JOIN cart_versions v ON v.cart_id = c.id AND v.version = c.version WHERE c.id = $1 AND c.user_id = $2`,
+      [cartId, userId],
+    );
+    if (!r.rows[0]) throw new DomainError('NOT_FOUND', 'Cart not found');
+    return { ...r.rows[0], trip: r.rows[0].trip ?? null };
+  }
+  // Locked read: take the row lock first, then read the version the locked row points at (a join would
+  // be evaluated against the pre-lock snapshot and could miss a version written by the previous holder).
+  const r = await q.query<CartRow>('SELECT * FROM carts WHERE id = $1 AND user_id = $2 FOR UPDATE', [cartId, userId]);
   const cart = r.rows[0];
   if (!cart) throw new DomainError('NOT_FOUND', 'Cart not found');
   const v = await q.query('SELECT items, address_id, trip FROM cart_versions WHERE cart_id = $1 AND version = $2', [cartId, cart.version]);
@@ -123,20 +134,23 @@ export function describeTrip(t: Trip | null) {
   };
 }
 
-async function resolveOne(ctx: Ctx, mode: Mode, userId: string, text: string | undefined, field: 'pickup' | 'dropoff'): Promise<Place> {
+async function resolveOne(ctx: Ctx, mode: Mode, addresses: () => Promise<AddressRow[]>, text: string | undefined, field: 'pickup' | 'dropoff'): Promise<Place> {
   const raw = (text ?? '').trim().slice(0, 160);
   if (!raw) throw new DomainError('TRIP_REQUIRED', `${field} is required for this service`, { field });
   const provider = ctx.provider(mode);
   if (!provider.resolvePlace) return { name: raw, kind: 'user_text' };
-  const saved = (await listAddresses(ctx.db, userId)).map((a) => ({ id: a.id, label: a.label, district: a.district, city: a.city, latitude: a.latitude ?? null, longitude: a.longitude ?? null }));
+  const saved = (await addresses()).map((a) => ({ id: a.id, label: a.label, district: a.district, city: a.city, latitude: a.latitude ?? null, longitude: a.longitude ?? null }));
   const r = provider.resolvePlace(raw, saved);
   if (!r.ok) throw new DomainError(r.code, `${field}: ${r.message}`, { field, suggestions: r.suggestions });
   return r.place;
 }
 
-export async function resolveTrip(ctx: Ctx, mode: Mode, userId: string, service: Service, input: TripInput, prev?: Trip | null): Promise<Trip> {
-  const pickup = input.pickup !== undefined || !prev ? await resolveOne(ctx, mode, userId, input.pickup, 'pickup') : prev.pickup;
-  const dropoff = input.dropoff !== undefined || !prev ? await resolveOne(ctx, mode, userId, input.dropoff, 'dropoff') : prev.dropoff;
+export async function resolveTrip(ctx: Ctx, mode: Mode, who: Actor | string, service: Service, input: TripInput, prev?: Trip | null): Promise<Trip> {
+  // The saved addresses are read once for both places (and once per call when the actor is known).
+  let list: Promise<AddressRow[]> | undefined;
+  const addresses = () => (list ??= typeof who === 'string' ? listAddresses(ctx.db, who) : actorAddresses(ctx, who));
+  const pickup = input.pickup !== undefined || !prev ? await resolveOne(ctx, mode, addresses, input.pickup, 'pickup') : prev.pickup;
+  const dropoff = input.dropoff !== undefined || !prev ? await resolveOne(ctx, mode, addresses, input.dropoff, 'dropoff') : prev.dropoff;
   let parcel = prev?.parcel;
   if (service === 'express') {
     const w = input.parcel_weight_kg ?? prev?.parcel?.weight_kg;
@@ -286,7 +300,7 @@ export interface CreateCartArgs extends TripInput {
 }
 
 export async function createCart(ctx: Ctx, actor: Actor, args: CreateCartArgs): Promise<CartState> {
-  const user = await getUser(ctx.db, actor.userId);
+  const user = await actorUser(ctx, actor);
   requireCapability(ctx, user.mode, 'cart');
   if (args.items.length > MAX_LINES) throw new DomainError('VALIDATION_FAILED', `At most ${MAX_LINES} lines`);
   args.items.forEach((i) => checkQty(i.quantity));
@@ -319,7 +333,7 @@ export async function createCart(ctx: Ctx, actor: Actor, args: CreateCartArgs): 
       // Not saved yet: the row is written in the cart transaction below, so a rejected cart leaves no address behind.
       address = { id: '', user_id: actor.userId, is_default: false, ...recipient };
     } else if (!isTripService(service) || args.restaurant_id) {
-      address = args.address_id ? await getAddress(ctx.db, actor.userId, args.address_id) : await getDefaultAddress(ctx.db, actor.userId);
+      address = args.address_id ? await getAddress(ctx.db, actor.userId, args.address_id) : (await actorAddresses(ctx, actor))[0] ?? null;
     }
     const menu = await callProvider(() => provider.getMenu(storeId!, address ? toDeliveryAddress(address) : null));
     restaurantId = menu.restaurant.id;
@@ -330,7 +344,7 @@ export async function createCart(ctx: Ctx, actor: Actor, args: CreateCartArgs): 
       address = null;
     }
   }
-  const trip = isTripService(service) ? args.reuse_trip ?? (await resolveTrip(ctx, user.mode, actor.userId, service, args)) : null;
+  const trip = isTripService(service) ? args.reuse_trip ?? (await resolveTrip(ctx, user.mode, actor, service, args)) : null;
   const lines = await resolveLines(ctx, user.mode, restaurantId, items, address);
   const perItem = new Map<string, number>();
   for (const l of lines) if (l.item_id) perItem.set(l.item_id, (perItem.get(l.item_id) ?? 0) + l.quantity);
@@ -345,18 +359,24 @@ export async function createCart(ctx: Ctx, actor: Actor, args: CreateCartArgs): 
     }
   }
   if (trip) checkTripLines(lines);
-  return ctx.db.tx(async (q) => {
-    if (recipient && address) address = await saveRecipientAddress(q, actor.userId, recipient);
+  // Cart, its first version and the audit row in one statement: atomic on its own, no BEGIN/COMMIT round trips.
+  const insert = async (q: Queryable, addressId: string | null): Promise<CartState> => {
     const c = await q.query<CartRow>(
-      'INSERT INTO carts (user_id, mode, service, restaurant_id, restaurant_name) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [actor.userId, user.mode, service, restaurantId, restaurantName],
+      `WITH c AS (INSERT INTO carts (user_id, mode, service, restaurant_id, restaurant_name) VALUES ($1,$2,$3,$4,$5) RETURNING *),
+            v AS (INSERT INTO cart_versions (cart_id, version, items, address_id, trip) SELECT c.id, 1, $6::jsonb, $7::uuid, $8::jsonb FROM c),
+            a AS (INSERT INTO audit_log (user_id, actor, action, mode, entity, entity_id, details) SELECT c.user_id, $9, 'cart.created', c.mode, 'cart', c.id::text, $10::jsonb FROM c)
+       SELECT * FROM c`,
+      [actor.userId, user.mode, service, restaurantId, restaurantName, JSON.stringify(lines), addressId, trip ? JSON.stringify(trip) : null, actorLabel(actor), JSON.stringify({ service })],
     );
-    await q.query('INSERT INTO cart_versions (cart_id, version, items, address_id, trip) VALUES ($1, 1, $2, $3, $4)', [
-      c.rows[0].id, JSON.stringify(lines), address?.id ?? null, trip ? JSON.stringify(trip) : null,
-    ]);
-    await audit(q, { userId: actor.userId, actor: actorLabel(actor), action: 'cart.created', mode: user.mode, entity: 'cart', entityId: c.rows[0].id, details: { service } });
-    return { ...c.rows[0], items: lines, address_id: address?.id ?? null, trip };
-  });
+    return { ...c.rows[0], items: lines, address_id: addressId, trip };
+  };
+  if (recipient && address) {
+    // A gift address is saved together with the cart, so a rejected cart leaves no address behind.
+    const cart = await ctx.db.tx(async (q) => insert(q, (await saveRecipientAddress(q, actor.userId, recipient)).id));
+    forgetActorAddresses(actor);
+    return cart;
+  }
+  return insert(ctx.db, address?.id ?? null);
 }
 
 export async function updateCart(ctx: Ctx, actor: Actor, cartId: string, expectedVersion: number, ops: CartOp[]): Promise<CartState> {
@@ -371,7 +391,7 @@ export async function updateCart(ctx: Ctx, actor: Actor, cartId: string, expecte
   if (tripOps.length && !isTripService(pre.service)) throw new DomainError('VALIDATION_FAILED', 'set_trip is only for ride and parcel carts');
   if (isTripService(pre.service) && ops.some((o) => o.op === 'set_address')) throw new DomainError('VALIDATION_FAILED', 'Use set_trip for ride and parcel carts');
   let newTrip = pre.trip;
-  for (const t of tripOps) newTrip = await resolveTrip(ctx, pre.mode, actor.userId, pre.service, t, newTrip);
+  for (const t of tripOps) newTrip = await resolveTrip(ctx, pre.mode, actor, pre.service, t, newTrip);
 
   return ctx.db.tx(async (q) => {
     const cart = await loadCart(q, actor.userId, cartId, true);
@@ -472,8 +492,9 @@ export interface QuoteRow {
   expires_at: string;
 }
 
-export async function quoteCart(ctx: Ctx, actor: Actor, cartId: string) {
-  const cart = await loadCart(ctx.db, actor.userId, cartId);
+export async function quoteCart(ctx: Ctx, actor: Actor, cartId: string, opts: { cart?: CartState } = {}) {
+  // opts.cart: the state this same call just wrote (create_cart, update_cart); the version is re-checked under a lock below.
+  const cart = opts.cart && opts.cart.id === cartId && opts.cart.user_id === actor.userId ? opts.cart : await loadCart(ctx.db, actor.userId, cartId);
   requireCapability(ctx, cart.mode, 'quote');
   if (cart.status !== 'open') throw new DomainError('CART_NOT_OPEN', `Cart is ${cart.status}`);
   if (!cart.items.length) throw new DomainError('CART_EMPTY', 'Cart has no items');
@@ -498,21 +519,27 @@ export async function quoteCart(ctx: Ctx, actor: Actor, cartId: string) {
   const pq = await callProvider(() => ctx.provider(cart.mode).quote({ restaurant_id: cart.restaurant_id!, lines: cart.items, address: da, trip: cart.trip }));
   const expires = new Date(fetchedAt.getTime() + pq.valid_for_seconds * 1000);
   const hash = sha256(stableJson({ cart: cart.id, v: cart.version, addr: fingerprint, lines: pq.lines, total: pq.total_minor, cur: pq.currency }));
-  const row = await ctx.db.tx(async (q) => {
-    const cur = await q.query('SELECT version FROM carts WHERE id = $1 FOR SHARE', [cart.id]);
-    if (cur.rows[0].version !== cart.version) throw new DomainError('CART_VERSION_CONFLICT', 'Cart changed while quoting; quote again', { current_version: cur.rows[0].version });
-    const r = await q.query<QuoteRow>(
-      `INSERT INTO quotes (user_id, cart_id, cart_version, mode, currency, lines, subtotal_minor, delivery_fee_minor, service_fee_minor, small_order_fee_minor,
-        discount_minor, total_minor, eta_min_minutes, eta_max_minutes, issues, checkout_allowed, price_source, address_fingerprint, quote_hash, fetched_at, expires_at, payment_method_label, cancellation_terms)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23) RETURNING *`,
-      [actor.userId, cart.id, cart.version, cart.mode, pq.currency, JSON.stringify(pq.lines), pq.subtotal_minor, pq.delivery_fee_minor, pq.service_fee_minor,
-        pq.small_order_fee_minor, pq.discount_minor, pq.total_minor, pq.eta_min_minutes, pq.eta_max_minutes, JSON.stringify(pq.issues), pq.issues.length === 0,
-        pq.price_source, fingerprint, hash, fetchedAt, expires, pq.payment_method_label, pq.cancellation_terms],
-    );
-    await audit(q, { userId: actor.userId, actor: actorLabel(actor), action: 'quote.created', mode: cart.mode, entity: 'quote', entityId: r.rows[0].id, details: { total: pq.total_minor } });
-    return r.rows[0];
-  });
-  return { quote: row, cart, address: addr };
+  // One statement (atomic on its own): lock the cart row against a concurrent version change, store the quote
+  // only if the version is still the one that was priced, and write the audit row. Same guarantee as the
+  // former transaction, without the BEGIN/COMMIT round trips.
+  const r = await ctx.db.query<QuoteRow & { current_version: number; quote_json: any }>(
+    `WITH cur AS (SELECT version FROM carts WHERE id = $2 FOR SHARE),
+          ins AS (
+            INSERT INTO quotes (user_id, cart_id, cart_version, mode, currency, lines, subtotal_minor, delivery_fee_minor, service_fee_minor, small_order_fee_minor,
+              discount_minor, total_minor, eta_min_minutes, eta_max_minutes, issues, checkout_allowed, price_source, address_fingerprint, quote_hash, fetched_at, expires_at, payment_method_label, cancellation_terms)
+            SELECT $1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16,$17,$18,$19,$20,$21,$22,$23 FROM cur WHERE cur.version = $3
+            RETURNING *),
+          a AS (INSERT INTO audit_log (user_id, actor, action, mode, entity, entity_id, details) SELECT ins.user_id, $24, 'quote.created', ins.mode, 'quote', ins.id::text, $25::jsonb FROM ins)
+     SELECT cur.version AS current_version, ins.* FROM cur LEFT JOIN ins ON true`,
+    [actor.userId, cart.id, cart.version, cart.mode, pq.currency, JSON.stringify(pq.lines), pq.subtotal_minor, pq.delivery_fee_minor, pq.service_fee_minor,
+      pq.small_order_fee_minor, pq.discount_minor, pq.total_minor, pq.eta_min_minutes, pq.eta_max_minutes, JSON.stringify(pq.issues), pq.issues.length === 0,
+      pq.price_source, fingerprint, hash, fetchedAt, expires, pq.payment_method_label, pq.cancellation_terms, actorLabel(actor), JSON.stringify({ total: pq.total_minor })],
+  );
+  const got = r.rows[0];
+  if (!got) throw new DomainError('NOT_FOUND', 'Cart not found');
+  if (!got.id) throw new DomainError('CART_VERSION_CONFLICT', 'Cart changed while quoting; quote again', { current_version: got.current_version });
+  const { current_version: _cv, ...row } = got;
+  return { quote: row as QuoteRow, cart, address: addr };
 }
 
 export function describeQuote(qr: QuoteRow, locale: Locale = 'en', cart?: Pick<CartState, 'service' | 'trip'>) {

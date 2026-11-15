@@ -5,7 +5,7 @@ import { isTripService, Service } from '../domain/regions.js';
 import type { CartLine, MenuItem, Restaurant } from '../providers/types.js';
 import { describeTrip, resolveTrip } from './carts.js';
 import { callProvider, requireCapability } from './common.js';
-import { getDefaultAddress, getPreferences, getUser, maskedAddress, toDeliveryAddress } from './users.js';
+import { actorAddresses, actorUser, getPreferences, maskedAddress, toDeliveryAddress } from './users.js';
 
 const NON_MAIN = new Set(['drinks', 'desserts', 'sides']);
 
@@ -60,10 +60,10 @@ export async function searchStores(ctx: Ctx, actor: Actor, args: SearchArgs) {
 }
 
 async function searchMart(ctx: Ctx, actor: Actor, args: SearchArgs) {
-  const user = await getUser(ctx.db, actor.userId);
+  const user = await actorUser(ctx, actor);
   requireCapability(ctx, user.mode, 'search_restaurants');
-  const addrRow = await getDefaultAddress(ctx.db, actor.userId);
-  const prefs = await getPreferences(ctx.db, actor.userId);
+  // Two independent reads on the pool: sent together.
+  const [addrRow, prefs] = await Promise.all([actorAddresses(ctx, actor).then((a) => a[0] ?? null), getPreferences(ctx.db, actor.userId)]);
   const excluded = [...new Set([...(args.exclude_allergens ?? []), ...prefs.allergies])];
   const provider = ctx.provider(user.mode);
   const address = addrRow ? toDeliveryAddress(addrRow) : null;
@@ -110,10 +110,10 @@ async function searchMart(ctx: Ctx, actor: Actor, args: SearchArgs) {
 }
 
 export async function searchRestaurants(ctx: Ctx, actor: Actor, args: SearchArgs) {
-  const user = await getUser(ctx.db, actor.userId);
+  const user = await actorUser(ctx, actor);
   requireCapability(ctx, user.mode, 'search_restaurants');
-  const addrRow = await getDefaultAddress(ctx.db, actor.userId);
-  const prefs = await getPreferences(ctx.db, actor.userId);
+  // Two independent reads on the pool: sent together.
+  const [addrRow, prefs] = await Promise.all([actorAddresses(ctx, actor).then((a) => a[0] ?? null), getPreferences(ctx.db, actor.userId)]);
   const excluded = [...new Set([...(args.exclude_allergens ?? []), ...prefs.allergies])];
   const diets = [...new Set([...(args.dietary ?? []), ...prefs.dietary])];
   const party = args.party_size ?? prefs.default_party_size ?? 1;
@@ -205,10 +205,10 @@ export async function getMenu(ctx: Ctx, actor: Actor, restaurantId: string) {
 }
 
 export async function getStore(ctx: Ctx, actor: Actor, restaurantId: string) {
-  const user = await getUser(ctx.db, actor.userId);
+  const user = await actorUser(ctx, actor);
   requireCapability(ctx, user.mode, 'get_menu');
-  const addrRow = await getDefaultAddress(ctx.db, actor.userId);
-  const prefs = await getPreferences(ctx.db, actor.userId);
+  // Two independent reads on the pool: sent together.
+  const [addrRow, prefs] = await Promise.all([actorAddresses(ctx, actor).then((a) => a[0] ?? null), getPreferences(ctx.db, actor.userId)]);
   const menu = await callProvider(() => ctx.provider(user.mode).getMenu(restaurantId, addrRow ? toDeliveryAddress(addrRow) : null));
   if (!menu) throw new DomainError('NOT_FOUND', 'Restaurant not found');
   return {
@@ -246,10 +246,10 @@ export async function estimateTrip(
   actor: Actor,
   args: { service: 'ride' | 'express'; pickup: string; dropoff: string; parcel_weight_kg?: number; parcel_description?: string; passengers?: number },
 ) {
-  const user = await getUser(ctx.db, actor.userId);
+  const user = await actorUser(ctx, actor);
   requireCapability(ctx, user.mode, 'quote');
   const provider = ctx.provider(user.mode);
-  const trip = await resolveTrip(ctx, user.mode, actor.userId, args.service, args);
+  const trip = await resolveTrip(ctx, user.mode, actor, args.service, args);
   if (args.service === 'ride' && provider.rideEstimates) {
     // Live: Grab Farefeed fare ranges with deep links. There is no ride booking API, so booking happens in the Grab app.
     const est = await callProvider(() => provider.rideEstimates!(trip));

@@ -932,6 +932,7 @@
  "GrabExpress, Login with Grab and GrabPay on staging keys; run Grab's full happy and unhappy test suite; security review by Grab.": "GrabExpress, Login with Grab at GrabPay sa staging keys; patakbuhin ang buong happy at unhappy test suite ng Grab; security review ng Grab.",
  "GrabID client for Login with Grab (openid, profile.read, phone)": "GrabID client para sa Login with Grab (openid, profile.read, phone)",
  "GrabID, GrabPay, pricing, brand and fulfilment remain Grab's. Ari is a front door, not a reseller.": "Nananatiling sa Grab ang GrabID, GrabPay, presyo, brand at fulfilment. Pintuan ang Ari, hindi reseller.",
+ "GrabID, GrabPay, pricing, brand and fulfillment remain Grab's. Ari is a front door, not a reseller.": "Nananatiling sa Grab ang GrabID, GrabPay, presyo, brand at fulfilment. Pintuan ang Ari, hindi reseller.",
  "GrabPay merchant (One-time Charge now, Tokenisation in SG/MY/PH next)": "GrabPay merchant (One-time Charge ngayon, kasunod ang Tokenisation sa SG/MY/PH)",
  "GrabPay One-time Charge with HMAC and proof-of-possession, automatic idempotent refunds.": "GrabPay One-time Charge na may HMAC at proof-of-possession, awtomatiko at idempotent na refunds.",
  "Groceries, flowers, pharmacy and cakes from one sentence, with required options and limits respected.": "Groceries, bulaklak, gamot at cake mula sa isang pangungusap, at sinusunod ang mga kailangang opsyon at limitasyon.",
@@ -1055,6 +1056,7 @@
  "To order, an Ari user links a Grab account and pays with GrabPay. Grab keeps the customer.": "Para umorder, nagli-link ang user ng Ari ng Grab account at nagbabayad gamit ang GrabPay. Sa Grab pa rin ang customer.",
  "Today": "Ngayon",
  "Tokenised charges for orders Ari books as the merchant (Tokenisation does not pay for orders placed in the Grab app).": "Tokenised na singil para sa mga order na bino-book ni Ari bilang merchant (hindi binabayaran ng Tokenisation ang mga order na inilagay sa Grab app).",
+ "Tokenized charges for orders Ari books as the merchant (Tokenisation does not pay for orders placed in the Grab app).": "Tokenised na singil para sa mga order na bino-book ni Ari bilang merchant (hindi binabayaran ng Tokenisation ang mga order na inilagay sa Grab app).",
  "Tool definitions and system instructions for your LLM": "Tool definitions at system instructions para sa LLM mo",
  "Toyota Corolla Altis, silver": "Toyota Corolla Altis, pilak",
  "Trips run at demo speed: a whole ride takes about two minutes.": "Tumatakbo ang mga biyahe sa bilis ng demo: mga dalawang minuto lang ang buong ride.",
@@ -1102,5 +1104,6 @@
  "Where should I pick you up? For example \"from Siam Paragon\".": "Saan kita susunduin? Halimbawa \"mula Siam Paragon\".",
  "Where should the courier pick the parcel up? For example \"from Siam Paragon\".": "Saan kukunin ng courier ang parcel? Halimbawa \"mula Siam Paragon\".",
  "You are welcome! Anything else from Grab?": "Walang anuman! May iba ka pa bang kailangan sa Grab?",
+ "You're welcome! Anything else from Grab?": "Walang anuman! May iba ka pa bang kailangan sa Grab?",
  "You have no orders yet. What would you like from Grab?": "Wala ka pang order. Ano ang gusto mo sa Grab?"
 }

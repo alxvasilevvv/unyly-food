@@ -11,7 +11,7 @@ import { CartState, createCart, describeCart, describeQuote, loadCart, QuoteRow,
 import { CheckoutRow, checkoutStatus, confirmUrl, paymentRequired, prepareCheckout, submitOrder } from '../services/checkout.js';
 import { createHandoff, getCapabilities } from '../services/handoff.js';
 import { cancelConfirmUrl, cancelOrder, describeCancellation, getOrderStatus, listOrders, prepareCancellation, reorder } from '../services/orders.js';
-import { getUser } from '../services/users.js';
+import { actorUser, beginActorMemo, endActorMemo, type AddressRow, type UserRow } from '../services/users.js';
 import { DEMO_DISTRICTS } from '../providers/demo/catalog.js';
 import { registerPrompts } from './prompts.js';
 
@@ -227,7 +227,11 @@ export function serverInfo(ctx: Ctx) {
   };
 }
 
-export function buildMcpServer(ctx: Ctx, actor: Actor): McpServer {
+/**
+ * `seed`: rows the caller read for this same request (the Partner API loads the user to authorize the
+ * call), so the tool does not read them again.
+ */
+export function buildMcpServer(ctx: Ctx, actor: Actor, seed: { user?: UserRow; addresses?: AddressRow[] } = {}): McpServer {
   const server = new McpServer(serverInfo(ctx), { instructions: SERVER_INSTRUCTIONS });
   registerPrompts(server);
   // The SDK validates arguments with the tool's strict object schema. Dropping null-valued keys first makes
@@ -261,7 +265,9 @@ export function buildMcpServer(ctx: Ctx, actor: Actor): McpServer {
           if (!actor.scopes?.includes(need)) {
             throw new DomainError('INSUFFICIENT_SCOPE', `This action needs the "${need}" permission. Reconnect Unyly and grant it.`, { required_scope: need });
           }
-          mode = (await getUser(ctx.db, actor.userId)).mode;
+          // One read of the user row per call; the services below reuse it (see actorUser).
+          beginActorMemo(actor, seed);
+          mode = (await actorUser(ctx, actor)).mode;
           const out = await fn(args, mode);
           const notices = [...(out.notices ?? [])];
           const effectiveMode = out.mode ?? mode;
@@ -291,6 +297,8 @@ export function buildMcpServer(ctx: Ctx, actor: Actor): McpServer {
             };
           }
           return res;
+        } finally {
+          endActorMemo(actor);
         }
       }) as any,
     );
@@ -310,7 +318,7 @@ export function buildMcpServer(ctx: Ctx, actor: Actor): McpServer {
     let qr: QuoteRow;
     let quote: ReturnType<typeof quoteView>;
     try {
-      const r = await quoteCart(ctx, actor, cart.id);
+      const r = await quoteCart(ctx, actor, cart.id, { cart });
       qr = r.quote;
       quote = quoteView(r.quote, r.cart);
     } catch (e) {
@@ -323,7 +331,7 @@ export function buildMcpServer(ctx: Ctx, actor: Actor): McpServer {
       };
     }
     try {
-      const c = await prepareCheckout(ctx, actor, { cart_id: cart.id, quote_id: qr.id });
+      const c = await prepareCheckout(ctx, actor, { cart_id: cart.id, quote_id: qr.id }, { cart });
       return {
         mode: cart.mode, data_as_of: quote.fetched_at, result: { ...d, quote, checkout: checkoutView(ctx, c) },
         next: [{ tool: 'get_checkout_status', why: 'Once the user says they confirmed on confirm_url' }],

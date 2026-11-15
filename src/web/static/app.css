@@ -1406,3 +1406,50 @@ button.ac-btn::after { content: ""; position: absolute; inset: 0; background: li
   .ari-doc .pitch-contact { padding: 9pt 11pt; }
   .ari-doc a { text-decoration: none; }
 }
+
+/* ---- Ari round 3: overlap fixes, phones in landscape, loading and error states, legacy pages */
+/* Hero chips stay inside the 40px column gap and the page gutter: never over the copy on the left. */
+.float-chip.f1 { left: -16px; }
+.float-chip.f2 { right: -16px; }
+/* Demo phone while a request is running: sending is off, the pressed button shows progress. */
+.ari-send[disabled] { opacity: .45; cursor: default; }
+.ari-phone.busy .ari-mic { opacity: .45; cursor: default; }
+.ari-phone.busy .ari-card button:not([disabled]):not(.is-loading) { opacity: .6; cursor: default; }
+.ac-btn.is-loading, .ac-act.is-loading, .ac-btn.is-loading[disabled], .ac-act.is-loading[disabled] { opacity: 1; cursor: progress; }
+.ac-btn.is-loading svg { display: none; }
+.ac-btn.is-loading::before, .ac-act.is-loading::before, .ac-opt.is-loading::after { content: ""; width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: ariSpin .7s linear infinite; flex: none; box-sizing: border-box; }
+button.ac-btn.is-loading::after { animation: none; }
+.ac-opt.is-loading .eta { visibility: hidden; }
+.ac-opt.is-loading::after { position: absolute; right: 13px; bottom: 12px; width: 14px; height: 14px; color: #bef264; }
+.ari-retry { align-self: flex-start; width: auto; margin-top: 0; padding: 0 18px; }
+/* Tap targets of 40px and more in the header and the phone head. */
+nav.main a.cta { display: inline-flex; align-items: center; min-height: 40px; box-sizing: border-box; }
+nav.main .lang-menu > summary { min-height: 40px; box-sizing: border-box; }
+.ari-icon-btn { width: 40px; height: 40px; flex: none; }
+.ari-icon-btn::after { inset: -3px; }
+/* Short viewports (phone in landscape, on-screen keyboard that shrinks the page): no device frame,
+   the chat takes the whole visible height and the site header scrolls away instead of covering it. */
+@media (max-height: 540px) and (max-width: 999px) {
+  body:has(.ari-demo-page) header.site { position: static; }
+  .ari-demo-page { padding-top: 8px; }
+  .ari-phone.big { width: 100%; max-width: 100%; padding: 0; border-radius: 20px; box-shadow: 0 0 0 1px var(--line); scroll-margin-top: 0; }
+  .ari-phone.big .ari-screen { height: 100svh; min-height: 260px; border-radius: 20px; }
+  .ari-phone.big .ari-status { padding: 8px 18px 2px; }
+  .ari-phone.big .ari-head { padding: 4px 14px 6px; }
+  .ari-phone.big .ari-chips { padding: 4px 14px; }
+  .ari-phone.big .ari-composer { padding: 4px 12px 8px; }
+  .ari-phone.big .ari-push { top: 8px; }
+  .ari-phone.big .ari-msg, .ari-phone.big .ari-card { max-width: min(100%, 560px); }
+  .ari-phone.big .ari-sheet { gap: 10px; }
+  .ari-phone.big .ari-sheet .fid { width: 76px; height: 76px; border-radius: 22px; }
+  .ari-phone.big .ari-sheet .fid svg { width: 44px; height: 44px; }
+  .ari-phone.big .ari-call { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; align-items: center; justify-items: center; gap: 8px 28px; padding: 14px 28px 16px; overflow-y: auto; }
+  .ari-phone.big .ari-call[hidden] { display: none; }
+  .ari-phone.big .call-top { grid-row: 1 / span 2; gap: 6px; }
+  .ari-phone.big .call-ring { margin-bottom: 8px; }
+  .ari-phone.big .ari-avatar.xl { width: 68px; height: 68px; font-size: 32px; }
+  .ari-phone.big .call-top b { font-size: 22px; }
+  .ari-phone.big .call-line { min-height: 0; max-width: 420px; font-size: 15px; line-height: 1.4; margin: 0; align-self: center; }
+  .ari-phone.big .call-btns { gap: 44px; }
+  .ari-phone.big .call-btns button svg { width: 52px; height: 52px; padding: 14px; }
+}

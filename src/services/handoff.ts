@@ -4,7 +4,7 @@ import { DomainError } from '../domain/errors.js';
 import { isTripService, REGION_CODES, REGIONS, regionOf, Service, SERVICE_LABEL, SERVICES } from '../domain/regions.js';
 import { describeTrip, loadCart } from './carts.js';
 import { requireCapability, submissionsEnabled } from './common.js';
-import { getDefaultAddress, getUser, maskedAddress } from './users.js';
+import { actorAddresses, actorUser, maskedAddress } from './users.js';
 
 const HANDOFF_STEPS: Record<Service, string[]> = {
   food: [
@@ -29,7 +29,7 @@ export async function createHandoff(ctx: Ctx, actor: Actor, cartId: string) {
   const cart = await loadCart(ctx.db, actor.userId, cartId);
   requireCapability(ctx, cart.mode, 'handoff');
   if (!cart.items.length) throw new DomainError('CART_EMPTY', 'Cart has no items');
-  const user = await getUser(ctx.db, actor.userId);
+  const user = await actorUser(ctx, actor);
   const link = ctx.provider(cart.mode).handoffUrl?.(user.region, cart.service);
   if (!link) throw new DomainError('CAPABILITY_UNAVAILABLE', `No Grab link for region ${user.region}`);
   const checklist = cart.items.map((l) => ({ name: l.name, quantity: l.quantity, note: l.note ?? null }));
@@ -64,8 +64,8 @@ export async function createHandoff(ctx: Ctx, actor: Actor, cartId: string) {
  * capabilities are grouped (available list, unavailable with reasons) with one shared source string.
  */
 export async function getCapabilities(ctx: Ctx, actor: Actor) {
-  const user = await getUser(ctx.db, actor.userId);
-  const addr = await getDefaultAddress(ctx.db, actor.userId);
+  const user = await actorUser(ctx, actor);
+  const addr = (await actorAddresses(ctx, actor))[0] ?? null;
   const caps = ctx.provider(user.mode).capabilities();
   const available = Object.entries(caps).filter(([, c]) => c.available).map(([k]) => k);
   const unavailable = Object.fromEntries(Object.entries(caps).filter(([, c]) => !c.available).map(([k, c]) => [k, c.reason ?? 'not available']));
