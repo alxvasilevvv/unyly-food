@@ -69,7 +69,9 @@ export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx) {
       }
     };
     const user = (req: Req): Promise<PartnerUser> => loadPartnerUser(ctx, req.partner!, String((req.params as any).uid ?? ''));
-    const rl = { config: { rateLimit: { max: 600, timeWindow: '1 minute' } } };
+    // Per partner user, after the signature check: one busy user cannot use up the budget of the others.
+    const userKey = (req: FastifyRequest) => `partner:${(req as Req).partner?.id ?? 'anon'}:${String((req.params as any)?.uid ?? '-')}`;
+    const rl = { config: { rateLimit: { hook: 'preHandler' as const, max: 600, timeWindow: '1 minute', keyGenerator: userKey } } };
 
     scope.get('/partner/v1/ping', rl, route(async (req, reply) => ok(reply, { partner: req.partner!.id, mode: req.partner!.mode, time: ctx.clock.now().toISOString() })));
 
@@ -116,7 +118,7 @@ export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx) {
     }));
 
     // ---- tools (same catalog as the MCP server) with a card for each result
-    scope.post('/partner/v1/users/:uid/tools/:name', { config: { rateLimit: { max: 300, timeWindow: '1 minute' } } }, route(async (req, reply) => {
+    scope.post('/partner/v1/users/:uid/tools/:name', { config: { rateLimit: { hook: 'preHandler' as const, max: 120, timeWindow: '1 minute', keyGenerator: userKey } } }, route(async (req, reply) => {
       const u = await user(req);
       const name = String((req.params as any).name ?? '');
       const args = req.jsonBody?.arguments ?? {};

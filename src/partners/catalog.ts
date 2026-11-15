@@ -24,13 +24,13 @@ export interface GrabProduct {
 export const GRAB_PRODUCTS: GrabProduct[] = [
   {
     id: 'rides', name: 'GrabCar · GrabBike · GrabTaxi', group: 'move', today: 'estimate', api: 'Partner Farefeed API (ride.estimate)',
-    ari: { en: '"Taxi to the airport": real fares, ETA and surge for every ride type; one tap opens Grab with the trip filled in.', ru: '«Такси в аэропорт»: реальные цены, время подачи и повышенный спрос по всем классам; одно нажатие открывает Grab с готовым маршрутом.', th: '"แท็กซี่ไปสนามบิน": ค่าโดยสารจริง เวลารถมาถึง และช่วงความต้องการสูงของทุกประเภทรถ แตะครั้งเดียวเปิด Grab พร้อมเส้นทาง' },
+    ari: { en: '"Taxi to the airport": real fares, ETA and surge for every ride type; one tap opens Grab with the trip filled in.', ru: '«Такси в аэропорт»: реальные цены, время подачи и повышенный тариф для всех классов; одно нажатие открывает Grab с готовым маршрутом.', th: '"แท็กซี่ไปสนามบิน": ค่าโดยสารจริง เวลารถมาถึง และช่วงความต้องการสูงของทุกประเภทรถ แตะครั้งเดียวเปิด Grab พร้อมเส้นทาง' },
     with_grab: { en: 'A ride-booking partner scope would let Ari book and track the ride end to end.', ru: 'Партнёрский доступ к бронированию позволит Ari заказывать и отслеживать поездку целиком.', th: 'สิทธิ์จองรถสำหรับพาร์ทเนอร์จะให้ Ari จองและติดตามการเดินทางได้ครบ' },
   },
   {
     id: 'express', name: 'GrabExpress', group: 'deliver', today: 'built', api: 'GrabExpress API (quotes, deliveries, tracking webhook, cancel, tip)',
-    ari: { en: '"Send these documents to my office": quote, booking, live courier tracking and cancellation, all inside Ari.', ru: '«Отправь документы в офис»: цена, заказ курьера, отслеживание и отмена прямо в Ari.', th: '"ส่งเอกสารไปออฟฟิศ": ราคา จองผู้ส่ง ติดตามสด และยกเลิกได้ใน Ari' },
-    with_grab: { en: 'Live in production as soon as Grab issues GrabExpress credentials per city.', ru: 'Заработает в проде сразу после выдачи ключей GrabExpress по городам.', th: 'ใช้งานจริงได้ทันทีเมื่อ Grab ออกคีย์ GrabExpress รายเมือง' },
+    ari: { en: '"Send these documents to my office": quote, booking, live courier tracking and cancellation, all inside Ari.', ru: '«Отправь документы в офис»: цена, заказ курьера, отслеживание и отмена прямо в Ari.', th: '"ส่งเอกสารไปออฟฟิศ": ราคา จองไรเดอร์ ติดตามสด และยกเลิกได้ใน Ari' },
+    with_grab: { en: 'Goes live after sandbox certification, once Grab issues credentials per city.', ru: 'Запуск после сертификации в песочнице и выдачи ключей по городам.', th: 'เปิดใช้จริงหลังผ่านการทดสอบ sandbox และได้คีย์รายเมืองจาก Grab' },
   },
   {
     id: 'food', name: 'GrabFood', group: 'deliver', today: 'handoff', api: 'No consumer ordering API (POS API is merchant-side)',
@@ -49,22 +49,22 @@ export const GRAB_PRODUCTS: GrabProduct[] = [
   },
   {
     id: 'grabpay', name: 'GrabPay', group: 'pay', today: 'built', api: 'GrabPay One-time Charge v2 (refunds, webhooks)',
-    ari: { en: 'Orders Ari books (parcels today) are paid with GrabPay; refunds are automatic when a booking fails.', ru: 'Заказы, которые оформляет Ari (сейчас посылки), оплачиваются GrabPay; при сбое деньги возвращаются автоматически.', th: 'คำสั่งที่ Ari จอง (ตอนนี้คือพัสดุ) ชำระด้วย GrabPay และคืนเงินอัตโนมัติเมื่อจองไม่สำเร็จ' },
+    ari: { en: 'Orders Ari books (parcels first) are paid with GrabPay; refunds are automatic when a booking fails.', ru: 'Заказы, которые оформляет Ari (сначала посылки), оплачиваются GrabPay; при сбое деньги возвращаются автоматически.', th: 'คำสั่งซื้อที่ Ari จอง (เริ่มจากพัสดุ) ชำระด้วย GrabPay และคืนเงินอัตโนมัติเมื่อจองไม่สำเร็จ' },
     with_grab: { en: 'Switches on with GrabPay merchant credentials.', ru: 'Включается с ключами мерчанта GrabPay.', th: 'เปิดใช้งานได้เมื่อมีคีย์ร้านค้า GrabPay' },
   },
   {
     id: 'tokenisation', name: 'GrabPay Tokenisation', group: 'pay', today: 'designed', api: 'Tokenisation API v4 (bind, charge, refund, unbind; SG, MY, PH)',
     ari: { en: 'Link GrabPay once, then pay by voice with Face ID: no redirect on every order (Singapore, Malaysia, Philippines today).', ru: 'Привязать GrabPay один раз и платить голосом с Face ID, без перехода на каждый заказ (сейчас Сингапур, Малайзия, Филиппины).', th: 'ผูก GrabPay ครั้งเดียว แล้วจ่ายด้วยเสียงและ Face ID ไม่ต้องเปลี่ยนหน้าทุกครั้ง (ตอนนี้สิงคโปร์ มาเลเซีย ฟิลิปปินส์)' },
-    with_grab: { en: 'Tokenised charges inside Ari for every service Grab lets Ari book.', ru: 'Платежи по токену прямо в Ari для всех сервисов, которые Grab разрешит заказывать.', th: 'ชำระแบบโทเค็นใน Ari สำหรับทุกบริการที่ Grab อนุญาต' },
+    with_grab: { en: 'Tokenised charges for orders Ari books as the merchant (Tokenisation does not pay for orders placed in the Grab app).', ru: 'Платежи по токену за заказы, которые Ari оформляет как мерчант (заказы в приложении Grab так оплатить нельзя).', th: 'ชำระแบบโทเค็นสำหรับคำสั่งซื้อที่ Ari จองในฐานะร้านค้า (ใช้จ่ายคำสั่งซื้อในแอป Grab ไม่ได้)' },
   },
   {
-    id: 'rewards', name: 'GrabRewards', group: 'rewards', today: 'designed', api: 'Points Earning API (rewards/v3/events), GrabRewards Tier',
-    ari: { en: 'Users earn GrabRewards points on orders made through Ari, and Ari can show their tier.', ru: 'Пользователи получают баллы GrabRewards за заказы через Ari, Ari показывает их уровень.', th: 'ผู้ใช้ได้รับคะแนน GrabRewards จากคำสั่งผ่าน Ari และดูระดับสมาชิกได้' },
-    with_grab: { en: 'Points on every Ari order: a reason to keep ordering Grab through Ari.', ru: 'Баллы за каждый заказ через Ari: повод заказывать Grab снова.', th: 'คะแนนทุกคำสั่งผ่าน Ari: เหตุผลให้สั่ง Grab ต่อ' },
+    id: 'rewards', name: 'GrabRewards', group: 'rewards', today: 'proposed', api: 'Points Earning API (rewards/v3/events), GrabRewards Tier',
+    ari: { en: 'Proposed: GrabRewards points for purchases paid through Ari; Ari can show the user\'s tier.', ru: 'Предлагаем: баллы GrabRewards за покупки, оплаченные через Ari; Ari показывает уровень пользователя.', th: 'ข้อเสนอ: คะแนน GrabRewards สำหรับการซื้อที่ชำระผ่าน Ari และ Ari แสดงระดับสมาชิกได้' },
+    with_grab: { en: 'Points on every Ari order: a reason to keep ordering Grab through Ari.', ru: 'Баллы за каждый заказ через Ari: повод заказывать Grab снова.', th: 'คะแนนทุกคำสั่งซื้อผ่าน Ari: เหตุผลให้สั่ง Grab ต่อ' },
   },
   {
     id: 'gifts', name: 'GrabGifts', group: 'more', today: 'designed', api: 'GrabGifts Partner API (orders, gift links, balance)',
-    ari: { en: '"Send Mai a lunch voucher for her birthday": Grab gift vouchers by voice.', ru: '«Подари Май обед на день рождения»: подарочные ваучеры Grab голосом.', th: '"ส่งบัตรกำนัลมื้อกลางวันให้ใหม่วันเกิด": ส่งของขวัญ Grab ด้วยเสียง' },
+    ari: { en: '"Send Mai a lunch voucher for her birthday": Grab gift vouchers by voice.', ru: '«Подари Май обед на день рождения»: подарочные ваучеры Grab голосом.', th: '"ส่งบัตรกำนัลมื้อกลางวันให้คุณใหม่ในวันเกิด": ส่งของขวัญ Grab ด้วยเสียง' },
     with_grab: { en: 'Corporate gifting and vouchers through Ari for teams.', ru: 'Корпоративные подарки и ваучеры через Ari для команд.', th: 'ของขวัญองค์กรและบัตรกำนัลผ่าน Ari สำหรับทีม' },
   },
   {
@@ -74,8 +74,8 @@ export const GRAB_PRODUCTS: GrabProduct[] = [
   },
   {
     id: 'chat', name: 'GrabChat', group: 'move', today: 'designed', api: 'GrabChat Partner API and Web UI (bookings made through the partner)',
-    ari: { en: '"Tell the driver I\'m at gate 3": Ari relays messages to the driver or courier of a booking Ari made, and reads replies aloud.', ru: '«Скажи водителю, что я у выхода 3»: Ari передаёт сообщения водителю или курьеру заказа, оформленного через Ari, и читает ответы вслух.', th: '"บอกคนขับว่าฉันอยู่ประตู 3": Ari ส่งข้อความถึงคนขับหรือผู้ส่งของการจองผ่าน Ari และอ่านคำตอบให้ฟัง' },
-    with_grab: { en: 'Hands-free chat with the driver for every booking made through Ari.', ru: 'Переписка с водителем без рук для каждого заказа через Ari.', th: 'แชทกับคนขับแบบไม่ต้องใช้มือสำหรับทุกการจองผ่าน Ari' },
+    ari: { en: '"Tell the driver I\'m at gate 3": Ari relays messages to the driver or courier of a booking Ari made, and reads replies aloud.', ru: '«Скажи водителю, что я у выхода 3»: Ari передаёт сообщения водителю или курьеру заказа, оформленного через Ari, и читает ответы вслух.', th: '"บอกคนขับว่าฉันอยู่ประตู 3": Ari ส่งข้อความถึงคนขับหรือไรเดอร์ของการจองผ่าน Ari และอ่านคำตอบให้ฟัง' },
+    with_grab: { en: 'Hands-free chat with the driver for every booking made through Ari.', ru: 'Чат с водителем голосом, без рук, для каждого заказа через Ari.', th: 'แชทกับคนขับแบบไม่ต้องใช้มือสำหรับทุกการจองผ่าน Ari' },
   },
   {
     id: 'business', name: 'Grab for Business', group: 'more', today: 'designed', api: 'Grab For Business Partner API (transactions)',
@@ -84,8 +84,8 @@ export const GRAB_PRODUCTS: GrabProduct[] = [
   },
   {
     id: 'defence', name: 'GrabDefence', group: 'identity', today: 'designed', api: 'Risk Evaluation',
-    ari: { en: 'Risk check before each confirmation: stops misuse of a linked account.', ru: 'Проверка риска перед каждым подтверждением: защита привязанного аккаунта.', th: 'ตรวจความเสี่ยงก่อนยืนยันทุกครั้ง ป้องกันการใช้บัญชีโดยมิชอบ' },
-    with_grab: { en: 'Grab\'s fraud signals on every Ari order.', ru: 'Антифрод Grab на каждом заказе Ari.', th: 'สัญญาณป้องกันการฉ้อโกงของ Grab ในทุกคำสั่งผ่าน Ari' },
+    ari: { en: 'Risk check before each confirmation: helps stop misuse of a linked account.', ru: 'Проверка риска перед каждым подтверждением: защита привязанного аккаунта.', th: 'ตรวจความเสี่ยงก่อนยืนยันทุกครั้ง ป้องกันการใช้บัญชีโดยมิชอบ' },
+    with_grab: { en: 'Grab\'s fraud signals on every Ari order.', ru: 'Антифрод Grab на каждом заказе Ari.', th: 'สัญญาณป้องกันการฉ้อโกงของ Grab ในทุกคำสั่งซื้อผ่าน Ari' },
   },
 ];
 

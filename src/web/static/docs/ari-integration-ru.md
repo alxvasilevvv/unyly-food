@@ -1,4 +1,4 @@
-# ARI × Grab: техническое задание для команды Ari
+# Ari × Grab: техническое задание для команды Ari
 
 Версия 1.0, 16 ноября 2026. Сторона Unyly (движок интеграции с Grab) готова и работает в демо-режиме: https://unyly-food.unyly.org/ari. Этот документ описывает, что нужно сделать в бэкенде Ari и в iOS-приложении Ari, чтобы пользователи заказывали сервисы Grab прямо в Ari.
 
@@ -24,7 +24,7 @@
 |---|---|
 | iOS-приложение Ari | Отрисовка карточек, кнопки, Face ID, Live Activity, пуши, звонок Ari, экран «Аккаунт Grab» |
 | Бэкенд Ari | LLM и вызов инструментов, подпись запросов к Unyly, приём вебхуков, рассылка пушей и обновлений Live Activity, запуск звонка |
-| Unyly (готово) | Инструменты, цены и маршруты, карточки, проверка подтверждения, заказы в Grab, статусы, отмены, события, безопасность |
+| Unyly (готово в демо; реальные заказы в Grab после выдачи доступа) | Инструменты, цены и маршруты, карточки, проверка подтверждения, заказы в Grab, статусы, отмены, события, безопасность |
 | Grab | API: GrabExpress, Farefeed, Login with Grab, GrabPay и другие (доступ выдаёт Grab) |
 
 Схема: `iPhone (Ari) → бэкенд Ari → Unyly Partner API → API Grab`. Приложение никогда не ходит в Unyly напрямую: секрет партнёра хранится только на бэкенде Ari.
@@ -151,7 +151,7 @@ POST /partner/v1/users/{uid}/checkouts/{checkout_id}/confirm
 - Повторный вызов безопасен: вернёт тот же заказ, второй заказ не создаётся.
 - Модель (LLM) не должна иметь доступа к этому вызову. Только нажатие пользователя в приложении.
 - «Не сейчас»: `POST .../checkouts/{id}/decline`.
-- Ответ: `checkout` (статус) и `order: {id, card}`. Live GrabPay: дополнительно `payment.pay_url`, его открыть в `ASWebAuthenticationSession`.
+- Ответ: `checkout` (статус) и `order: {id, card}`. Предоплата GrabPay в рабочем режиме для партнёрских приложений включается вместе с мерчант-аккаунтом GrabPay; до этого такой заказ вернёт 503 `NOT_CONFIGURED`, ничего не списывается.
 Готово, когда: заказ создаётся только кнопкой; сообщение «да» в чат заказ не создаёт (проверить тестом).
 
 ### B5. Вебхуки от Unyly
@@ -172,7 +172,7 @@ POST /partner/v1/users/{uid}/checkouts/{checkout_id}/confirm
 Адреса доставки и ярлыки «Дом», «Работа» из памяти Ari передавать в `POST /partner/v1/users/{uid}/places` (`label`, `line1`, `district`, `city`, `country`, `instructions`, `is_default`). Список `GET .../places`, удаление `DELETE .../places/{place_id}`. После этого пользователь может сказать «такси домой».
 
 ### B7. Аккаунт Grab
-`POST /partner/v1/users/{uid}/grab/link`. В демо аккаунт связывается сразу (симуляция). В live возвращается `authorize_url` (Login with Grab, OAuth 2.0 PKCE): открыть его в `ASWebAuthenticationSession`; после возврата проверить `GET .../grab`. Отвязка `DELETE .../grab`. Пароли и OTP Grab Ari не видит никогда.
+`POST /partner/v1/users/{uid}/grab/link`. В демо аккаунт связывается сразу (симуляция). В рабочем режиме вход через Grab (OAuth 2.0 PKCE) включается после регистрации redirect URI приложения Ari в GrabID; до этого вызов вернёт 503 `NOT_CONFIGURED`. После включения в ответе придёт `authorize_url`, его нужно открыть в `ASWebAuthenticationSession`, затем проверить `GET .../grab`. Отвязка: `DELETE .../grab`. Пароли и OTP Grab Ari не видит никогда.
 
 ### B8. Удаление данных
 При удалении аккаунта Ari вызвать `DELETE /partner/v1/users/{uid}`: удаляет все данные пользователя в Unyly (PDPA, GDPR).

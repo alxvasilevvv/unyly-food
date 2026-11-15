@@ -78,7 +78,7 @@ export function openApiDocument(ctx: Ctx) {
           parameters: [uid, idp('cid', 'Checkout')],
           requestBody: { required: true, content: { 'application/json': { schema: ref('ConfirmInput') } } },
           responses: {
-            '200': json(okEnvelope({ checkout: { type: 'object' }, order: { type: ['object', 'null'], properties: { id: { type: 'string' }, card: ref('Card') } }, payment: { type: 'object', description: 'Live GrabPay only: pay_url to open' } })),
+            '200': json(okEnvelope({ checkout: { type: 'object' }, order: { type: ['object', 'null'], properties: { id: { type: 'string' }, card: ref('Card') } } })),
             '403': json(ref('Error'), 'STEP_UP_REQUIRED: verify with Face ID or passcode and send user_verification "biometric"'),
             ...errors,
           },
@@ -106,7 +106,7 @@ export function openApiDocument(ctx: Ctx) {
         get: { summary: 'Grab account link status', parameters: [uid], responses: { '200': json(okEnvelope({ grab: ref('GrabLink') })), ...errors } },
         delete: { summary: 'Unlink the Grab account', parameters: [uid], responses: { '200': json(okEnvelope({ grab: ref('GrabLink') })), ...errors } },
       },
-      '/partner/v1/users/{uid}/grab/link': { post: { summary: 'Start Login with Grab (demo: links a simulated account at once)', parameters: [uid], responses: { '200': json(okEnvelope({ status: { enum: ['linked', 'authorize'] }, authorize_url: { type: 'string' } })), '503': json(ref('Error'), 'NOT_CONFIGURED until GrabID is issued'), ...errors } } },
+      '/partner/v1/users/{uid}/grab/link': { post: { summary: 'Start Login with Grab (demo: links a simulated account at once)', parameters: [uid], responses: { '200': json(okEnvelope({ status: { enum: ['linked', 'authorize'] }, authorize_url: { type: 'string' } })), '503': json(ref('Error'), 'NOT_CONFIGURED in live mode until the partner redirect URI is registered with GrabID'), ...errors } } },
     },
     webhooks: {
       partnerEvent: {

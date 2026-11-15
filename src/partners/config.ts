@@ -43,7 +43,10 @@ export function loadPartners(env: NodeJS.ProcessEnv, appEnv: string): PartnerCon
     if (webhookUrl && appEnv === 'production' && !webhookUrl.startsWith('https://')) throw new Error(`PARTNER_${id.toUpperCase()}_WEBHOOK_URL must be https in production`);
     const returnUrl = k('RETURN_URL') || undefined;
     if (returnUrl && !/^(https:\/\/|[a-z][a-z0-9+.-]*:\/\/)/i.test(returnUrl)) throw new Error(`PARTNER_${id.toUpperCase()}_RETURN_URL must be https or an app scheme`);
-    out.push({ id, name: k('NAME') || id, secret, webhookUrl, webhookSecret: k('WEBHOOK_SECRET') || secret, mode, returnUrl });
+    const webhookSecret = k('WEBHOOK_SECRET') ?? '';
+    // A separate secret per direction: a webhook signed by Unyly must never be a valid partner request.
+    if (webhookUrl && (webhookSecret.length < 32 || webhookSecret === secret)) throw new Error(`PARTNER_${id.toUpperCase()}_WEBHOOK_SECRET must be set (32+ characters, different from the request secret) when a webhook URL is configured`);
+    out.push({ id, name: k('NAME') || id, secret, webhookUrl, webhookSecret: webhookSecret || secret, mode, returnUrl });
   }
   return out;
 }

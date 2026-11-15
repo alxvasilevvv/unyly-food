@@ -12,7 +12,7 @@ import { statusLabel } from '../domain/labels.js';
 import type { FulfillmentStatus } from '../providers/types.js';
 import { TERMINAL } from '../providers/types.js';
 import {
-  approveCheckout, CheckoutRow, checkoutStatus, checkoutView, declineCheckout, loadCheckout, paymentRequired, stepUpPolicy, submitOrder, confirmUrl,
+  approveCheckout, CheckoutRow, checkoutStatus, checkoutView, declineCheckout, loadCheckout, paymentRequired, stepUpPolicy, submitOrder,
 } from '../services/checkout.js';
 import {
   approveCancellation, cancelOrder, describeCancellation, getOrderStatus, listOrders, loadCancellation, loadOrder, prepareCancellation, OrderRow,
@@ -112,8 +112,8 @@ function optionsFromTrip(env: ToolEnvelope, args: Record<string, unknown>, l: Lo
     options: r.options.map((o: any): CardOption => ({
       id: o.item_id, title: o.name, subtitle: o.description, price: o.estimated_total ? money(Number(o.estimated_total.amount_minor), o.estimated_total.currency, l).formatted : undefined,
       eta: o.eta_estimate_minutes ? minutes(l, o.eta_estimate_minutes.min, o.eta_estimate_minutes.max) : undefined,
-      badges: o.seats ? [`${o.seats} ${tr(l, { en: 'seats', ru: 'мест', th: 'ที่นั่ง' })}`] : undefined,
-      disabled_reason: o.fits === false ? (o.issues?.[0]?.message ?? tr(l, { en: 'Does not fit', ru: 'Не подходит', th: 'ไม่เหมาะสม' })) : undefined,
+      badges: o.seats ? [l === 'ru' ? `Мест: ${o.seats}` : `${o.seats} ${tr(l, { en: 'seats', ru: 'мест', th: 'ที่นั่ง' })}`] : undefined,
+      disabled_reason: o.fits === false ? (o.issues?.[0]?.message ?? tr(l, { en: 'Does not fit', ru: 'Не подходит', th: 'ไม่รองรับ' })) : undefined,
       action: o.fits === false ? undefined : {
         id: `choose:${o.item_id}`, label: tr(l, T.choose), style: 'primary', kind: 'tool',
         tool: {
@@ -259,7 +259,27 @@ export async function confirmCheckout(ctx: Ctx, p: PartnerConfig, u: PartnerUser
   // Replay of a confirmation that already went through: report the current state.
   if (c.status === 'consumed' || c.status === 'approved') {
     const prior = (await ctx.db.query('SELECT 1 FROM partner_confirmations WHERE entity = $1 AND entity_id = $2', ['checkout', c.id])).rows[0];
-    if (prior) return confirmResult(ctx, p, u, c.id);
+    if (prior) {
+      // Confirmed earlier but never sent (new orders were paused, or the process stopped in between):
+      // send it now. submitOrder is idempotent, so this can never create a second order.
+      const attempt = (await ctx.db.query('SELECT 1 FROM submission_attempts WHERE checkout_id = $1', [c.id])).rows[0];
+      if (c.status === 'approved' && !attempt && !paymentRequired(ctx, c)) {
+        try {
+          await submitOrder(ctx, actor, c.id);
+        } catch (e) {
+          if (!(isDomainError(e) && e.code === 'SUBMISSION_UNKNOWN')) throw e;
+        }
+        const res = await confirmResult(ctx, p, u, c.id);
+        if (res.order && c.mode === 'demo') await speedUpDemo(ctx, res.order.id);
+        return res;
+      }
+      return confirmResult(ctx, p, u, c.id);
+    }
+  }
+  // Prepaid Live orders (GrabPay before the courier is booked) need a payment hand-off for partner apps,
+  // which is switched on together with the GrabPay merchant account. Refuse before anything is approved.
+  if (paymentRequired(ctx, c)) {
+    throw new DomainError('NOT_CONFIGURED', 'GrabPay prepayment for partner apps is not switched on yet. Nothing was ordered or charged.');
   }
   const { hash, ver, at, device } = parseConfirm(ctx, body);
   if (!safeEqual(hash, confirmHash(ctx, c))) {
@@ -277,10 +297,6 @@ export async function confirmCheckout(ctx: Ctx, p: PartnerConfig, u: PartnerUser
     [p.id, u.user_id, c.id, hash, ver, device, at],
   );
   await approveCheckout(ctx, u.user_id, c.id, { via, partnerVerification: ver });
-  if (paymentRequired(ctx, c)) {
-    // Live cashless GrabExpress: the user pays with GrabPay before the courier is booked.
-    return { ...(await confirmResult(ctx, p, u, c.id)), payment: { method: 'grabpay', status: 'required', pay_url: confirmUrl(ctx, c.id) } };
-  }
   try {
     await submitOrder(ctx, actor, c.id);
   } catch (e) {
@@ -343,7 +359,7 @@ export async function orderCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, orde
     actions: canCancel
       ? [{ id: 'cancel', label: tr(l, T.cancelOrder), style: 'destructive', kind: 'prepare_cancel', endpoint: { method: 'POST', path: `${base(u)}/orders/${o.id}/cancel` } }]
       : [],
-    footnote: o.mode === 'demo' ? tr(l, { en: 'Courier and plate are fictional in the demo.', ru: 'Курьер и номер машины в демо вымышлены.', th: 'ผู้ส่งและทะเบียนรถในเดโมเป็นข้อมูลสมมติ' }) : undefined,
+    footnote: o.mode === 'demo' ? tr(l, { en: 'Courier and plate are fictional in the demo.', ru: 'Курьер и номер машины в демо вымышлены.', th: 'ไรเดอร์และทะเบียนรถในเดโมเป็นข้อมูลสมมติ' }) : undefined,
   };
 }
 
@@ -423,7 +439,9 @@ export async function startGrabLink(ctx: Ctx, p: PartnerConfig, u: PartnerUser) 
   if (!ctx.cfg.grabId.enabled) {
     throw new DomainError('NOT_CONFIGURED', 'Login with Grab is not switched on yet: it needs GrabID partner credentials from Grab.');
   }
-  return { status: 'authorize', authorize_url: `${ctx.cfg.webOrigin}/auth/grab/start?partner=${encodeURIComponent(p.id)}` };
+  // The GrabID redirect for partner users (state bound to this user, return to the partner app) is
+  // enabled together with the GrabID client registration for the partner's redirect URI.
+  throw new DomainError('NOT_CONFIGURED', 'Login with Grab for partner apps is not switched on yet: the partner redirect URI has to be registered with GrabID first.');
 }
 
 export async function unlinkGrab(ctx: Ctx, p: PartnerConfig, u: PartnerUser) {

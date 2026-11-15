@@ -58,18 +58,18 @@ export const T = {
   confirmOrder: { en: 'Confirm order', ru: 'Подтвердить заказ', th: 'ยืนยันคำสั่งซื้อ' },
   confirmRide: { en: 'Confirm ride', ru: 'Заказать поездку', th: 'ยืนยันการเรียกรถ' },
   confirmParcel: { en: 'Send parcel', ru: 'Отправить посылку', th: 'ส่งพัสดุ' },
-  notNow: { en: 'Not now', ru: 'Не сейчас', th: 'ไม่ใช่ตอนนี้' },
+  notNow: { en: 'Not now', ru: 'Не сейчас', th: 'ไว้ก่อน' },
   total: { en: 'Total', ru: 'Итого', th: 'รวม' },
   items: { en: 'Items', ru: 'Товары', th: 'สินค้า' },
   delivery: { en: 'Delivery', ru: 'Доставка', th: 'ค่าส่ง' },
   service: { en: 'Service fee', ru: 'Сервисный сбор', th: 'ค่าบริการ' },
-  smallOrder: { en: 'Small order fee', ru: 'Сбор за малый заказ', th: 'ค่าธรรมเนียมสั่งน้อย' },
+  smallOrder: { en: 'Small order fee', ru: 'Доплата за небольшой заказ', th: 'ค่าธรรมเนียมสั่งน้อย' },
   discount: { en: 'Discount', ru: 'Скидка', th: 'ส่วนลด' },
   min: { en: 'min', ru: 'мин', th: 'นาที' },
   choose: { en: 'Choose', ru: 'Выбрать', th: 'เลือก' },
   cancelOrder: { en: 'Cancel order', ru: 'Отменить заказ', th: 'ยกเลิกคำสั่งซื้อ' },
   confirmCancel: { en: 'Confirm cancellation', ru: 'Подтвердить отмену', th: 'ยืนยันการยกเลิก' },
-  keep: { en: 'Keep order', ru: 'Оставить заказ', th: 'เก็บคำสั่งซื้อไว้' },
+  keep: { en: 'Keep order', ru: 'Оставить заказ', th: 'ไม่ยกเลิก' },
   biometric: { en: 'Face ID required for this amount', ru: 'Для этой суммы нужен Face ID', th: 'ยอดนี้ต้องยืนยันด้วย Face ID' },
   estimate: { en: 'Times and fares are estimates', ru: 'Время и цены ориентировочные', th: 'เวลาและค่าโดยสารเป็นค่าประมาณ' },
   openGrab: { en: 'Open in Grab', ru: 'Открыть в Grab', th: 'เปิดใน Grab' },
@@ -124,7 +124,7 @@ const DEMO_TEXT: Record<string, { ru: string; th: string }> = {
   'Demo terms: free cancellation before the restaurant starts preparing; 50% of the total after that; not possible once picked up.': { ru: 'Демо-условия: бесплатная отмена, пока ресторан не начал готовить; потом 50% суммы; после передачи курьеру отмена невозможна.', th: 'เงื่อนไขเดโม: ยกเลิกฟรีก่อนร้านเริ่มทำอาหาร หลังจากนั้น 50% ของยอด ยกเลิกไม่ได้เมื่อไรเดอร์รับแล้ว' },
   'Demo terms: free cancellation before the store starts picking; 50% of the total after that; not possible once picked up.': { ru: 'Демо-условия: бесплатная отмена, пока магазин не начал собирать заказ; потом 50% суммы; после передачи курьеру отмена невозможна.', th: 'เงื่อนไขเดโม: ยกเลิกฟรีก่อนร้านเริ่มจัดสินค้า หลังจากนั้น 50% ของยอด ยกเลิกไม่ได้เมื่อไรเดอร์รับแล้ว' },
   'Demo terms: free cancellation right after a driver is assigned; 30 THB once the driver is on the way; not possible after pickup.': { ru: 'Демо-условия: бесплатная отмена сразу после назначения водителя; 30 бат, когда водитель уже едет; после посадки отмена невозможна.', th: 'เงื่อนไขเดโม: ยกเลิกฟรีทันทีหลังได้คนขับ 30 บาทเมื่อคนขับกำลังมา ยกเลิกไม่ได้หลังขึ้นรถ' },
-  'Demo terms: free cancellation right after a courier is assigned; 20 THB once the courier is on the way; not possible after pickup.': { ru: 'Демо-условия: бесплатная отмена сразу после назначения курьера; 20 бат, когда курьер уже едет; после забора посылки отмена невозможна.', th: 'เงื่อนไขเดโม: ยกเลิกฟรีทันทีหลังได้ผู้ส่ง 20 บาทเมื่อผู้ส่งกำลังมา ยกเลิกไม่ได้หลังรับพัสดุ' },
+  'Demo terms: free cancellation right after a courier is assigned; 20 THB once the courier is on the way; not possible after pickup.': { ru: 'Демо-условия: бесплатная отмена сразу после назначения курьера; 20 бат, когда курьер уже едет; после забора посылки отмена невозможна.', th: 'เงื่อนไขเดโม: ยกเลิกฟรีทันทีหลังได้ไรเดอร์ 20 บาทเมื่อไรเดอร์กำลังมา ยกเลิกไม่ได้หลังรับพัสดุ' },
   'Allergen data comes from restaurants and may be missing or incomplete. Unyly never marks a dish as safe. Confirm with the restaurant.': { ru: 'Данные об аллергенах дают рестораны, они могут быть неполными. Мы никогда не называем блюдо безопасным. Уточните у ресторана.', th: 'ข้อมูลสารก่อภูมิแพ้มาจากร้านและอาจไม่ครบถ้วน เราไม่รับรองว่าเมนูใดปลอดภัย โปรดสอบถามร้าน' },
 };
 
@@ -136,7 +136,7 @@ export function localText(text: string | null | undefined, l: Locale): string | 
   const m = /^(Free cancellation: the (driver|courier|restaurant|store) (?:has just been assigned|has not started preparing) \(demo\)\.)$/.exec(text);
   if (m) return l === 'ru' ? 'Бесплатная отмена (демо).' : 'ยกเลิกฟรี (เดโม)';
   const fee = /^The (driver|courier) is on the way: (\d+) THB cancellation fee \(demo, not charged\)\.$/.exec(text);
-  if (fee) return l === 'ru' ? `${fee[1] === 'driver' ? 'Водитель' : 'Курьер'} уже едет: плата за отмену ${fee[2]} бат (демо, не списывается).` : `${fee[1] === 'driver' ? 'คนขับ' : 'ผู้ส่ง'}กำลังมา ค่ายกเลิก ${fee[2]} บาท (เดโม ไม่เรียกเก็บจริง)`;
+  if (fee) return l === 'ru' ? `${fee[1] === 'driver' ? 'Водитель' : 'Курьер'} уже едет: плата за отмену ${fee[2]} бат (демо, не списывается).` : `${fee[1] === 'driver' ? 'คนขับ' : 'ไรเดอร์'}กำลังมา ค่ายกเลิก ${fee[2]} บาท (เดโม ไม่เรียกเก็บจริง)`;
   if (/is preparing the order: 50% cancellation fee/.test(text)) return l === 'ru' ? 'Заказ уже готовят: плата за отмену 50% (демо, не списывается).' : 'ร้านกำลังเตรียม ค่ายกเลิก 50% (เดโม ไม่เรียกเก็บจริง)';
   return text;
 }

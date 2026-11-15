@@ -87,7 +87,7 @@ ${path ? html`<meta property="og:url" content="${abs(`${path}?lang=${l}`)}">` : 
 <meta property="og:image" content="${abs(OG_IMAGE_PATH)}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Unyly pixel unicorn. Tell your AI what you need. Confirm with one tap. Concept for Grab, not affiliated with Grab.">
+<meta property="og:image:alt" content="Unyly pixel unicorn. Ari × Grab: a partnership proposal by CSA PROJECT - FZCO, not affiliated with Grab.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${o.title} · Ari × Grab">
 <meta name="twitter:description" content="${o.description ?? m.brandTagline}">
@@ -108,13 +108,13 @@ ${(o.scripts ?? []).map((x) => html`<script src="/static/${x}?v=${ASSET_VERSION}
 <aside class="concept-bar" aria-label="${tr(l, { ru: 'О демо', en: 'About this demo', th: 'เกี่ยวกับเดโมนี้' })}"><div class="wrap">
   <span class="dot" aria-hidden="true"></span>
   <span>${tr(l, {
-    ru: 'ARI × Grab: предложение о партнёрстве от CSA PROJECT - FZCO. Пока не связано с Grab и не одобрено Grab. Демо-данные вымышлены.',
-    en: 'ARI × Grab is a partnership proposal by CSA PROJECT - FZCO. Not yet affiliated with or endorsed by Grab. Demo data is fictional.',
-    th: 'ARI × Grab เป็นข้อเสนอความร่วมมือจาก CSA PROJECT - FZCO ยังไม่ได้เกี่ยวข้องหรือได้รับการรับรองจาก Grab ข้อมูลเดโมเป็นข้อมูลสมมติ',
+    ru: 'Ari × Grab: предложение о партнёрстве от CSA PROJECT - FZCO. Договорённости с Grab нет. Проект не связан с Grab и не одобрен Grab. Демо-данные вымышлены.',
+    en: 'Ari × Grab is a partnership proposal by CSA PROJECT - FZCO. No agreement with Grab exists. Not affiliated with or endorsed by Grab. Demo data is fictional.',
+    th: 'Ari × Grab เป็นข้อเสนอความร่วมมือจาก CSA PROJECT - FZCO ยังไม่มีข้อตกลงกับ Grab ไม่ได้เกี่ยวข้องหรือได้รับการรับรองจาก Grab ข้อมูลเดโมเป็นข้อมูลสมมติ',
   })} <a href="/for-grab#disclaimer">${tr(l, { ru: 'Подробнее', en: 'Details', th: 'รายละเอียด' })}</a></span>
 </div></aside>
 <header class="site"><div class="wrap">
-  <a class="logo" href="/" aria-label="ARI × Grab, home"><span class="ari-mark" aria-hidden="true">A</span><span class="logo-text"><span class="logo-word">Ari <span class="x">×</span> Grab</span><span class="logo-sub">${tr(l, { ru: 'на движке Unyly', en: 'powered by Unyly', th: 'ขับเคลื่อนโดย Unyly' })}</span></span></a>
+  <a class="logo" href="/" aria-label="Ari × Grab, home"><span class="ari-mark" aria-hidden="true">A</span><span class="logo-text"><span class="logo-word">Ari <span class="x">×</span> Grab</span><span class="logo-sub">${tr(l, { ru: 'на движке Unyly', en: 'powered by Unyly', th: 'ขับเคลื่อนโดย Unyly' })}</span></span></a>
   <nav class="main" aria-label="${tr(l, { ru: 'Основная навигация', en: 'Main', th: 'เมนูหลัก' })}">
     <a href="/#how" class="hide-md">${m.navHow}</a>
     <a href="/for-grab" class="hide-md" ${cur('/for-grab')}>${tr(l, { ru: 'Для Grab', en: 'For Grab', th: 'สำหรับ Grab' })}</a>

@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Actor, Ctx } from '../context.js';
 import { audit } from '../context.js';
+import type { Queryable } from '../db/db.js';
 import { isLocaleCode, Locale } from '../domain/locales.js';
 import { DomainError } from '../domain/errors.js';
 import { REGION_CODES } from '../domain/regions.js';
@@ -33,6 +34,7 @@ export function checkExternalId(ext: string) {
 /** Find the Unyly user for (partner, external id), creating it on first use. */
 export async function upsertPartnerUser(
   ctx: Ctx, p: PartnerConfig, ext: string, input: { locale?: unknown; region?: unknown; display_name?: unknown } = {},
+  opts: { q?: Queryable; guestIpHash?: string } = {},
 ): Promise<PartnerUser> {
   checkExternalId(ext);
   const locale: Locale | undefined = isLocaleCode(input.locale) ? input.locale : undefined;
@@ -40,7 +42,7 @@ export async function upsertPartnerUser(
   const region = typeof input.region === 'string' ? input.region.toUpperCase() : undefined;
   if (region !== undefined && !(REGION_CODES as readonly string[]).includes(region)) throw new DomainError('VALIDATION_FAILED', 'Unsupported region');
   const displayName = typeof input.display_name === 'string' ? input.display_name.trim().slice(0, 60) || null : undefined;
-  return ctx.db.tx(async (q) => {
+  const run = async (q: Queryable): Promise<PartnerUser> => {
     await q.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`partner:${p.id}:${ext}`]);
     const found = (await q.query(
       `SELECT pu.user_id, pu.display_name, u.locale, u.region, u.mode FROM partner_users pu JOIN users u ON u.id = pu.user_id
@@ -60,8 +62,8 @@ export async function upsertPartnerUser(
     }
     // Users rows need an email; partner users get a non-routable placeholder (never mailed).
     const u = (await q.query(
-      `INSERT INTO users (email, locale, region, mode, onboarded_at, partner_id) VALUES ($1,$2,$3,$4, now(), $5) RETURNING id`,
-      [`${p.id}-${randomUUID()}@partner.unyly.invalid`, locale ?? 'en', region ?? 'TH', p.mode, p.id],
+      `INSERT INTO users (email, locale, region, mode, onboarded_at, partner_id, is_guest, guest_ip_hash) VALUES ($1,$2,$3,$4, now(), $5, $6, $7) RETURNING id`,
+      [`${p.id}-${randomUUID()}@partner.unyly.invalid`, locale ?? 'en', region ?? 'TH', p.mode, p.id, !!opts.guestIpHash, opts.guestIpHash ?? null],
     )).rows[0];
     await q.query('INSERT INTO partner_users (partner_id, external_user_id, user_id, display_name) VALUES ($1,$2,$3,$4)', [p.id, ext, u.id, displayName ?? null]);
     await q.query('INSERT INTO preferences (user_id, default_party_size) VALUES ($1, 2) ON CONFLICT DO NOTHING', [u.id]);
@@ -71,7 +73,8 @@ export async function upsertPartnerUser(
     }
     await audit(q, { userId: u.id, actor: `partner:${p.id}`, action: 'user.partner_created', mode: p.mode });
     return { user_id: u.id, partner_id: p.id, external_user_id: ext, display_name: displayName ?? null, locale: locale ?? 'en', region: region ?? 'TH', mode: p.mode, created: true };
-  });
+  };
+  return opts.q ? run(opts.q) : ctx.db.tx(run);
 }
 
 /** Existing user only (every route except PUT /users/{id} requires the user to exist). */

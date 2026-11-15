@@ -73,6 +73,7 @@ async function step(ctx: Ctx, out: JobRunResult, name: StepName, fn: () => Promi
 
 /** Retention rules. Each statement runs on its own so one failure does not stop the others. */
 const RETENTION: [string, string][] = [
+  ['partner_webhooks', `DELETE FROM partner_webhooks WHERE status <> 'pending' AND created_at < now() - interval '30 days'`],
   ['login_codes', `DELETE FROM login_codes WHERE created_at < now() - interval '1 day'`],
   ['web_sessions', `DELETE FROM web_sessions WHERE expires_at < now()`],
   ['oauth_codes', `DELETE FROM oauth_codes WHERE expires_at < now() - interval '1 hour'`],

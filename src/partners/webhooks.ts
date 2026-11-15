@@ -129,7 +129,10 @@ export async function deliverPartnerWebhooks(ctx: Ctx, limit = 25, fetcher: type
     [ctx.clock.now(), limit],
   );
   let delivered = 0;
+  // Time budget per run: a slow or dead partner endpoint must not hold up the other background jobs.
+  const deadline = Date.now() + 12_000;
   for (const { id } of due.rows) {
+    if (Date.now() > deadline) break;
     const row = await ctx.db.tx(async (q) => {
       const r = (await q.query(`SELECT * FROM partner_webhooks WHERE id = $1 AND status = 'pending' FOR UPDATE SKIP LOCKED`, [id])).rows[0];
       if (!r) return null;
@@ -154,7 +157,7 @@ export async function deliverPartnerWebhooks(ctx: Ctx, limit = 25, fetcher: type
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-unyly-event': r.event_type, 'x-unyly-delivery': r.event_id, ...signedHeaders(p, p.webhookSecret, 'POST', url.pathname + url.search, body, ctx.clock.now().getTime()) },
         body,
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(4000),
         redirect: 'manual',
       });
       ok = res.status >= 200 && res.status < 300;

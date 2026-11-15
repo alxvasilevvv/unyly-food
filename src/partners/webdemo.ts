@@ -54,7 +54,7 @@ async function traced<T>(trace: TraceEntry[], call: string, grab: string | null,
 const EXAMPLES: Record<'en' | 'ru' | 'th', string[]> = {
   en: ['Taxi from Siam Paragon to Suvarnabhumi airport', 'Dinner for two under 600 baht, no nuts', 'Send a 3 kg parcel to ICONSIAM', 'Red roses with a gift box', 'Paracetamol and plasters', 'Groceries: rice, eggs and water', 'Chocolate cake for a birthday'],
   ru: ['Такси от Сиам Парагона до аэропорта Суварнабхуми', 'Ужин на двоих до 600 бат, без орехов', 'Отправить посылку 3 кг в Айконсиам', 'Букет роз в подарочной коробке', 'Парацетамол и пластыри', 'Продукты: рис, яйца и вода', 'Шоколадный торт на день рождения'],
-  th: ['เรียกแท็กซี่จากสยามพารากอนไปสนามบินสุวรรณภูมิ', 'ข้าวเย็นสำหรับ 2 คน ไม่เกิน 600 บาท ไม่ใส่ถั่ว', 'ส่งพัสดุ 3 กก ไปไอคอนสยาม', 'ช่อดอกกุหลาบพร้อมกล่องของขวัญ', 'พาราเซตามอลกับพลาสเตอร์', 'ของชำ ข้าวสาร ไข่ไก่ น้ำดื่ม', 'เค้กช็อกโกแลตวันเกิด'],
+  th: ['เรียกแท็กซี่จากสยามพารากอนไปสนามบินสุวรรณภูมิ', 'มื้อเย็นสำหรับ 2 คน ไม่เกิน 600 บาท ไม่ใส่ถั่ว', 'ส่งพัสดุ 3 กก ไปไอคอนสยาม', 'ช่อดอกกุหลาบพร้อมกล่องของขวัญ', 'พาราเซตามอลกับพลาสเตอร์', 'ของชำ ข้าวสาร ไข่ไก่ น้ำดื่ม', 'เค้กช็อกโกแลตวันเกิด'],
 };
 export const ariExamples = (l: Locale) => (EXAMPLES as Record<string, string[]>)[l] ?? EXAMPLES.en;
 
@@ -68,7 +68,7 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
   const q = text.replace(/\s+/g, ' ').trim().slice(0, 300);
   if (!q || GREET.test(q)) {
     return {
-      reply: t(l, { en: 'Hi! I can order any Grab service for you: a ride, food, groceries, flowers, pharmacy or a parcel. What do you need?', ru: 'Привет! Я закажу любой сервис Grab: поездку, еду, продукты, цветы, аптеку или посылку. Что нужно?', th: 'สวัสดีค่ะ Ari สั่งบริการ Grab ได้ทุกอย่าง ทั้งเรียกรถ อาหาร ของชำ ดอกไม้ ร้านยา หรือส่งพัสดุ ต้องการอะไรคะ' }),
+      reply: t(l, { en: 'Hi! I can order any Grab service for you: a ride, food, groceries, flowers, pharmacy or a parcel. What do you need?', ru: 'Здравствуйте! Я закажу любой сервис Grab: поездку, еду, продукты, цветы, аптеку или посылку. Что нужно?', th: 'สวัสดีค่ะ Ari สั่งบริการ Grab ได้ทุกอย่าง ทั้งเรียกรถ อาหาร ของชำ ดอกไม้ ร้านยา หรือส่งพัสดุ ให้ Ari ช่วยอะไรดีคะ' }),
       chips: ariExamples(l).slice(0, 4), trace,
     };
   }
@@ -111,7 +111,7 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
         ? t(l, { en: ' Restaurants did not declare the allergens you excluded, but I never mark a dish as safe.', ru: ' Рестораны не заявили исключённые аллергены, но я никогда не называю блюдо безопасным.', th: ' ร้านไม่ได้ระบุสารก่อภูมิแพ้ที่คุณยกเว้น แต่ Ari จะไม่รับรองว่าปลอดภัย' })
         : '';
       const reply = n
-        ? t(l, { en: `${n} options for ${people}${budget}.${allergy} Tap one:`, ru: `${n} варианта на ${people}${budget}.${allergy} Выберите:`, th: `${n} ตัวเลือกสำหรับ ${people} คน${budget}${allergy} เลือกได้เลยค่ะ` })
+        ? t(l, { en: `${n} options for ${people}${budget}.${allergy} Tap one:`, ru: `Вариантов: ${n} (на ${people} чел.${budget}).${allergy} Выберите:`, th: `${n} ตัวเลือกสำหรับ ${people} คน${budget}${allergy} เลือกได้เลยค่ะ` })
         : t(l, { en: 'Nothing matches right now. Try a bigger budget or fewer restrictions.', ru: 'Сейчас ничего не подходит. Попробуйте увеличить бюджет или убрать ограничения.', th: 'ยังไม่มีร้านที่ตรง ลองเพิ่มงบหรือลดเงื่อนไขค่ะ' });
       return { reply, card: r.card, trace };
     }
@@ -139,7 +139,7 @@ function errorTurn(l: Locale, err: any, trace: TraceEntry[]): AriTurn {
     return {
       reply: code === 'PLACE_AMBIGUOUS'
         ? t(l, { en: 'Which one do you mean?', ru: 'Какое место вы имеете в виду?', th: 'หมายถึงที่ไหนคะ' })
-        : t(l, { en: 'I could not find that place on the Bangkok demo map. Try one of these:', ru: 'Не нашла это место на демо-карте Бангкока. Например:', th: 'ไม่พบสถานที่นี้บนแผนที่เดโมกรุงเทพฯ ลองเลือก:' }),
+        : t(l, { en: 'I could not find that place on the Bangkok demo map. Try one of these:', ru: 'Не нашла это место на демо-карте Бангкока. Например:', th: 'ไม่พบสถานที่นี้บนแผนที่เดโมกรุงเทพฯ ลองเลือกจากนี้ค่ะ' }),
       chips: sug.map((s) => t(l, { en: `Taxi to ${s}`, ru: `Такси до ${s}`, th: `แท็กซี่ไป ${s}` })), trace,
     };
   }
@@ -159,18 +159,18 @@ function openExt(ctx: Ctx, v: string | undefined): string | null {
 
 async function createDemoUser(ctx: Ctx, ip: string, locale: Locale): Promise<PartnerUser> {
   const ipHash = hmac(ctx.cfg.demoWebhookSecret, `guest-ip:${ip}`).slice(0, 32);
-  const allowed = await ctx.db.tx(async (q) => {
+  // Count and create under one lock so parallel requests cannot exceed the per-IP and global caps.
+  const u = await ctx.db.tx(async (q) => {
     await q.query("SELECT pg_advisory_xact_lock(hashtext('unyly.guest_create'))");
     const c = (await q.query(
       `SELECT count(*)::int total, count(*) FILTER (WHERE guest_ip_hash = $1)::int mine FROM users WHERE is_guest AND created_at > now() - interval '1 hour'`,
       [ipHash],
     )).rows[0];
-    return c.mine < ctx.cfg.guestPerIpHourly && c.total < ctx.cfg.guestHourlyLimit;
+    if (c.mine >= ctx.cfg.guestPerIpHourly || c.total >= ctx.cfg.guestHourlyLimit) return null;
+    // Same lifetime as other demo guests: deleted after 24 hours by the job worker.
+    return upsertPartnerUser(ctx, P, `web-${randomUUID()}`, { locale }, { q, guestIpHash: ipHash });
   });
-  if (!allowed) throw new DomainError('RATE_LIMITED', 'The demo is busy right now. Please try again in a few minutes.');
-  const u = await upsertPartnerUser(ctx, P, `web-${randomUUID()}`, { locale });
-  // Same lifetime as other demo guests: deleted after 24 hours by the job worker.
-  await ctx.db.query('UPDATE users SET is_guest = true, guest_ip_hash = $2 WHERE id = $1', [u.user_id, ipHash]);
+  if (!u) throw new DomainError('RATE_LIMITED', 'The demo is busy right now. Please try again in a few minutes.');
   await addAddress(ctx, u.user_id, {
     label: tr(locale, { ru: 'Дом', en: 'Home', th: 'บ้าน' }), line1: '88 Sukhumvit Soi 24 (demo)', district: 'Watthana', city: 'Bangkok', country: 'TH',
   }, true);
@@ -218,7 +218,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const ev = await listPartnerEvents(ctx, u.user_id, 0, 100);
       return send(reply, {
         ok: true, user: { id: u.external_user_id }, grab: await grabLinkStatus(ctx, u), examples: ariExamples(l), last_event: ev.at(-1)?.seq ?? 0,
-        greeting: tr(l, { en: 'Hi, I\'m Ari. Tell me what you need from Grab and I\'ll take care of it. Nothing is ordered until you confirm.', ru: 'Привет, я Ari. Скажите, что нужно от Grab, и я всё сделаю. Ничего не заказывается без вашего подтверждения.', th: 'สวัสดีค่ะ Ari เองค่ะ บอกได้เลยว่าต้องการอะไรจาก Grab ไม่มีการสั่งจนกว่าคุณจะยืนยัน' }),
+        greeting: tr(l, { en: 'Hi, I\'m Ari. Tell me what you need from Grab and I\'ll take care of it. Nothing is ordered until you confirm.', ru: 'Здравствуйте, я Ari. Скажите, что нужно от Grab, и я всё сделаю. Ничего не заказывается без вашего подтверждения.', th: 'สวัสดีค่ะ Ari เองค่ะ บอกได้เลยว่าต้องการอะไรจาก Grab ไม่มีการสั่งจนกว่าคุณจะยืนยันค่ะ' }),
       });
     } catch (e) {
       return fail(reply, e);
@@ -268,7 +268,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const card = await checkoutCard(ctx, P, u, id);
       const live = card.service === 'express' ? 'GrabPay · charge/init + GrabExpress · POST /v1/deliveries' : card.service === 'ride' ? 'Ride booking scope (requested) · today: Grab deep link' : 'GrabFood / GrabMart order scope (requested)';
       const r = await traced(trace, `POST /partner/v1/users/${u.external_user_id}/checkouts/${id}/confirm`, live, () => confirmCheckout(ctx, P, u, id, {
-        confirm_hash: b.confirm_hash, user_verification: b.user_verification, confirmed_at: new Date().toISOString(), device_id: 'web-demo',
+        confirm_hash: b.confirm_hash, user_verification: 'biometric', confirmed_at: new Date().toISOString(), device_id: 'web-demo',
       }));
       const l = u.locale;
       return send(reply, {
@@ -343,7 +343,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
         ok: true,
         reply: done
           ? tr(u.locale, { en: 'Cancelled.', ru: 'Заказ отменён.', th: 'ยกเลิกแล้วค่ะ' })
-          : tr(u.locale, { en: 'The cancellation did not go through; the order continues.', ru: 'Отменить не получилось, заказ продолжается.', th: 'ยกเลิกไม่สำเร็จ คำสั่งซื้อยังดำเนินต่อ' }),
+          : tr(u.locale, { en: 'The cancellation did not go through; the order continues.', ru: 'Отменить не получилось, заказ продолжается.', th: 'ยกเลิกไม่สำเร็จค่ะ คำสั่งซื้อยังดำเนินต่อ' }),
         card: r.order.card,
         cancel_card: await cancellationCard(ctx, P, u, id),
       });
