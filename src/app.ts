@@ -1,3 +1,4 @@
+import { netProbe, startNetProbe } from './net-probe.js';
 import { memoryLimitMb } from './demo-ctx.js';
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
@@ -242,6 +243,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   });
 
   // ---------------- Health ----------------
+  startNetProbe();
   app.get('/healthz', async () => ({ status: 'ok' }));
   app.get('/readyz', async (_req, reply) => {
     const db = await ctx.db.ping();
@@ -250,6 +252,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     return reply.code(ok ? 200 : 503).send({
       status: ok ? 'ready' : 'not_ready', db, migrations: mig,
       demo_db: ctx.demoCtx ? 'memory' : 'shared',
+      ...(netProbe() ? { net: netProbe() } : {}),
       memory: { rss_mb: Math.round(process.memoryUsage().rss / (1024 * 1024)), limit_mb: memoryLimitMb() },
     });
   });
