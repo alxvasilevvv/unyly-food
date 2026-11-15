@@ -15,6 +15,8 @@ export interface Config {
   databaseUrl: string;
   /** Public origin of the website and OAuth issuer, e.g. https://unyly.org */
   webOrigin: string;
+  /** WEB_ORIGIN_ALIASES: other https origins that serve this same site (a short address in front of it). Their pages may call the demo API. */
+  webOriginAliases: string[];
   /** Canonical MCP resource URL (RFC 8707 / RFC 9728), e.g. https://mcp.unyly.org/mcp */
   mcpResourceUrl: string;
   /**
@@ -156,6 +158,7 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     host: process.env.HOST || '0.0.0.0',
     databaseUrl: process.env.DATABASE_URL || 'postgres://postgres@localhost:5432/unyly',
     webOrigin,
+    webOriginAliases: (process.env.WEB_ORIGIN_ALIASES ?? '').split(',').map((x) => x.trim().replace(/\/$/, '')).filter((x) => /^https:\/\/[a-z0-9.-]+$/i.test(x)),
     mcpResourceUrl: (process.env.MCP_RESOURCE_URL || `${webOrigin}/mcp`).replace(/\/$/, ''),
     trustProxy: parseTrustProxy(process.env.TRUST_PROXY, env === 'production' ? 1 : false),
     cookieSecure: bool(process.env.COOKIE_SECURE, (overrides.webOrigin ?? webOrigin).startsWith('https://')),

@@ -884,7 +884,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     // JSON API for our own page only: custom header (forces a CORS preflight cross-site) plus same origin.
     if (req.headers['x-ari-demo'] !== '1') throw new DomainError('AUTH_REQUIRED', 'Cross-site request blocked');
     const origin = req.headers.origin;
-    if (origin && origin !== ctx.cfg.webOrigin) throw new DomainError('AUTH_REQUIRED', 'Cross-site request blocked');
+    if (origin && origin !== ctx.cfg.webOrigin && !(ctx.cfg.webOriginAliases ?? []).includes(origin)) throw new DomainError('AUTH_REQUIRED', 'Cross-site request blocked');
   };
   const send = (reply: FastifyReply, data: unknown, status = 200) => reply.code(status).header('cache-control', 'no-store').send(data);
   const fail = (reply: FastifyReply, e: unknown, req?: FastifyRequest) => {
