@@ -10,7 +10,7 @@ import { isTripService, Service } from '../domain/regions.js';
 import { createCart, loadCart } from './carts.js';
 import { callProvider, requireCapability, withTimeout } from './common.js';
 import { settleOrder } from './live-payment.js';
-import { enqueueOrderStatus } from '../partners/webhooks.js';
+import { enqueueOrderStatus, orderStatusEventParams, partnerEventCtes } from '../partners/webhooks.js';
 
 export interface OrderRow {
   id: string;
@@ -99,6 +99,38 @@ async function applyEventRow(q: Queryable, provider: string, ev: ProviderEvent):
   return { outcome: 'applied', order: updated };
 }
 
+/**
+ * applyEventRow for the polling path, as ONE statement (atomic on its own, no BEGIN/COMMIT round trips): the row
+ * lock, the guarded update, the audit row and the partner event. Same rules: an event that is not newer than the
+ * stored sequence, or that would leave a terminal state, changes nothing (the conditions are re-checked on the
+ * locked row, so two polls reporting the same step write it once). `o` is the row this request read a moment ago;
+ * only its unchanging fields (names, items, service) and its ETA go into the event text.
+ */
+async function applyPolledEvent(q: Queryable, provider: string, ev: ProviderEvent, o: OrderRow): Promise<{ outcome: 'applied' | 'stale'; order?: OrderRow }> {
+  if (STATUS_RANK[ev.status] === undefined) return { outcome: 'stale' };
+  const pickedUp = ev.status === 'picked_up' || ev.status === 'delivered';
+  const r = await q.query<OrderRow & { old_status: string }>(
+    `WITH cur AS (SELECT id, fulfillment_status AS old_status FROM orders WHERE id = $1 AND provider = $9 AND provider_order_ref = $10 FOR UPDATE),
+          upd AS (
+            UPDATE orders x SET fulfillment_status=$2, payment_status=CASE WHEN x.payment_id IS NULL THEN $3 ELSE x.payment_status END, status_version=$4, status_updated_at=$5,
+                   eta_at=COALESCE($6, x.eta_at), picked_up_at=CASE WHEN $7::boolean THEN COALESCE(x.picked_up_at, $5::timestamptz) ELSE x.picked_up_at END
+              FROM cur
+             WHERE x.id = cur.id AND x.status_version < $4 AND NOT (x.fulfillment_status = ANY($8::text[]) AND x.fulfillment_status <> $2)
+            RETURNING x.*, cur.old_status),
+          au AS (INSERT INTO audit_log (user_id, actor, action, mode, entity, entity_id, details)
+                 SELECT upd.user_id, $11, 'order.status_changed', upd.mode, 'order', upd.id::text, $12::jsonb FROM upd),
+          ${partnerEventCtes('ev', 13, 'EXISTS (SELECT 1 FROM upd WHERE upd.old_status <> $2)')}
+     SELECT * FROM upd`,
+    [o.id, ev.status, ev.payment_status, ev.sequence, ev.occurred_at, ev.eta_at ?? null, pickedUp, TERMINAL, provider, ev.order_ref,
+      `provider:${provider}`, JSON.stringify({ status: ev.status, seq: ev.sequence }),
+      ...orderStatusEventParams({ ...o, eta_at: ev.eta_at ?? o.eta_at }, ev.status, TERMINAL.includes(ev.status))],
+  );
+  const row = r.rows[0];
+  if (!row) return { outcome: 'stale' };
+  const { old_status: _old, ...order } = row;
+  return { outcome: 'applied', order: order as OrderRow };
+}
+
 /** Persist first, then process. Duplicates are dropped by UNIQUE(provider, event_id). */
 export async function ingestEvents(ctx: Ctx, provider: string, events: ProviderEvent[]) {
   let inserted = 0;
@@ -161,28 +193,48 @@ export async function getOrderStatus(ctx: Ctx, actor: Actor, orderId: string) {
   return { order: describeOrder(r.row), data_as_of: r.data_as_of, notices: r.notices };
 }
 
+/** The order together with the demo simulator's row for it (null for other providers), in one statement. */
+async function loadOrderWithSim(q: Queryable, userId: string, id: string): Promise<{ order: OrderRow; sim: Record<string, any> | null }> {
+  const r = await q.query<OrderRow & { j_sim: Record<string, any> | null }>(
+    `SELECT o.*, to_jsonb(d) AS j_sim FROM orders o LEFT JOIN demo_sim_orders d ON o.provider = 'demo' AND d.ref = o.provider_order_ref WHERE o.id = $1 AND o.user_id = $2`,
+    [id, userId],
+  );
+  if (!r.rows[0]) throw new DomainError('NOT_FOUND', 'Order not found');
+  const { j_sim, ...order } = r.rows[0];
+  return { order: order as OrderRow, sim: j_sim ?? null };
+}
+
 /**
  * getOrderStatus with the stored row: one read of the order, one provider call for an order that is
  * still moving, and a write only when the provider reports something newer than what is stored.
+ * A demo order is read together with its simulator row, so a poll with no news is a single statement, and a
+ * change is one more statement for the simulator and one for the order (update, audit and event together).
+ * `known`: the order (and simulator row) the caller read in this same request for this user.
  */
-export async function refreshOrder(ctx: Ctx, actor: Actor, orderId: string): Promise<{ row: OrderRow; data_as_of: string; notices: string[] }> {
-  let o = await loadOrder(ctx.db, actor.userId, orderId);
+export async function refreshOrder(
+  ctx: Ctx, actor: Actor, orderId: string, known?: { order: OrderRow; sim: Record<string, any> | null },
+): Promise<{ row: OrderRow; data_as_of: string; notices: string[] }> {
+  const demo = ctx.providers.demo;
+  const got = known && known.order.id === orderId && known.order.user_id === actor.userId ? known : await loadOrderWithSim(ctx.db, actor.userId, orderId);
+  let o = got.order;
   const notices: string[] = [];
   let dataAsOf = new Date(o.status_updated_at).toISOString();
   if (!TERMINAL.includes(o.fulfillment_status)) {
     try {
       const provider = ctx.provider(o.mode);
-      const s = await withTimeout(provider.getOrderStatus(o.provider_order_ref), ctx.cfg.providerTimeoutMs, () => new ProviderOutcomeUnknownError('timeout'));
-      // A sequence that is not newer than the stored one changes nothing (applyEvent would lock the row and
-      // return "stale"; status_version only ever grows), so a poll with no news does not open a transaction.
+      const viaSim = provider === demo && got.sim;
+      const s = await withTimeout(
+        viaSim ? demo.getOrderStatus(o.provider_order_ref, got.sim) : provider.getOrderStatus(o.provider_order_ref),
+        ctx.cfg.providerTimeoutMs, () => new ProviderOutcomeUnknownError('timeout'),
+      );
+      // A sequence that is not newer than the stored one changes nothing (status_version only ever grows),
+      // so a poll with no news writes nothing.
       if (s.sequence > o.status_version) {
-        const applied = await ctx.db.tx((q) =>
-          applyEventRow(q, provider.providerName, {
-            event_id: `poll:${s.provider_order_ref}:${s.sequence}`, order_ref: s.provider_order_ref, sequence: s.sequence, type: 'order.status_changed',
-            status: s.status, payment_status: s.payment_status, occurred_at: ctx.clock.now().toISOString(), eta_at: s.eta_at,
-          }),
-        );
-        // The row as written (or as locked, when a concurrent event got there first). Same user: it was loaded by id and user above.
+        const applied = await applyPolledEvent(ctx.db, provider.providerName, {
+          event_id: `poll:${s.provider_order_ref}:${s.sequence}`, order_ref: s.provider_order_ref, sequence: s.sequence, type: 'order.status_changed',
+          status: s.status, payment_status: s.payment_status, occurred_at: ctx.clock.now().toISOString(), eta_at: s.eta_at,
+        }, o);
+        // The row as written. When a concurrent event got there first, read what it left.
         if (applied.order && applied.order.id === o.id) o = applied.order;
         else o = await loadOrder(ctx.db, actor.userId, orderId);
       }

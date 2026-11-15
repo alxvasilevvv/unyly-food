@@ -66,28 +66,57 @@ export function orderNotify(o: OrderLike, status: FulfillmentStatus, l: Locale):
   return { title: label, body, level, suggest_call: suggestCall || undefined, live_activity: { state: status, progress: PROGRESS[status], eta_at: eta } };
 }
 
-export async function enqueuePartnerEvent(
-  q: Queryable, userId: string, type: PartnerEventType, data: Record<string, unknown>, opts: { dedupeKey?: string; notify?: (l: Locale) => Notify } = {},
-): Promise<boolean> {
-  // One statement: look the partner user up and store the event. The notify hint is prepared for every interface
-  // language and the row picks the user's: any of them for the website demo, English, Russian or Thai for signed
-  // partners (other locales get English, as documented). Regular users match no row.
+/** Number of statement parameters one event takes (see partnerEventParams). */
+export const PARTNER_EVENT_PARAMS = 7;
+
+type EventOpts = { dedupeKey?: string; notify?: (l: Locale) => Notify };
+
+/**
+ * The parameters of one event, in the order partnerEventCtes expects them. The notify hint is prepared for every
+ * interface language and the row picks the user's: any of them for the website demo, English, Russian or Thai
+ * for signed partners (other locales get English, as documented).
+ */
+export function partnerEventParams(userId: string, type: PartnerEventType, data: Record<string, unknown>, opts: EventOpts = {}): unknown[] {
   const make = opts.notify;
   const notify = make ? JSON.stringify(Object.fromEntries(LOCALE_CODES.map((l) => [l, make(l)]))) : null;
-  const r = await q.query<{ n: number }>(
-    `WITH pu AS (SELECT pu.partner_id, pu.external_user_id, u.locale FROM partner_users pu JOIN users u ON u.id = pu.user_id WHERE pu.user_id = $1),
-          ins AS (
+  return [userId, type, opts.dedupeKey ?? null, new Date().toISOString(), JSON.stringify(data), notify, WEB_DEMO_PARTNER.id];
+}
+
+/**
+ * The event insert as two CTEs (`<name>_pu`, `<name>`), so it can also ride in the statement that makes the change it
+ * reports. Its seven parameters start at $first. `when` is an extra SQL condition (it may read earlier CTEs of the
+ * statement). Regular users match no partner row and store nothing.
+ */
+export function partnerEventCtes(name: string, first: number, when = 'true'): string {
+  const p = (i: number) => `$${first + i}`;
+  return `${name}_pu AS (SELECT pu.partner_id, pu.external_user_id, u.locale FROM partner_users pu JOIN users u ON u.id = pu.user_id WHERE pu.user_id = ${p(0)}::uuid AND (${when})),
+          ${name} AS (
             INSERT INTO partner_webhooks (partner_id, user_id, event_type, dedupe_key, payload)
-            SELECT pu.partner_id, $1, $2, $3,
-                   jsonb_build_object('type', $2::text, 'partner_id', pu.partner_id, 'user_id', pu.external_user_id, 'created_at', $4::text, 'data', $5::jsonb)
-                   || CASE WHEN $6::jsonb IS NULL THEN '{}'::jsonb
-                           ELSE jsonb_build_object('notify', COALESCE($6::jsonb -> (CASE WHEN pu.locale IN ('ru','th') OR pu.partner_id = $7 THEN pu.locale::text ELSE 'en' END), $6::jsonb -> 'en')) END
-              FROM pu
-            ON CONFLICT DO NOTHING)
-     SELECT count(*)::int AS n FROM pu`,
-    [userId, type, opts.dedupeKey ?? null, new Date().toISOString(), JSON.stringify(data), notify, WEB_DEMO_PARTNER.id],
+            SELECT pu.partner_id, ${p(0)}::uuid, ${p(1)}::text, ${p(2)}::text,
+                   jsonb_build_object('type', ${p(1)}::text, 'partner_id', pu.partner_id, 'user_id', pu.external_user_id, 'created_at', ${p(3)}::text, 'data', ${p(4)}::jsonb)
+                   || CASE WHEN ${p(5)}::jsonb IS NULL THEN '{}'::jsonb
+                           ELSE jsonb_build_object('notify', COALESCE(${p(5)}::jsonb -> (CASE WHEN pu.locale IN ('ru','th') OR pu.partner_id = ${p(6)}::text THEN pu.locale::text ELSE 'en' END), ${p(5)}::jsonb -> 'en')) END
+              FROM ${name}_pu pu
+            ON CONFLICT DO NOTHING)`;
+}
+
+export async function enqueuePartnerEvent(
+  q: Queryable, userId: string, type: PartnerEventType, data: Record<string, unknown>, opts: EventOpts = {},
+): Promise<boolean> {
+  // One statement: look the partner user up and store the event.
+  const r = await q.query<{ n: number }>(
+    `WITH ${partnerEventCtes('ev', 1)} SELECT count(*)::int AS n FROM ev_pu`,
+    partnerEventParams(userId, type, data, opts),
   );
   return (r.rows[0]?.n ?? 0) > 0;
+}
+
+/** The parameters of the order.status_changed event (see enqueueOrderStatus), for a statement that embeds partnerEventCtes. */
+export function orderStatusEventParams(o: OrderLike, status: FulfillmentStatus, isFinal: boolean, labelLocale?: Locale): unknown[] {
+  return partnerEventParams(o.user_id, 'order.status_changed', {
+    order_id: o.id, service: o.service, status, is_final: isFinal, eta_at: o.eta_at ? new Date(o.eta_at).toISOString() : null,
+    status_label: statusLabel(o.service, status, labelLocale ?? 'en'),
+  }, { dedupeKey: `order:${o.id}:${status}`, notify: (l) => orderNotify(o, status, l) });
 }
 
 export async function enqueueOrderStatus(q: Queryable, o: OrderLike, status: FulfillmentStatus, isFinal: boolean, labelLocale?: Locale) {

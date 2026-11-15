@@ -202,30 +202,32 @@ const DISH_BY_RESTAURANT: Record<string, (l?: string) => SafeHtml> = {
 export const restaurantArt = (id: string | null | undefined, label: string) => (DISH_BY_RESTAURANT[id ?? ''] ?? greenCurry)(label);
 
 // ---------- Brand: the Ari face ----------
-// Two "eyes", each a rounded square drawn as a 7x7 dot matrix: bright mint in the middle,
-// dimmer toward the outer columns and corners, with a soft green glow. Original artwork drawn in code.
-const hex2 = (n: number) => Math.round(n).toString(16).padStart(2, '0');
-const mixHex = (a: [number, number, number], b: [number, number, number], t: number) => `#${a.map((v, i) => hex2(v + (b[i]! - v) * t)).join('')}`;
-const EYE_CORE: [number, number, number] = [0xe6, 0xfd, 0xef];
-const EYE_EDGE: [number, number, number] = [0x4f, 0xdc, 0x8f];
-function eyeDots(ox: number, pitch = 10, r = 3.9) {
+// Two "eyes", each a rounded square drawn as a 7x7 dot matrix: the inner dots uniformly bright mint-white,
+// only the outermost ring dimmer and smaller, with a soft green glow. Original artwork drawn in code.
+const EYE_CORE = '#e9fdf1';
+const EYE_EDGE = '#6fe3a4';
+function eyeDots(ox: number, pitch = 10, r = 4.1) {
   let out = '';
   for (let j = -3; j <= 3; j++) {
     for (let i = -3; i <= 3; i++) {
-      // Squircle distance: 0 in the centre, 1 on the middle of an edge, about 1.26 in a corner.
-      const d = Math.cbrt((Math.abs(i) / 3) ** 3 + (Math.abs(j) / 3) ** 3);
-      const op = Math.max(0.16, 1 - 0.3 * d * d - (d > 1 ? (d - 1) * 2 : 0));
-      out += `<circle cx="${ox + (i + 3) * pitch + pitch / 2}" cy="${(j + 3) * pitch + pitch / 2}" r="${r}" fill="${mixHex(EYE_CORE, EYE_EDGE, Math.min(1, d))}" opacity="${op.toFixed(2)}"/>`;
+      // The inner 5x5 block is uniformly bright; only the outermost ring is dimmer and smaller,
+      // and its four corners fade the most (that is what rounds the square).
+      const ring = Math.abs(i) === 3 || Math.abs(j) === 3;
+      const corner = Math.abs(i) === 3 && Math.abs(j) === 3;
+      const nearCorner = ring && !corner && (Math.abs(i) === 2 || Math.abs(j) === 2);
+      const op = corner ? 0.2 : nearCorner ? 0.5 : ring ? 0.7 : 1;
+      const rr = corner ? r * 0.6 : nearCorner ? r * 0.76 : ring ? r * 0.84 : r;
+      out += `<circle cx="${ox + (i + 3) * pitch + pitch / 2}" cy="${(j + 3) * pitch + pitch / 2}" r="${+rr.toFixed(2)}" fill="${ring ? EYE_EDGE : EYE_CORE}"${op < 1 ? ` opacity="${op}"` : ''}/>`;
     }
   }
   return out;
 }
-/** Inner markup of the eyes on a 154 x 70 canvas (two 70 px eyes, 14 px apart). */
+/** Inner markup of the eyes on a 163 x 70 canvas (two 70 px eyes, 23 px apart: a third of an eye). */
 const eyesInner = (id: string, blur = 5) =>
-  `<defs><filter id="${id}" x="-40%" y="-60%" width="180%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="${blur}" result="b"/><feColorMatrix in="b" type="matrix" values="0 0 0 0 0.2  0 0 0 0 0.82  0 0 0 0 0.48  0 0 0 0.75 0" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g filter="url(#${id})"><g class="eye">${eyeDots(0)}</g><g class="eye">${eyeDots(84)}</g></g>`;
+  `<defs><filter id="${id}" x="-40%" y="-60%" width="180%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="${blur}" result="b"/><feColorMatrix in="b" type="matrix" values="0 0 0 0 0.2  0 0 0 0 0.82  0 0 0 0 0.48  0 0 0 0.75 0" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g filter="url(#${id})"><g class="eye">${eyeDots(0)}</g><g class="eye">${eyeDots(93)}</g></g>`;
 /** The big dot-matrix eyes. `id` keeps the glow filter unique on a page (pass a different one per use). */
 export const ariEyes = (id: string, cls = '') =>
-  raw(`<svg class="ari-eyes-svg${cls ? ` ${cls}` : ''}" viewBox="-24 -24 202 118" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">${eyesInner(`eg-${id}`)}</svg>`);
+  raw(`<svg class="ari-eyes-svg${cls ? ` ${cls}` : ''}" viewBox="-24 -24 211 118" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">${eyesInner(`eg-${id}`)}</svg>`);
 /** Small mark for the header, chat header and small icons: two solid mint rounded squares side by side. */
 export const ariMark = (cls = '') =>
   raw(`<svg class="ari-mark${cls ? ` ${cls}` : ''}" viewBox="0 0 34 15" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><rect width="15" height="15" rx="4.2" fill="#b9f5d0"/><rect x="19" width="15" height="15" rx="4.2" fill="#b9f5d0"/></svg>`);
@@ -233,8 +235,8 @@ export const ariMark = (cls = '') =>
 export function ariIconSvg(size: number, opts: { solid?: boolean; square?: boolean } = {}) {
   const rx = opts.square ? 0 : 23;
   const face = opts.solid
-    ? `<rect x="19" y="35" width="27" height="30" rx="7.5" fill="#b9f5d0"/><rect x="54" y="35" width="27" height="30" rx="7.5" fill="#b9f5d0"/>`
-    : `<g transform="translate(17.5 35.2) scale(.4221)">${eyeDots(0)}${eyeDots(84)}</g>`;
+    ? `<rect x="19" y="36.5" width="27" height="27" rx="7.5" fill="#b9f5d0"/><rect x="54" y="36.5" width="27" height="27" rx="7.5" fill="#b9f5d0"/>`
+    : `<g transform="translate(17.5 36) scale(.3988)">${eyeDots(0)}${eyeDots(93)}</g>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100"><defs><radialGradient id="ig" cx="50%" cy="46%" r="62%"><stop offset="0" stop-color="#103322"/><stop offset=".6" stop-color="#07110b"/><stop offset="1" stop-color="#030504"/></radialGradient></defs><rect width="100" height="100" rx="${rx}" fill="url(#ig)"/>${face}</svg>`;
 }
 

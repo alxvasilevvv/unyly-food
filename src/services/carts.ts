@@ -117,6 +117,32 @@ export async function locationFingerprint(q: Queryable, userId: string, cart: Pi
   return addr ? addressFingerprint(addr) : null;
 }
 
+/**
+ * locationFingerprint from addresses that were already read: `addresses` holds every saved (not deleted) address
+ * of the cart's owner as of the caller's read. Same result as locationFingerprint at that moment, no statement.
+ */
+export function locationFingerprintFrom(cart: Pick<CartState, 'service' | 'address_id' | 'trip'>, addresses: AddressRow[]): string | null {
+  const byId = (id: string) => addresses.find((a) => a.id === id) ?? null;
+  if (isTripService(cart.service)) {
+    if (!cart.trip) return null;
+    const parts = [cart.trip.fingerprint];
+    for (const p of [cart.trip.pickup, cart.trip.dropoff]) {
+      if (!p.address_id) continue;
+      const a = byId(p.address_id);
+      if (!a) return null;
+      parts.push(addressFingerprint(a));
+    }
+    return parts.length === 1 ? parts[0] : sha256(parts.join('|'));
+  }
+  if (!cart.address_id) return null;
+  const addr = byId(cart.address_id);
+  return addr ? addressFingerprint(addr) : null;
+}
+
+/** Sub-select: every saved (not deleted) address of a user as a JSON array, default first. `userExpr` is a SQL expression for the user id. */
+export const addressesJsonSql = (userExpr: string) =>
+  `(SELECT COALESCE(jsonb_agg(to_jsonb(ad) ORDER BY ad.is_default DESC, ad.created_at), '[]'::jsonb) FROM addresses ad WHERE ad.user_id = ${userExpr} AND ad.deleted_at IS NULL)`;
+
 export function tripLabel(t: Trip | null): string | null {
   if (!t) return null;
   return `${t.pickup.name} → ${t.dropoff.name}`;

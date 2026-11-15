@@ -5,11 +5,13 @@ import type { Queryable } from '../db/db.js';
 import { DomainError } from '../domain/errors.js';
 import { money } from '../domain/money.js';
 import { FulfillmentStatus, ProviderOutcomeUnknownError, ProviderUnavailableError, SubmitResult } from '../providers/types.js';
-import { CartState, describeTrip, loadCart, loadCartVersion, locationFingerprint, quoteCart, QuoteRow, tripLabel } from './carts.js';
+import { addressesJsonSql, CartRow, CartState, describeTrip, loadCart, loadCartVersion, locationFingerprint, locationFingerprintFrom, quoteCart, QuoteRow, tripLabel } from './carts.js';
 import { isTripService } from '../domain/regions.js';
-import { enqueuePartnerEvent, orderNotify } from '../partners/webhooks.js';
-import { callProvider, requireCapability, submissionsEnabled, withTimeout } from './common.js';
-import { addressFingerprint, getAddress, maskedAddress, toDeliveryAddress } from './users.js';
+import { enqueuePartnerEvent, orderNotify, partnerEventCtes, partnerEventParams } from '../partners/webhooks.js';
+import { callProvider, requireCapability, withTimeout } from './common.js';
+import { randomUUID } from 'node:crypto';
+import { AddressRow, getAddress, toDeliveryAddress } from './users.js';
+import type { OrderRow } from './orders.js';
 import { hasPasskey, verifyStepUp } from '../auth/passkeys.js';
 import { GrabLiveProvider } from '../providers/grab/provider.js';
 import { orderPaymentStatus, PaymentRow } from '../payments/service.js';
@@ -64,18 +66,27 @@ export interface AttemptRow {
  * Different checkouts carry different idempotency keys, so this cart-level guard is what stops a
  * second real order after an unknown outcome.
  */
-async function cartSubmissionBlock(q: Queryable, cartId: string, exceptCheckoutId?: string): Promise<DomainError | null> {
-  const r = await q.query<{ status: string }>(
-    `SELECT a.status FROM submission_attempts a JOIN checkouts c ON c.id = a.checkout_id
-     WHERE c.cart_id = $1 AND a.status IN ('in_flight','unknown','accepted') AND ($2::uuid IS NULL OR c.id <> $2) LIMIT 1`,
-    [cartId, exceptCheckoutId ?? null],
-  );
-  const s = r.rows[0]?.status;
+const blockError = (s: string | null | undefined): DomainError | null => {
   if (!s) return null;
   if (s === 'accepted') return new DomainError('CART_NOT_OPEN', 'This cart has already been ordered. Create a new cart to order again.');
   return new DomainError('SUBMISSION_UNKNOWN', 'An earlier order for this cart is still being confirmed with the provider. Do not order again until it resolves.', undefined,
     'Call get_checkout_status on the earlier checkout, or list_orders, and wait.');
+};
+
+/** cartSubmissionBlock as a sub-select (status of a blocking attempt or NULL). Only meaningful in a statement that runs under the cart row lock. */
+const blockSql = (cartExpr: string, exceptExpr: string) =>
+  `(SELECT a.status FROM submission_attempts a JOIN checkouts c2 ON c2.id = a.checkout_id
+     WHERE c2.cart_id = ${cartExpr} AND a.status IN ('in_flight','unknown','accepted') AND (${exceptExpr} IS NULL OR c2.id <> ${exceptExpr}) LIMIT 1)`;
+
+/** The cart row lock that serializes everything that prepares or submits a cart. Always the first statement of such a transaction. */
+async function lockCart(q: Queryable, userId: string, cartId: string, lead?: { sql: string; params: unknown[] }): Promise<CartRow> {
+  // `lead`: a data-modifying CTE that rides in the same round trip (its parameters come after $1 and $2).
+  const r = await q.query<CartRow>(`${lead ? `WITH ${lead.sql} ` : ''}SELECT * FROM carts WHERE id = $1 AND user_id = $2 FOR UPDATE`, [cartId, userId, ...(lead?.params ?? [])]);
+  if (!r.rows[0]) throw new DomainError('NOT_FOUND', 'Cart not found');
+  return r.rows[0];
 }
+
+const submissionsOn = (ctx: Ctx, value: any, mode: string): boolean => ctx.cfg.submissionsEnabledEnv && Boolean(value?.[mode]);
 
 export const confirmUrl = (ctx: Ctx, id: string) => `${ctx.cfg.webOrigin}/confirm/${id}`;
 
@@ -172,14 +183,27 @@ export async function prepareCheckout(
   // opts.cart: the cart this same call just quoted. Only its mode is used here; everything that matters is re-read under the lock below.
   const cart = opts.cart && opts.cart.id === args.cart_id && opts.cart.user_id === actor.userId ? opts.cart : await loadCart(ctx.db, actor.userId, args.cart_id);
   requireCapability(ctx, cart.mode, 'checkout');
-  if (!(await submissionsEnabled(ctx, ctx.db, cart.mode))) {
-    throw new DomainError('SUBMISSIONS_PAUSED', 'New orders are temporarily paused. Order status and history remain available.');
-  }
   const row = await ctx.db.tx(async (q) => {
-    const locked = await loadCart(q, actor.userId, args.cart_id, true);
-    const blocked = await cartSubmissionBlock(q, locked.id);
+    const lockedRow = await lockCart(q, actor.userId, args.cart_id);
+    // Everything else this step reads, in one statement that starts after the cart lock is held (so it sees what
+    // the previous holder committed): the cart version the locked row points at, a pending or accepted submission
+    // of this cart, the quote, the submissions switch and the user's addresses (for the location fingerprint).
+    const rd = (await q.query<Record<string, any>>(
+      `SELECT v.items, v.address_id, v.trip,
+              ${blockSql('$1', 'NULL::uuid')} AS j_block,
+              (SELECT to_jsonb(qt) FROM quotes qt WHERE qt.id = $4 AND qt.user_id = $2 AND qt.cart_id = $1) AS j_quote,
+              (SELECT value FROM settings WHERE key = 'submissions') AS j_submissions,
+              ${addressesJsonSql('$2')} AS j_addresses
+         FROM cart_versions v WHERE v.cart_id = $1 AND v.version = $3`,
+      [lockedRow.id, actor.userId, lockedRow.version, args.quote_id],
+    )).rows[0];
+    const locked: CartState = { ...lockedRow, items: rd.items, address_id: rd.address_id, trip: rd.trip ?? null };
+    if (!submissionsOn(ctx, rd.j_submissions, cart.mode)) {
+      throw new DomainError('SUBMISSIONS_PAUSED', 'New orders are temporarily paused. Order status and history remain available.');
+    }
+    const blocked = blockError(rd.j_block);
     if (blocked) throw blocked;
-    const qr = (await q.query<QuoteRow>('SELECT * FROM quotes WHERE id = $1 AND user_id = $2 AND cart_id = $3', [args.quote_id, actor.userId, args.cart_id])).rows[0];
+    const qr = rd.j_quote as QuoteRow | null;
     if (!qr) throw new DomainError('NOT_FOUND', 'Quote not found for this cart');
     if (locked.status !== 'open') throw new DomainError('CART_NOT_OPEN', `Cart is ${locked.status}`);
     if (qr.cart_version !== locked.version) throw new DomainError('QUOTE_EXPIRED', 'The cart changed after this quote; call quote_cart again');
@@ -189,7 +213,7 @@ export async function prepareCheckout(
       const first = qr.issues[0];
       throw new DomainError((first?.code as any) ?? 'VALIDATION_FAILED', first?.message ?? 'Quote has blocking issues', { issues: qr.issues });
     }
-    const fp = await locationFingerprint(q, actor.userId, locked);
+    const fp = locationFingerprintFrom(locked, rd.j_addresses as AddressRow[]);
     if (!fp || fp !== qr.address_fingerprint) throw new DomainError('QUOTE_EXPIRED', 'Delivery address or trip changed; quote again');
     // Only one pending confirmation per cart: the earlier ones are superseded, the new one is stored and
     // audited, all in one statement (the UPDATE works on the statement snapshot, so it cannot touch the new row).
@@ -280,7 +304,7 @@ export async function checkoutView(ctx: Ctx, userId: string, id: string, locale:
        q.eta_min_minutes AS j_eta_min_minutes, q.eta_max_minutes AS j_eta_max_minutes, q.price_source AS j_price_source, q.fetched_at AS j_fetched_at,
        k.restaurant_name AS j_restaurant_name, k.restaurant_id AS j_restaurant_id, k.service AS j_service,
        v.items AS j_items, v.trip AS j_trip, to_jsonb(ad) AS j_address, to_jsonb(a) AS j_attempt,
-       o.id AS j_order_id, o.fulfillment_status AS j_order_status
+       o.id AS j_order_id, o.fulfillment_status AS j_order_status, to_jsonb(o) AS j_order_row
      FROM checkouts c
      JOIN quotes q ON q.id = c.quote_id
      JOIN carts k ON k.id = c.cart_id AND k.user_id = c.user_id
@@ -328,6 +352,8 @@ export async function checkoutView(ctx: Ctx, userId: string, id: string, locale:
     quote_fetched_at: qr.fetched_at,
     attempt: attempt ?? null,
     order: order ?? null,
+    /** The stored order of this checkout as read by this same statement (timestamps as ISO strings), or null. */
+    order_row: (j.order_row as OrderRow | null) ?? null,
     items_snapshot: v.items,
   };
 }
@@ -345,7 +371,11 @@ export function paymentPhase(c: Pick<CheckoutRow, 'status'>, a: AttemptRow | nul
 }
 
 export async function checkoutStatus(ctx: Ctx, actor: Actor, id: string) {
-  const v = await checkoutView(ctx, actor.userId, id);
+  return checkoutStatusOf(ctx, actor, await checkoutView(ctx, actor.userId, id));
+}
+
+/** checkoutStatus from a view that was already read. */
+export async function checkoutStatusOf(ctx: Ctx, actor: Actor, v: Awaited<ReturnType<typeof checkoutView>>) {
   const c = v.checkout;
   const needsPay = paymentRequired(ctx, c);
   const pay = needsPay ? await checkoutPayment(ctx.db, c.id) : null;
@@ -511,63 +541,198 @@ export function describeAttempt(a: AttemptRow) {
   };
 }
 
+/** What recordAccepted needs to know about the checkout being accepted, when the caller already read it under the cart lock. */
+interface AcceptKnown {
+  user_id: string;
+  checkout: Pick<CheckoutRow, 'id' | 'mode' | 'total_minor' | 'currency'>;
+  cart: Pick<CartRow, 'id' | 'restaurant_id' | 'restaurant_name' | 'service'>;
+  trip: CartState['trip'];
+  lines: any[];
+  address_label: string | null;
+}
+
+/** The partner app's record of the user's tap (partner_confirmations), stored with the cart lock statement. */
+export interface PartnerConfirmation { partnerId: string; hash: string; verification: 'tap' | 'biometric' | 'passcode'; device: string | null; at: Date }
+
+interface SubmitOpts {
+  pre?: Pick<CheckoutRow, 'id' | 'user_id' | 'mode' | 'cart_id'>;
+  /**
+   * Approve and submit in one transaction (the partner app's Confirm): a checkout that is still awaiting the user
+   * is approved under the same locks that guard the submission. Without it the checkout must already be approved.
+   */
+  approve?: { via: string; partnerVerification: 'tap' | 'biometric' | 'passcode'; quoteId: string; staleQuoteProblem: string | null; repriced: boolean; confirmation?: PartnerConfirmation };
+  /** Demo orders of partner apps run at presentation speed: the simulator and the ETA are sped up by this factor when the order is stored. */
+  demoSpeed?: number;
+}
+
 /**
  * Sends an approved checkout to the provider, at most once per checkout.
  * Safe to call repeatedly and concurrently: the checkout row lock plus the UNIQUE(checkout_id)
  * constraint on submission_attempts guarantee a single provider call from Unyly's side.
  */
-export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string, opts: { pre?: Pick<CheckoutRow, 'id' | 'user_id' | 'mode' | 'cart_id'> } = {}) {
+export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string, opts: { pre?: SubmitOpts['pre'] } = {}) {
+  return (await submit(ctx, actor, checkoutId, { pre: opts.pre })).submission;
+}
+
+/**
+ * The partner app's Confirm: approval (see approveCheckout) and submission in ONE transaction instead of two
+ * back-to-back ones on the same rows. Lock order as everywhere: cart, then checkout. Outcomes are the same as
+ * approveCheckout followed by submitOrder: an approval that cannot be sent yet (new orders paused, an earlier
+ * submission of the cart pending) is still stored as approved and the reason is reported.
+ * Returns the submission and, when this call stored the order, its id.
+ */
+export async function approveAndSubmit(
+  ctx: Ctx, actor: Actor, checkoutId: string,
+  a: { via: string; partnerVerification: 'tap' | 'biometric' | 'passcode'; pre: CheckoutWithQuoteExpiry; confirmation?: PartnerConfirmation; demoSpeed?: number },
+) {
+  const pre = a.pre;
+  if (pre.id !== checkoutId || pre.user_id !== actor.userId) throw new DomainError('NOT_FOUND', 'Checkout not found');
+  // Same unlocked pre-check as approveCheckout: a provider quote older than its validity is re-priced first
+  // (provider call outside the transaction); cart version and location are re-checked under the locks.
+  let staleQuoteProblem: string | null = null;
+  let repriced = false;
+  if (pre.status === 'awaiting_user' && new Date(pre.expires_at).getTime() > ctx.clock.now().getTime()) {
+    if (!pre.quote_expires_at || new Date(pre.quote_expires_at).getTime() <= ctx.clock.now().getTime()) {
+      staleQuoteProblem = await repriceProblem(ctx, pre);
+      repriced = true;
+    }
+  }
+  return submit(ctx, actor, checkoutId, {
+    pre, demoSpeed: a.demoSpeed,
+    approve: { via: a.via, partnerVerification: a.partnerVerification, quoteId: pre.quote_id, staleQuoteProblem, repriced, confirmation: a.confirmation },
+  });
+}
+
+async function submit(ctx: Ctx, actor: Actor, checkoutId: string, opts: SubmitOpts): Promise<{ submission: ReturnType<typeof describeAttempt>; order_id?: string }> {
   // opts.pre: mode and cart id of the checkout as the caller just read them (both never change); the checkout is re-read under its lock below.
   const pre = opts.pre && opts.pre.id === checkoutId && opts.pre.user_id === actor.userId ? opts.pre : await loadCheckout(ctx.db, actor.userId, checkoutId);
   requireCapability(ctx, pre.mode, 'submit_order');
+  const ap = opts.approve;
+  const pc = ap?.confirmation;
   const prepared = await ctx.db.tx(async (q) => {
     // Lock order: cart, then checkout (same as prepareCheckout) to serialize all submissions of a cart.
-    await loadCart(q, actor.userId, pre.cart_id, true);
-    const c = await loadCheckout(q, actor.userId, checkoutId, true);
-    const existing = (await q.query<AttemptRow>('SELECT * FROM submission_attempts WHERE checkout_id = $1', [c.id])).rows[0];
-    if (existing) return { replay: existing };
-    const blocked = await cartSubmissionBlock(q, c.cart_id, c.id);
-    if (blocked) return { invalid: blocked };
-    if (c.status === 'awaiting_user') {
-      throw new DomainError('CONFIRMATION_REQUIRED', 'The user must confirm this order on the Unyly confirmation page first.', { confirm_url: confirmUrl(ctx, c.id) },
-        'Ask the user to open confirm_url, review the order and press Confirm. Then call get_checkout_status.');
-    }
-    if (c.status !== 'approved') throw reasonToError(c.invalid_reason ?? c.status.toUpperCase());
-    if (paymentRequired(ctx, c)) {
-      // Cashless GrabExpress is billed to Unyly: never create the delivery before the user's payment is captured.
-      const paid = (await q.query(`SELECT 1 FROM payments WHERE checkout_id = $1 AND status = 'captured'`, [c.id])).rows[0];
-      if (!paid) {
-        throw new DomainError('CONFIRMATION_REQUIRED', 'The user must complete the GrabPay payment from the confirmation page first. Nothing was ordered.',
-          { confirm_url: confirmUrl(ctx, c.id), payment_required: 'grabpay' },
-          'Ask the user to open confirm_url and finish paying with GrabPay. Then call get_checkout_status.');
-      }
-    }
-    if (!(await submissionsEnabled(ctx, q, c.mode))) {
-      throw new DomainError('SUBMISSIONS_PAUSED', 'New orders are temporarily paused. Your confirmation stays valid until it expires.');
-    }
-    const { problem, cart: checked } = await checkValidity(ctx, q, c);
-    if (problem || !checked) {
-      await markInvalid(q, c.id, problem ?? 'CART_CHANGED'); // committed, then reported
-      return { invalid: reasonToError(problem ?? 'CART_CHANGED') };
+    // The partner's record of the tap is written by the same statement (kept whenever this transaction commits).
+    const cartRow = await lockCart(q, actor.userId, pre.cart_id, pc ? {
+      sql: `pc AS (INSERT INTO partner_confirmations (partner_id, user_id, entity, entity_id, confirm_hash, user_verification, device_id, confirmed_at)
+                   VALUES ($3,$2,'checkout',$4,$5,$6,$7,$8) ON CONFLICT (entity, entity_id) DO NOTHING)`,
+      params: [pc.partnerId, checkoutId, pc.hash, pc.verification, pc.device, pc.at],
+    } : undefined);
+    // The checkout row lock and everything the decision reads, in one statement. It starts after the cart lock is
+    // held, and every writer of this cart's versions and submission attempts takes that lock first, so its
+    // snapshot holds what the previous holder committed; the checkout row itself is returned as locked.
+    const rd = (await q.query<Record<string, any>>(
+      `SELECT c.*,
+              (SELECT to_jsonb(v) FROM cart_versions v WHERE v.cart_id = c.cart_id AND v.version = $3) AS j_version,
+              (SELECT to_jsonb(a) FROM submission_attempts a WHERE a.checkout_id = c.id) AS j_attempt,
+              ${blockSql('c.cart_id', 'c.id')} AS j_block,
+              (SELECT value FROM settings WHERE key = 'submissions') AS j_submissions,
+              EXISTS (SELECT 1 FROM payments p WHERE p.checkout_id = c.id AND p.status = 'captured') AS j_paid,
+              (SELECT qt.lines FROM quotes qt WHERE qt.id = c.quote_id) AS j_quote_lines,
+              ${addressesJsonSql('c.user_id')} AS j_addresses
+         FROM checkouts c WHERE c.id = $1 AND c.user_id = $2 FOR UPDATE OF c`,
+      [checkoutId, actor.userId, cartRow.version],
+    )).rows[0];
+    if (!rd) throw new DomainError('NOT_FOUND', 'Checkout not found');
+    const j: Record<string, any> = {};
+    const own: Record<string, any> = {};
+    for (const [key, val] of Object.entries(rd)) (key.startsWith('j_') ? j : own)[key.startsWith('j_') ? key.slice(2) : key] = val;
+    const c = own as CheckoutRow;
+    if (c.cart_id !== cartRow.id) throw new DomainError('NOT_FOUND', 'Checkout not found');
+    if (j.attempt) {
+      const x = j.attempt;
+      const asDate = (d: unknown) => (d == null ? null : new Date(d as string));
+      return { replay: { ...x, started_at: asDate(x.started_at), finished_at: asDate(x.finished_at), next_reconcile_at: asDate(x.next_reconcile_at) } as AttemptRow };
     }
     const now = ctx.clock.now();
-    await q.query(`UPDATE checkouts SET status='consumed', consumed_at=$2 WHERE id=$1`, [c.id, now]);
+    const cart: CartState = { ...cartRow, items: j.version?.items ?? [], address_id: j.version?.address_id ?? null, trip: j.version?.trip ?? null };
+    const addresses = j.addresses as AddressRow[];
+    // Everything the human approved is still exactly true (see checkValidity; here from rows read under the locks).
+    const validity = (): string | null => {
+      if (new Date(c.expires_at).getTime() <= now.getTime()) return 'EXPIRED';
+      const live = ctx.providers.live;
+      if (c.mode === 'live' && live instanceof GrabLiveProvider && c.payment_method_label !== live.paymentLabel()) return 'PAYMENT_METHOD_CHANGED';
+      if (cart.status !== 'open') return 'CART_NOT_OPEN';
+      if (cart.version !== c.cart_version || !j.version) return 'CART_CHANGED';
+      const fp = locationFingerprintFrom(cart, addresses);
+      if (!fp || fp !== c.address_fingerprint) return 'ADDRESS_CHANGED';
+      return null;
+    };
+    const invalidate = async (problem: string) => {
+      await markInvalid(q, c.id, problem); // committed, then reported
+      return { invalid: reasonToError(problem) };
+    };
+    const paymentMissing = () => paymentRequired(ctx, c) && !j.paid
+      // Cashless GrabExpress is billed to Unyly: never create the delivery before the user's payment is captured.
+      ? new DomainError('CONFIRMATION_REQUIRED', 'The user must complete the GrabPay payment from the confirmation page first. Nothing was ordered.',
+        { confirm_url: confirmUrl(ctx, c.id), payment_required: 'grabpay' },
+        'Ask the user to open confirm_url and finish paying with GrabPay. Then call get_checkout_status.')
+      : null;
+    const paused = () => (submissionsOn(ctx, j.submissions, c.mode) ? null : new DomainError('SUBMISSIONS_PAUSED', 'New orders are temporarily paused. Your confirmation stays valid until it expires.'));
+
+    const approving = !!ap && c.status === 'awaiting_user';
+    const approvalDetails: Record<string, unknown> = {};
+    if (ap?.repriced) approvalDetails.repriced = true;
+    if (ap) approvalDetails.user_verification = ap.partnerVerification;
+    if (approving) {
+      // The approval step (as approveCheckout): only a still valid confirmation is approved.
+      const problem = validity() ?? (c.quote_id === ap!.quoteId ? ap!.staleQuoteProblem : null);
+      if (problem) return invalidate(problem);
+      // Approved. If it cannot be sent right now, the approval alone is stored and the reason reported.
+      const notNow = blockError(j.block) ?? paymentMissing() ?? paused();
+      if (notNow) {
+        await q.query(
+          `WITH co AS (UPDATE checkouts SET status='approved', approved_at=$2, approved_via=$3 WHERE id=$1 RETURNING *)
+           INSERT INTO audit_log (user_id, actor, action, mode, entity, entity_id, details) SELECT co.user_id, $3, 'checkout.approved', co.mode, 'checkout', co.id::text, $4::jsonb FROM co`,
+          [c.id, now, ap!.via, JSON.stringify(approvalDetails)],
+        );
+        return { invalid: notNow };
+      }
+    } else {
+      const blocked = blockError(j.block);
+      if (blocked) return { invalid: blocked };
+      if (c.status === 'awaiting_user') {
+        return { invalid: new DomainError('CONFIRMATION_REQUIRED', 'The user must confirm this order on the Unyly confirmation page first.', { confirm_url: confirmUrl(ctx, c.id) },
+          'Ask the user to open confirm_url, review the order and press Confirm. Then call get_checkout_status.') };
+      }
+      if (c.status !== 'approved') return { invalid: reasonToError(c.invalid_reason ?? c.status.toUpperCase()) };
+      const notNow = paymentMissing() ?? paused();
+      if (notNow) return { invalid: notNow };
+      const problem = validity();
+      if (problem) return invalidate(problem);
+    }
+    // Send exactly the approved cart version: the cart was read under its lock and found open at the checkout's version.
+    const addr = isTripService(cart.service) ? null : addresses.find((x) => x.id === cart.address_id) ?? null;
+    if (!isTripService(cart.service) && !addr) throw new DomainError('NOT_FOUND', 'Address not found');
+    // Consume the confirmation (approving it first when this is the partner's Confirm), record the attempt and
+    // the audit rows: one statement.
+    const audits = [
+      ...(approving ? [{ actor: ap!.via, action: 'checkout.approved', details: approvalDetails }] : []),
+      { actor: actorLabel(actor), action: 'submission.started', details: {} },
+    ];
     const a = await q.query<AttemptRow>(
-      `INSERT INTO submission_attempts (checkout_id, user_id, mode, idempotency_key, status, next_reconcile_at, started_at)
-       VALUES ($1,$2,$3,$4,'in_flight',$5,$6) RETURNING *`,
-      [c.id, actor.userId, c.mode, `unyly-${c.id}`, new Date(now.getTime() + ctx.cfg.providerTimeoutMs + 5000), now],
+      `WITH co AS (
+              UPDATE checkouts SET status='consumed', consumed_at=$2,
+                     approved_at = CASE WHEN $3::boolean THEN $2::timestamptz ELSE approved_at END, approved_via = CASE WHEN $3::boolean THEN $4::text ELSE approved_via END
+               WHERE id=$1 RETURNING *),
+            at AS (
+              INSERT INTO submission_attempts (checkout_id, user_id, mode, idempotency_key, status, next_reconcile_at, started_at)
+              SELECT co.id, co.user_id, co.mode, $5, 'in_flight', $6, $2 FROM co RETURNING *),
+            au AS (
+              INSERT INTO audit_log (user_id, actor, action, mode, entity, entity_id, details)
+              SELECT co.user_id, x.actor, x.action, co.mode, 'checkout', co.id::text, x.details
+                FROM co, jsonb_to_recordset($7::jsonb) WITH ORDINALITY AS x(actor text, action text, details jsonb, ord bigint) ORDER BY x.ord)
+       SELECT * FROM at`,
+      [c.id, now, approving, ap?.via ?? null, `unyly-${c.id}`, new Date(now.getTime() + ctx.cfg.providerTimeoutMs + 5000), JSON.stringify(audits)],
     );
-    // Send exactly the approved cart version: the validity check above read the cart under the cart lock
-    // taken at the top of this transaction and found it open at the checkout's version, so that read is it.
-    const cart: CartState = checked;
-    const addr = isTripService(cart.service) ? null : await getAddress(q, actor.userId, cart.address_id!);
-    await audit(q, { userId: actor.userId, actor: actorLabel(actor), action: 'submission.started', mode: c.mode, entity: 'checkout', entityId: c.id });
-    return { attempt: a.rows[0], checkout: c, cart, addr };
+    const known: AcceptKnown | undefined = Array.isArray(j.quote_lines)
+      ? { user_id: actor.userId, checkout: c, cart, trip: cart.trip, lines: j.quote_lines, address_label: addr?.label ?? null }
+      : undefined;
+    return { attempt: a.rows[0], checkout: c, cart, addr, known };
   });
   if ('invalid' in prepared) throw prepared.invalid;
-  if ('replay' in prepared) return describeAttempt(prepared.replay!);
+  if ('replay' in prepared) return { submission: describeAttempt(prepared.replay!) };
 
-  const { attempt, checkout, cart, addr } = prepared;
+  const { attempt, checkout, cart, addr, known } = prepared;
   const provider = ctx.provider(checkout.mode);
   let result: SubmitResult;
   try {
@@ -599,12 +764,12 @@ export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string, op
       throw new DomainError('SUBMISSION_UNKNOWN', describeAttempt(a).message, { submission: describeAttempt(a) },
         'Call get_checkout_status later. Do not create a new order for the same food until this resolves.');
     }
-    return describeAttempt(a);
+    return { submission: describeAttempt(a) };
   }
 
   if (result.outcome === 'accepted') {
-    const done = await recordAccepted(ctx, attempt.id, result.provider_order_ref, result.status, result.payment_status, result.eta_at);
-    if (done) return describeAttempt(done);
+    const done = await acceptOrder(ctx, attempt.id, result.provider_order_ref, result.status, result.payment_status, result.eta_at, { known, demoSpeed: opts.demoSpeed });
+    if (done.attempt) return { submission: describeAttempt(done.attempt), order_id: done.order_id };
   } else {
     await finishAttempt(ctx, attempt.id, 'rejected', { code: result.code, detail: result.message });
     await audit(ctx.db, { userId: actor.userId, actor: actorLabel(actor), action: 'submission.rejected', mode: checkout.mode, entity: 'submission', entityId: attempt.id, details: { code: result.code } });
@@ -612,7 +777,7 @@ export async function submitOrder(ctx: Ctx, actor: Actor, checkoutId: string, op
     throw new DomainError(code, `Not ordered: ${result.message}`, { submission_id: attempt.id }, 'Quote the cart again and ask the user to confirm the new details.');
   }
   const a = (await ctx.db.query<AttemptRow>('SELECT * FROM submission_attempts WHERE id = $1', [attempt.id])).rows[0];
-  return describeAttempt(a);
+  return { submission: describeAttempt(a) };
 }
 
 async function finishAttempt(ctx: Ctx, id: string, status: 'rejected', err: { code: string; detail: string }) {
@@ -632,9 +797,71 @@ async function markUnknown(ctx: Ctx, id: string, detail: string) {
   await audit(ctx.db, { userId: a.user_id, actor: 'system', action: 'submission.unknown', mode: a.mode, entity: 'submission', entityId: id });
 }
 
+/** The order row of an accepted submission as it is inserted: items, the "where" label and the first event's push text. */
+function orderParts(k: { user_id: string; service: CartState['service']; restaurant_name: string; trip: CartState['trip']; lines: any[]; address_label: string | null }) {
+  const where = isTripService(k.service) ? tripLabel(k.trip ?? null) ?? 'trip' : k.address_label ?? 'address';
+  const items = k.lines.map((l: any) => ({ item_id: l.item_id, name: l.name, quantity: l.quantity, modifiers: l.modifiers_desc, line_total_minor: l.line_total_minor }));
+  const title = isTripService(k.service) ? where : k.restaurant_name;
+  const notify = (orderId: string, status: string, etaAt: string | null) => (l: Locale) => orderNotify({
+    id: orderId, user_id: k.user_id, service: k.service, restaurant_name: k.restaurant_name, address_label: where,
+    items: k.lines.map((x: any) => ({ name: x.name })), eta_at: etaAt,
+  }, status as FulfillmentStatus, l);
+  return { where, items, title, notify };
+}
+
 /** Persist an accepted order. Idempotent: the order row is unique per checkout and per provider ref. */
 export async function recordAccepted(ctx: Ctx, attemptId: string, ref: string, status: string, paymentStatus: string, etaAt?: string): Promise<AttemptRow | undefined> {
-  return ctx.db.tx(async (q) => {
+  return (await acceptOrder(ctx, attemptId, ref, status, paymentStatus, etaAt)).attempt;
+}
+
+/**
+ * recordAccepted, also returning the id of the order when this call stored it.
+ * With `known` (a demo checkout read under the cart lock by this same request; demo orders have no prepaid
+ * payment) everything is ONE statement, atomic on its own: the guarded attempt update takes the attempt's row lock,
+ * and the order, the cart status, the audit row and the order.created event are written from its result. With
+ * `demoSpeed` the simulator and the ETA are sped up in that same statement (once, when the order is stored).
+ */
+async function acceptOrder(
+  ctx: Ctx, attemptId: string, ref: string, status: string, paymentStatus: string, etaAt: string | undefined,
+  opts: { known?: AcceptKnown; demoSpeed?: number } = {},
+): Promise<{ attempt: AttemptRow | undefined; order_id?: string }> {
+  const k = opts.known;
+  if (k && k.checkout.mode === 'demo') {
+    const parts = orderParts({ user_id: k.user_id, service: k.cart.service, restaurant_name: k.cart.restaurant_name, trip: k.trip, lines: k.lines, address_label: k.address_label });
+    const orderId = randomUUID();
+    // Presentation speed: the order is stored with the ETA the app will keep seeing (never under 30 seconds from now).
+    const speed = opts.demoSpeed && opts.demoSpeed > 0 ? opts.demoSpeed : null;
+    const created = new Date();
+    const eta = etaAt && speed ? new Date(created.getTime() + Math.max(30, Math.round((new Date(etaAt).getTime() - created.getTime()) / 1000 / speed)) * 1000).toISOString() : etaAt ?? null;
+    const r = await ctx.db.query<AttemptRow & { j_order_id: string | null }>(
+      `WITH a AS (
+              UPDATE submission_attempts SET status='accepted', provider_order_ref=$2, finished_at=COALESCE(finished_at,$3), next_reconcile_at=NULL, error_code=NULL
+               WHERE id=$1 AND NOT (status = 'rejected' AND error_code IS DISTINCT FROM 'NOT_RECEIVED_BY_PROVIDER') RETURNING *),
+            ins AS (
+              INSERT INTO orders (id, user_id, checkout_id, submission_id, cart_id, mode, provider, provider_order_ref, restaurant_id, restaurant_name, items, address_label,
+                total_minor, currency, fulfillment_status, payment_status, status_version, eta_at, service, picked_up_at, created_at)
+              SELECT $4, a.user_id, a.checkout_id, a.id, $5, $6, $7, $2, $8, $9, $10::jsonb, $11, $12, $13, $14, $15, 0, $16, $17, $18, COALESCE($19::timestamptz, now()) FROM a
+              ON CONFLICT DO NOTHING RETURNING id),
+            k AS (UPDATE carts SET status='ordered', updated_at=now() WHERE id=$5 AND EXISTS (SELECT 1 FROM a)),
+            sim AS (UPDATE demo_sim_orders d SET speed = GREATEST(d.speed, $20::real) WHERE d.ref = $2 AND $20::real IS NOT NULL AND EXISTS (SELECT 1 FROM ins)),
+            au AS (INSERT INTO audit_log (user_id, actor, action, mode, entity, entity_id, details)
+                   SELECT a.user_id, 'system', 'order.accepted', $6, 'order', ins.id::text, $21::jsonb FROM a, ins),
+            ${partnerEventCtes('ev', 22, 'EXISTS (SELECT 1 FROM ins)')}
+       SELECT a.*, (SELECT id FROM ins) AS j_order_id FROM a`,
+      [attemptId, ref, ctx.clock.now(), orderId, k.cart.id, k.checkout.mode, ctx.provider(k.checkout.mode).providerName, k.cart.restaurant_id, k.cart.restaurant_name,
+        JSON.stringify(parts.items), parts.where, k.checkout.total_minor, k.checkout.currency, status, paymentStatus, eta, k.cart.service,
+        status === 'picked_up' || status === 'delivered' ? ctx.clock.now() : null, speed ? created : null, speed, JSON.stringify({ total: k.checkout.total_minor }),
+        ...partnerEventParams(k.user_id, 'order.created', {
+          order_id: orderId, checkout_id: k.checkout.id, service: k.cart.service, status, total_minor: Number(k.checkout.total_minor), currency: k.checkout.currency, title: parts.title,
+        }, { dedupeKey: `order:${orderId}:created`, notify: parts.notify(orderId, status, eta) })],
+    );
+    const row = r.rows[0];
+    // No row: the attempt was already closed as refused by the provider, which is final.
+    if (!row) return { attempt: (await ctx.db.query<AttemptRow>('SELECT * FROM submission_attempts WHERE id = $1', [attemptId])).rows[0] };
+    const { j_order_id, ...attempt } = row;
+    return { attempt: attempt as AttemptRow, order_id: j_order_id ?? undefined };
+  }
+  const attempt = await ctx.db.tx(async (q) => {
     const a = (await q.query<AttemptRow>('SELECT * FROM submission_attempts WHERE id = $1 FOR UPDATE', [attemptId])).rows[0];
     // A provider-side rejection is final. Only "not received" may later turn out to be accepted.
     if (a.status === 'rejected' && a.error_code !== 'NOT_RECEIVED_BY_PROVIDER') return a;
@@ -689,6 +916,7 @@ export async function recordAccepted(ctx: Ctx, attemptId: string, ref: string, s
     }
     return accepted;
   });
+  return { attempt };
 }
 
 const MAX_NOT_FOUND = 3;

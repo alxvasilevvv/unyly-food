@@ -244,28 +244,51 @@ export class DemoProvider implements Provider {
   async submitOrder(req: SubmitRequest): Promise<SubmitResult> {
     this.guard();
     if (this.faults.hangBeforeAccept) return new Promise<never>(() => {});
-    // Provider-side idempotency: a repeated key returns the original order.
-    const existing = await this.deps.db.query('SELECT ref, status FROM demo_sim_orders WHERE idempotency_key = $1', [req.idempotency_key]);
-    if (existing.rows[0]) {
-      return { outcome: 'accepted', provider_order_ref: existing.rows[0].ref, status: existing.rows[0].status, payment_status: 'not_charged_demo' };
+    // Provider-side idempotency: a repeated key returns the original order (also when the price has changed since).
+    const existing = async (): Promise<SubmitResult | null> => {
+      const r = await this.deps.db.query('SELECT ref, status FROM demo_sim_orders WHERE idempotency_key = $1', [req.idempotency_key]);
+      return r.rows[0] ? { outcome: 'accepted', provider_order_ref: r.rows[0].ref, status: r.rows[0].status, payment_status: 'not_charged_demo' } : null;
+    };
+    // Pricing needs no database. Only a request that would be refused looks the key up first; an acceptable one
+    // goes to the database once: the insert below also answers "was this key seen before".
+    let p: ReturnType<typeof this.price>;
+    try {
+      p = this.price(req.restaurant_id, req.lines, req.address, req.trip);
+    } catch (e) {
+      const prior = await existing();
+      if (prior) return prior;
+      throw e;
     }
-    const p = this.price(req.restaurant_id, req.lines, req.address, req.trip);
     const blocking = p.issues[0]; // every issue blocks a real submission
-    if (blocking) {
-      const code = blocking.code === 'RESTAURANT_CLOSED' || blocking.code === 'DELIVERY_UNAVAILABLE' || blocking.code === 'OUT_OF_STOCK' ? blocking.code : 'PROVIDER_REJECTED';
-      return { outcome: 'rejected', code, message: blocking.message };
-    }
-    if (p.total !== req.expected_total_minor || req.currency !== 'THB') {
+    if (blocking || p.total !== req.expected_total_minor || req.currency !== 'THB') {
+      const prior = await existing();
+      if (prior) return prior;
+      if (blocking) {
+        const code = blocking.code === 'RESTAURANT_CLOSED' || blocking.code === 'DELIVERY_UNAVAILABLE' || blocking.code === 'OUT_OF_STOCK' ? blocking.code : 'PROVIDER_REJECTED';
+        return { outcome: 'rejected', code, message: blocking.message };
+      }
       return { outcome: 'rejected', code: 'PRICE_CHANGED', message: `Provider total is ${p.total} THB minor units, expected ${req.expected_total_minor}` };
     }
     const ref = `DEMO-${randomToken(9).replace(/[-_]/g, 'x').toUpperCase()}`;
     const now = this.deps.now();
-    await this.deps.db.query(
-      `INSERT INTO demo_sim_orders (ref, idempotency_key, payload, total_minor, status, sequence, accepted_at) VALUES ($1,$2,$3,$4,'accepted',1,$5)
-       ON CONFLICT (idempotency_key) DO NOTHING`,
+    // One statement: store the order unless the key exists, and return whichever row holds the key.
+    const stored = await this.deps.db.query<{ ref: string; status: FulfillmentStatus; created: boolean }>(
+      `WITH ins AS (
+         INSERT INTO demo_sim_orders (ref, idempotency_key, payload, total_minor, status, sequence, accepted_at) VALUES ($1,$2,$3,$4,'accepted',1,$5)
+         ON CONFLICT (idempotency_key) DO NOTHING RETURNING ref, status)
+       SELECT ref, status, true AS created FROM ins
+       UNION ALL
+       SELECT ref, status, false AS created FROM demo_sim_orders WHERE idempotency_key = $2`,
       [ref, req.idempotency_key, JSON.stringify({ restaurant_id: req.restaurant_id, service: p.r.service, lines: req.lines, trip_minutes: req.trip?.duration_min ?? null }), p.total, now],
     );
-    const row = (await this.deps.db.query('SELECT ref, status FROM demo_sim_orders WHERE idempotency_key = $1', [req.idempotency_key])).rows[0];
+    let row = stored.rows[0];
+    if (!row) {
+      // A parallel call with the same key committed while this statement ran (it is not in this statement's snapshot).
+      const prior = await existing();
+      if (!prior || prior.outcome !== 'accepted') throw new ProviderOutcomeUnknownError('Demo provider: order row not found after insert');
+      return prior;
+    }
+    if (!row.created) return { outcome: 'accepted', provider_order_ref: row.ref, status: row.status, payment_status: 'not_charged_demo' };
     if (this.faults.hangAfterAccept) return new Promise<never>(() => {});
     if (this.faults.timeoutAfterAccept) throw new ProviderOutcomeUnknownError('Demo provider: response lost after accept (injected fault)');
     const eta = new Date(now.getTime() + (p.eta[1] * 60000) / this.deps.timeScale).toISOString();
@@ -280,9 +303,9 @@ export class DemoProvider implements Provider {
   }
 
   /** Advance simulated fulfilment according to the demo clock. */
-  private async advance(ref: string) {
-    const r = await this.deps.db.query('SELECT * FROM demo_sim_orders WHERE ref = $1', [ref]);
-    const row = r.rows[0];
+  private async advance(ref: string, known?: Record<string, any> | null) {
+    // `known`: the simulator row the caller read a moment ago together with its own order row (one round trip for both).
+    const row = known && known.ref === ref ? known : (await this.deps.db.query('SELECT * FROM demo_sim_orders WHERE ref = $1', [ref])).rows[0];
     if (!row) return undefined;
     if (row.status === 'cancelled' || row.status === 'delivered') return row;
     const elapsedMin = ((this.deps.now().getTime() - new Date(row.accepted_at).getTime()) / 60000) * this.deps.timeScale * Number(row.speed ?? 1);
@@ -298,9 +321,9 @@ export class DemoProvider implements Provider {
     return row;
   }
 
-  async getOrderStatus(ref: string): Promise<ProviderOrderStatus> {
+  async getOrderStatus(ref: string, known?: Record<string, any> | null): Promise<ProviderOrderStatus> {
     this.guard();
-    const row = await this.advance(ref);
+    const row = await this.advance(ref, known);
     if (!row) throw Object.assign(new Error('order not found'), { notFound: true });
     return { provider_order_ref: ref, status: row.status, payment_status: 'not_charged_demo', sequence: row.sequence };
   }
