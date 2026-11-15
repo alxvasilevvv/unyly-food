@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "node dist/main.js",
-    "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs",
+    "build": "tsc -p tsconfig.json && node scripts/copy-assets.mjs && (node scripts/build-demo-snapshot.mjs || echo demo database snapshot skipped)",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "migrate": "tsx src/cli.ts migrate",
     "test": "vitest run",

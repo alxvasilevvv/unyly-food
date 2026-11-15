@@ -1,5 +1,8 @@
 // The embedded database (DEMO_DB=memory) must answer like the pg-based one: same value types, same row counts,
 // same error codes. Every case here runs on both and the answers are compared.
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDb, Db } from '../src/db/db.js';
 import { createMemoryDb, MemoryDb } from '../src/db/memory-db.js';
@@ -201,6 +204,33 @@ describe('Embedded database: same answers as Postgres over pg', () => {
       late = new Promise((r) => setTimeout(r, 20)).then(() => memory.query('SELECT 7 AS v'));
     });
     expect(((await late) as any).rows).toEqual([{ v: 7 }]);
+  });
+
+  it('starts from a snapshot of its data directory, and ignores a broken one', async () => {
+    await memory.query('DELETE FROM compat');
+    await memory.query('INSERT INTO compat (id, name, doc) VALUES (1, $1, $2)', ['kept', JSON.stringify({ a: 1 })]);
+    const dir = mkdtempSync(join(tmpdir(), 'unyly-snap-'));
+    try {
+      const file = join(dir, 'demo-db.tgz');
+      writeFileSync(file, await memory.snapshot());
+      const copy = await createMemoryDb({ snapshot: file });
+      expect(copy.fromSnapshot).toBe(true);
+      expect((await copy.query('SELECT id, name, doc FROM compat')).rows).toEqual([{ id: 1, name: 'kept', doc: { a: 1 } }]);
+      expect((await copy.query('SELECT count(*) AS n FROM schema_migrations')).rows[0].n).toBe((await memory.query('SELECT count(*) AS n FROM schema_migrations')).rows[0].n);
+      await copy.query('INSERT INTO compat (id, name) VALUES (2, $1)', ['new']);
+      await copy.close();
+      // The source keeps working after a snapshot was taken.
+      expect((await memory.query('SELECT count(*) AS n FROM compat')).rows[0].n).toBe(1);
+      writeFileSync(file, 'not a tarball');
+      const notes: string[] = [];
+      const empty = await createMemoryDb({ snapshot: file, log: (m) => notes.push(m) });
+      expect(empty.fromSnapshot).toBe(false);
+      expect(notes.some((m) => m.includes('not usable'))).toBe(true);
+      expect((await empty.query('SELECT count(*) AS n FROM users')).rows[0].n).toBe(0);
+      await empty.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('reclaims space and refuses work after close', async () => {

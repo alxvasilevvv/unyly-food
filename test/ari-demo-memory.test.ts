@@ -2,6 +2,7 @@
 // there and must not touch the shared Postgres at all: no rows, no round trips.
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.js';
+import { createMemoryDemoCtx } from '../src/demo-ctx.js';
 import { Harness, startHarness } from './helpers.js';
 
 let h: Harness;
@@ -55,6 +56,15 @@ describe('Website Ari demo on the embedded database (DEMO_DB=memory)', () => {
       if (old === undefined) delete process.env.DEMO_DB;
       else process.env.DEMO_DB = old;
     }
+  });
+
+  it('falls back to the shared database when the process is above the memory ceiling', async () => {
+    const notes: string[] = [];
+    const none = await createMemoryDemoCtx({ ...h.cfg, demoDbMaxRssMb: 1 }, h.clock, (m) => notes.push(m));
+    expect(none).toBeNull();
+    expect(notes).toHaveLength(1);
+    expect(notes[0]).toMatch(/DEMO_DB_MAX_RSS_MB=1; the web demo uses the shared database/);
+    expect(() => loadConfig({ env: 'test', demoDbMaxRssMb: 0 })).toThrow(/DEMO_DB_MAX_RSS_MB/);
   });
 
   it('a ride goes from the sentence to delivered', async () => {

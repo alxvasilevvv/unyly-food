@@ -6,6 +6,10 @@
 // same for the callers: parameters are converted with node-pg's own rules, results are parsed with node-pg's
 // own type parsers (including the BIGINT-as-number override of db.ts).
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { PGlite, types as pgliteTypes } from '@electric-sql/pglite';
 // For its side effect too: db.ts registers the BIGINT parser this module relies on.
@@ -19,11 +23,25 @@ export interface MemoryDbOptions {
   /** How long a caller waits for the single connection before failing (ms). */
   lockTimeoutMs?: number;
   log?: (m: string) => void;
+  /**
+   * A data directory saved by snapshot() to start from, instead of initialising an empty one (which needs a second,
+   * temporary WebAssembly instance: about 2 s and 250 MB more at the peak). Default: demo-db.tgz next to this
+   * file, written by the build (scripts/build-demo-snapshot.mjs), when it exists. false: always start empty.
+   * A snapshot that cannot be loaded is ignored. Migrations newer than the snapshot are applied on top.
+   */
+  snapshot?: string | false;
 }
+
+/** Where the build puts the snapshot of an empty, migrated database. */
+export const DEFAULT_SNAPSHOT = join(dirname(fileURLToPath(import.meta.url)), 'demo-db.tgz');
 
 export interface MemoryDb extends Db {
   /** Reclaims the space of deleted and updated rows (there is no autovacuum in an embedded Postgres). */
   maintain(): Promise<void>;
+  /** The whole data directory as a gzipped tarball, for MemoryDbOptions.snapshot. */
+  snapshot(): Promise<Uint8Array>;
+  /** True when this database was started from a snapshot. */
+  readonly fromSnapshot: boolean;
 }
 
 // The start parameters PGlite uses by default (PGlite.defaultStartParams); listed here because passing
@@ -100,13 +118,41 @@ export async function createMemoryDb(opts: MemoryDbOptions = {}): Promise<Memory
   const lockTimeoutMs = opts.lockTimeoutMs ?? 20_000;
   const defaults: unknown = (PGlite as any).defaultStartParams;
   const base = Array.isArray(defaults) && defaults.every((x) => typeof x === 'string') ? (defaults as string[]) : BASE_START_PARAMS;
-  const lite = new PGlite({
-    // No dataDir: everything lives in memory and is gone when the process exits.
-    relaxedDurability: true,
-    startParams: [...base, '-c', `shared_buffers=${sharedBuffersMb}MB`],
-    parsers: buildParsers(),
-  });
-  await lite.waitReady;
+  // Sized for a small, disposable data set. The write-ahead log lives in memory too: keep it to a few segments
+  // (the default lets it grow to 1 GB before a checkpoint) and write as little of it as possible; nothing is
+  // ever recovered from it.
+  const settings = [
+    `shared_buffers=${sharedBuffersMb}MB`, 'min_wal_size=32MB', 'max_wal_size=48MB', 'wal_level=minimal', 'max_wal_senders=0',
+    'full_page_writes=off', 'synchronous_commit=off', 'maintenance_work_mem=8MB', 'autovacuum=off',
+  ];
+  const open = async (loadDataDir?: Blob) => {
+    const p = new PGlite({
+      // No dataDir: everything lives in memory and is gone when the process exits.
+      relaxedDurability: true,
+      startParams: [...base, ...settings.flatMap((x) => ['-c', x])],
+      parsers: buildParsers(),
+      ...(loadDataDir ? { loadDataDir } : {}),
+    });
+    try {
+      await p.waitReady;
+      await p.query('SELECT 1');
+    } catch (e) {
+      await p.close().catch(() => {});
+      throw e;
+    }
+    return p;
+  };
+  const snapshotFile = opts.snapshot === false ? null : opts.snapshot ?? (existsSync(DEFAULT_SNAPSHOT) ? DEFAULT_SNAPSHOT : null);
+  let fromFile: PGlite | null = null;
+  if (snapshotFile) {
+    try {
+      fromFile = await open(new Blob([await readFile(snapshotFile)]));
+    } catch (e: any) {
+      opts.log?.(`snapshot ${snapshotFile} not usable (${String(e?.message ?? e).slice(0, 120)}), starting empty`);
+    }
+  }
+  const fromSnapshot = !!fromFile;
+  const lite = fromFile ?? (await open());
   // PGlite installs its own parsers for array types at start-up. node-pg's are used instead (for example
   // bigint[] stays an array of strings there), and array types node-pg does not know stay raw strings, as in pg.
   const arrays = await lite.query<{ typarray: number }>('SELECT typarray FROM pg_type WHERE typarray <> 0');
@@ -203,9 +249,11 @@ export async function createMemoryDb(opts: MemoryDbOptions = {}): Promise<Memory
       await run('BEGIN');
       try {
         const out = await scope.run({ root, tail: Promise.resolve() }, () => fn(handle(root)));
+        root.active = false;
         await run('COMMIT');
         return out;
       } catch (e) {
+        root.active = false;
         await run('ROLLBACK').catch(() => {});
         throw e;
       } finally {
@@ -235,6 +283,13 @@ export async function createMemoryDb(opts: MemoryDbOptions = {}): Promise<Memory
       } catch {
         return false;
       }
+    },
+    fromSnapshot,
+    async snapshot() {
+      return withLock(async () => {
+        await run('CHECKPOINT');
+        return new Uint8Array(await (await lite.dumpDataDir('gzip')).arrayBuffer());
+      });
     },
     async maintain() {
       // VACUUM cannot run inside a transaction block; each statement goes on its own.

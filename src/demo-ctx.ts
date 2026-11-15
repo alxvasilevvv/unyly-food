@@ -1,5 +1,7 @@
 // DEMO_DB=memory: the public web demo (/ari) runs on an embedded in-process Postgres (src/db/memory-db.ts)
 // instead of the shared database. This file builds the second context for it and keeps its memory bounded.
+import { setFlagsFromString } from 'node:v8';
+import { runInNewContext } from 'node:vm';
 import type { Config } from './config.js';
 import { type Clock, createCtx, type Ctx } from './context.js';
 
@@ -15,6 +17,20 @@ export interface DemoCtxHandle {
   stop(): Promise<void>;
 }
 
+/** One full garbage collection, if this Node build allows asking for it. Best effort. */
+function collectGarbage() {
+  try {
+    const exposed = (globalThis as any).gc;
+    if (typeof exposed === 'function') return void exposed();
+    setFlagsFromString('--expose-gc');
+    const gc = runInNewContext('gc');
+    setFlagsFromString('--no-expose-gc');
+    if (typeof gc === 'function') gc();
+  } catch {
+    // The memory is collected later on its own.
+  }
+}
+
 const rssMb = () => Math.round(process.memoryUsage().rss / (1024 * 1024));
 
 /**
@@ -28,13 +44,24 @@ export async function createMemoryDemoCtx(cfg: Config, clock: Clock, log: (m: st
     // Loaded on demand: without DEMO_DB=memory the WebAssembly build of Postgres is never read.
     const { createMemoryDb } = await import('./db/memory-db.js');
     db = await createMemoryDb();
+    // Start-up leaves a few hundred MB of garbage behind (a second WebAssembly instance that initialised the data
+    // directory). Collect it now, so the reading below and the host's memory reflect what the database keeps.
+    // Twice with a pause: the buffers of the discarded instance are only released after its finalizers ran.
+    collectGarbage();
+    await new Promise((r) => setTimeout(r, 50));
+    collectGarbage();
     const rss = rssMb();
     if (rss > cfg.demoDbMaxRssMb) {
       await db.close().catch(() => {});
+      db = undefined;
+      // Give the memory back now; the reading in the log line is the one that triggered the fallback.
+      await new Promise((r) => setTimeout(r, 50));
+      collectGarbage();
+      setTimeout(collectGarbage, 3000).unref();
       log(`[demo-db] embedded database closed: process memory ${rss} MB is above DEMO_DB_MAX_RSS_MB=${cfg.demoDbMaxRssMb}; the web demo uses the shared database`);
       return null;
     }
-    log(`[demo-db] embedded database ready in ${Date.now() - t0} ms (process memory ${rss} MB); the web demo does not use the shared database`);
+    log(`[demo-db] embedded database ready in ${Date.now() - t0} ms${db.fromSnapshot ? ' from the build snapshot' : ''} (process memory ${rss} MB); the web demo does not use the shared database`);
   } catch (e: any) {
     await db?.close().catch(() => {});
     log(`[demo-db] embedded database unavailable (${String(e?.message ?? e).slice(0, 200)}); the web demo uses the shared database`);
