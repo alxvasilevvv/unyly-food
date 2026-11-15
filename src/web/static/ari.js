@@ -821,18 +821,24 @@
     pollBusy = true;
     const g0 = gen;
     try {
-      const ev = await api('GET', withLang(`/ari/api/events?after=${lastEvent}`));
       let latestNotify = null;
-      for (const e of ev.events) {
-        lastEvent = Math.max(lastEvent, e.seq);
-        // Only the order on screen may push or ring: an order left behind by "New chat" stays silent.
-        if ((e.type === 'order.status_changed' || e.type === 'order.created') && e.notify && e.data && e.data.order_id === activeOrder) latestNotify = { e, n: e.notify };
-      }
-      if (activeOrder) {
+      const take = (events) => {
+        for (const e of events || []) {
+          lastEvent = Math.max(lastEvent, e.seq);
+          // Only the order on screen may push or ring: an order left behind by "New chat" stays silent.
+          if ((e.type === 'order.status_changed' || e.type === 'order.created') && e.notify && e.data && e.data.order_id === activeOrder) latestNotify = { e, n: e.notify };
+        }
+      };
+      if (!activeOrder) {
+        const ev = await api('GET', withLang(`/ari/api/events?after=${lastEvent}`));
+        if (g0 === gen) take(ev.events);
+      } else {
+        // One request while an order is tracked: the order card comes with the new events.
         const g = gen;
         const oidNow = activeOrder;
-        const r = await api('GET', withLang(`/ari/api/orders/${activeOrder}`));
+        const r = await api('GET', withLang(`/ari/api/orders/${activeOrder}?after=${lastEvent}`));
         if (g !== gen || activeOrder !== oidNow) return;
+        take(r.events);
         const c = orderCards.get(activeOrder);
         // Do not rebuild the card under a pressed button (cancel in progress) unless the order ended.
         if (c && (!busy || !c.querySelector('.is-loading') || (r.card.status && r.card.status.is_final))) fillOrder(c, r.card);
