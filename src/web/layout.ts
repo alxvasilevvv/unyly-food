@@ -134,6 +134,7 @@ ${(o.scripts ?? []).map((x) => html`<script src="/static/${x}?v=${ASSET_VERSION}
       <summary>${raw('<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>')}<span class="nm-label">${tr(l, { ru: 'Меню', en: 'Menu', th: 'เมนู' })}</span></summary>
       <ul role="list">
         ${navLinks.map(([href, label]) => html`<li><a href="${href}" ${cur(href)}>${label}</a></li>`)}
+        ${o.loggedIn && !o.guest ? html`<li class="nm-app"><a href="/app" ${cur('/app')}>${m.navApp}</a></li>` : ''}
       </ul>
     </details>
     <details class="lang-menu">

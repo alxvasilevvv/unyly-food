@@ -730,10 +730,8 @@ main:has(.ari-hero), main:has(.ari-demo-page) { padding-top: 0; }
 .hero-note svg { width: 16px; height: 16px; }
 .ari-hero-art { position: relative; display: grid; place-items: center; min-height: 560px; }
 .ari-hero-art .glow { position: absolute; width: min(520px, 95%); aspect-ratio: 1; border-radius: 50%; background: var(--ari-grad); filter: blur(60px); opacity: .32; }
-.float-chip.f1 { left: -6px; top: 18%; animation-delay: -2s; }
-.float-chip.f2 { right: -10px; bottom: 14%; animation-delay: -5s; }
 .float-chip .fc-ico.call { background: #22c55e; }
-@media (max-width: 600px) { .float-chip.f1 { left: 0; top: 2%; } .float-chip.f2 { right: 0; bottom: 0; } .ari-hero-art { min-height: 600px; } }
+@media (max-width: 600px) { .ari-hero-art { min-height: 600px; } }
 
 /* Phone */
 .ari-phone { position: relative; z-index: 1; width: 330px; max-width: 92vw; padding: 11px; border-radius: 52px; background: linear-gradient(160deg, #2a2733, #0b0a10); box-shadow: 0 0 0 1px rgba(255,255,255,.06) inset, 0 40px 90px rgba(13, 11, 20, .45); }
@@ -958,15 +956,12 @@ pre.code { background: #0d0b14; color: #e9e5f7; border-radius: 16px; padding: 16
 nav.main a.cta { background: var(--ari-grad); color: #fff; }
 .ari-band { padding: 0 0 8px; }
 .ari-hero .hero-note { margin: 18px 0 4px; }
-.float-chip.f1 { top: auto; bottom: 30%; left: -24px; }
-.float-chip.f2 { bottom: 6%; }
 .ac-route span { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.3; }
 .ari-head > span:nth-child(2) { min-width: 0; }
 .ari-head small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ari-link span { white-space: nowrap; }
 .ari-card .ac-done { margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; border-radius: 14px; background: rgba(34,197,94,.12); color: #86efac; font-weight: 700; font-size: 14px; }
 .ari-card .ac-done svg { width: 18px; height: 18px; }
-@media (max-width: 600px) { .float-chip.f1 { left: 0; bottom: 34%; } }
 
 /* ---- UX pass: tables, demo phone on small screens, overlays, compact menu */
 .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
@@ -1013,8 +1008,6 @@ nav.main a.cta { background: var(--ari-grad); color: #fff; }
 .ari-card:focus { outline: none; }
 .ari-sheet:focus { outline: none; }
 .ari-phone :focus-visible { outline-color: #c4b5fd; }
-.float-chip.f1 { top: auto; bottom: 7%; left: -24px; }
-.float-chip.f2 { top: 66px; bottom: auto; right: -34px; }
 @media (prefers-reduced-motion: reduce) { .ari-chat { scroll-behavior: auto; } .ari-island, .ac-opt { transition: none; } .ari-sheet.scan .fid, .ari-island.live .la-dot, .ac-steps span.now::after, .ari-typing i, .ari-mic.rec { animation: none !important; } }
 
 /* Compact page menu for narrow headers */
@@ -1041,7 +1034,6 @@ nav.main details + details { margin-top: 0; }
 .ari-hero a:not(.btn), .sec a:not(.btn), .ari-demo-right a:not(.btn), .ari-doc a:not(.btn) { color: var(--ari); }
 .ari-demo-right .pill.accent, .ari-doc .pill.accent { background: var(--ari-soft); color: var(--ari); }
 .float-chip .fc-ico.ari { background: var(--ari-grad); }
-.float-chip.f1 { bottom: 1.5%; left: -44px; }
 .arch-node.grab .ico { background: var(--surface-2); color: var(--ink); }
 .ari-hero h1, .sec h2, .ari-doc h1, .ari-doc h2, .ari-demo-right h1, .step-card h3, .feature h3 { text-wrap: balance; }
 .ari-hero .lead, .sec .lead, .sec p, .ari-doc p, .ari-doc li, .ari-demo-right .lead { text-wrap: pretty; }
@@ -1409,8 +1401,8 @@ button.ac-btn::after { content: ""; position: absolute; inset: 0; background: li
 
 /* ---- Ari round 3: overlap fixes, phones in landscape, loading and error states, legacy pages */
 /* Hero chips stay inside the 40px column gap and the page gutter: never over the copy on the left. */
-.float-chip.f1 { left: -16px; }
-.float-chip.f2 { right: -16px; }
+.float-chip.f1 { left: -16px; bottom: 1.5%; animation-delay: -2s; }
+.float-chip.f2 { right: -16px; top: 66px; animation-delay: -5s; }
 /* Demo phone while a request is running: sending is off, the pressed button shows progress. */
 .ari-send[disabled] { opacity: .45; cursor: default; }
 .ari-phone.busy .ari-mic { opacity: .45; cursor: default; }
@@ -1472,3 +1464,16 @@ nav.main .lang-menu > summary { min-height: 40px; box-sizing: border-box; }
 .ac-route span { min-width: 0; flex: 0 1 auto; overflow-wrap: anywhere; }
 .ac-route small { flex: none; }
 @media (max-width: 380px) { .ari-phone.big .ari-head small { display: none; } }
+/* Account pages: the phone field looks like every other field; the cabinet link lives in the compact menu on phones. */
+input[type=tel] { width: 100%; min-height: 50px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--text); font: 16px var(--font); transition: border-color .15s, box-shadow .15s; }
+@media (min-width: 861px) { .nav-menu .nm-app { display: none; } }
+.concept-bar a { white-space: nowrap; }
+nav.main .lang-menu > summary { min-width: 40px; justify-content: center; }
+@media (max-height: 540px) and (max-width: 999px) { html:has(.ari-demo-page) { scroll-padding-top: 0; } }
+/* Phone in landscape: the Live Activity pill sits in the chat header row, so the chat keeps its height. */
+@media (max-height: 540px) and (max-width: 999px) and (orientation: landscape) {
+  .ari-phone.big .ari-status { position: absolute; z-index: 2; top: 9px; left: 50%; transform: translateX(-50%); display: block; padding: 0; max-width: 44%; }
+  .ari-phone.big .ari-status > span:not(.ari-island) { display: none; }
+  .ari-phone.big .ari-island:not(.live) { display: none; }
+  .ari-phone.big .ari-head { padding-top: 8px; }
+}
