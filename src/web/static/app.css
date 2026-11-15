@@ -1477,3 +1477,8 @@ nav.main .lang-menu > summary { min-width: 40px; justify-content: center; }
   .ari-phone.big .ari-island:not(.live) { display: none; }
   .ari-phone.big .ari-head { padding-top: 8px; }
 }
+
+/* Long localized text on narrow phones: a placeholder that does not fit ends with an ellipsis,
+   and the driver's name wraps instead of losing the rating. */
+.ari-composer input, .ari-composer input::placeholder { text-overflow: ellipsis; }
+.ac-courier div b { white-space: normal; overflow: visible; overflow-wrap: anywhere; }

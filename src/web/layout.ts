@@ -70,6 +70,11 @@ export function page(o: PageOpts): string {
     ru: 'Ari × Grab: предложение о партнёрстве от CSA PROJECT - FZCO. Grab внутри ассистента Ari. Демо на вымышленных данных.',
     th: 'Ari × Grab: ข้อเสนอความร่วมมือจาก CSA PROJECT - FZCO เพื่อนำ Grab เข้าสู่ผู้ช่วย Ari เดโมใช้ข้อมูลสมมติ',
   });
+  const ogAlt = tr(l, {
+    en: 'Ari mark, a white letter A on a violet to pink gradient. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.',
+    ru: 'Знак Ari: белая буква A на градиенте от фиолетового к розовому. Ari × Grab: скажите один раз, и Ari закажет Grab. Предложение о партнёрстве от CSA PROJECT - FZCO. Проект не связан с Grab.',
+    th: 'สัญลักษณ์ Ari ตัวอักษร A สีขาวบนพื้นไล่สีจากม่วงไปชมพู Ari × Grab: พูดครั้งเดียว Ari สั่ง Grab ให้ ข้อเสนอความร่วมมือจาก CSA PROJECT - FZCO ไม่มีส่วนเกี่ยวข้องกับ Grab',
+  });
   const navLinks: [string, string][] = [
     ['/#how', m.navHow],
     ['/for-grab', tr(l, { ru: 'Для Grab', en: 'For Grab', th: 'สำหรับ Grab' })],
@@ -98,7 +103,7 @@ ${path ? html`<meta property="og:url" content="${abs(`${path}?lang=${l}`)}">` : 
 <meta property="og:image" content="${abs(OG_IMAGE_PATH)}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Ari mark, a white letter A on a violet to pink gradient. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.">
+<meta property="og:image:alt" content="${ogAlt}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${o.title} · Ari × Grab">
 <meta name="twitter:description" content="${desc}">
@@ -125,7 +130,7 @@ ${(o.scripts ?? []).map((x) => html`<script src="/static/${x}?v=${ASSET_VERSION}
   })} <a href="/for-grab#disclaimer">${tr(l, { ru: 'Подробнее', en: 'Details', th: 'รายละเอียด' })}</a></span>
 </div></aside>
 <header class="site"><div class="wrap">
-  <a class="logo" href="/" aria-label="Ari × Grab, home"><span class="ari-mark" aria-hidden="true">A</span><span class="logo-text"><span class="logo-word">Ari <span class="x">×</span> Grab</span><span class="logo-sub">${tr(l, { ru: 'на движке Unyly', en: 'powered by Unyly', th: 'ขับเคลื่อนโดย Unyly' })}</span></span></a>
+  <a class="logo" href="/" aria-label="${tr(l, { ru: 'Ari × Grab, на главную', en: 'Ari × Grab, home', th: 'Ari × Grab หน้าแรก' })}"><span class="ari-mark" aria-hidden="true">A</span><span class="logo-text"><span class="logo-word">Ari <span class="x">×</span> Grab</span><span class="logo-sub">${tr(l, { ru: 'на движке Unyly', en: 'powered by Unyly', th: 'ขับเคลื่อนโดย Unyly' })}</span></span></a>
   <nav class="main" aria-label="${tr(l, { ru: 'Основная навигация', en: 'Main', th: 'เมนูหลัก' })}">
     ${navLinks.map(([href, label]) => html`<a href="${href}" class="hide-md" ${cur(href)}>${label}</a>`)}
     ${o.loggedIn && !o.guest ? html`<a href="/app" class="hide-sm" ${cur('/app')}>${m.navApp}</a>` : ''}
@@ -138,14 +143,14 @@ ${(o.scripts ?? []).map((x) => html`<script src="/static/${x}?v=${ASSET_VERSION}
       </ul>
     </details>
     <details class="lang-menu">
-      <summary>${icon('globe')}<span><span class="sr-only">Language: </span>${l.toUpperCase()}</span></summary>
+      <summary>${icon('globe')}<span><span class="sr-only">${tr(l, { ru: 'Язык', en: 'Language', th: 'ภาษา' })}: </span>${l.toUpperCase()}</span></summary>
       <ul role="list">
         ${LOCALE_CODES.map((x) => html`<li><a href="${langHref(x)}" ${l === x ? html`aria-current="true"` : ''} lang="${x}" hreflang="${x}"><span class="lang-code">${x.toUpperCase()}</span><span class="lang-name">${LOCALE_NATIVE[x]}</span></a></li>`)}
       </ul>
     </details>
   </nav>
 </div></header>
-${!o.noBanner && o.mode === 'demo' ? html`<div class="banner demo" role="status"><div class="wrap"><span class="pill warn">DEMO</span><span>${m.demoBanner}${o.guest ? html` <span class="guest-note">${tr(l, { ru: 'Гостевой сеанс удаляется через 24 часа.', en: 'Guest sessions are deleted after 24 hours.', th: 'เซสชันผู้เยี่ยมชมจะถูกลบหลัง 24 ชั่วโมง' })}</span>` : ''}</span></div></div>` : ''}
+${!o.noBanner && o.mode === 'demo' ? html`<div class="banner demo" role="status"><div class="wrap"><span class="pill warn">${tr(l, { ru: 'ДЕМО', en: 'DEMO', th: 'เดโม' })}</span><span>${m.demoBanner}${o.guest ? html` <span class="guest-note">${tr(l, { ru: 'Гостевой сеанс удаляется через 24 часа.', en: 'Guest sessions are deleted after 24 hours.', th: 'เซสชันผู้เยี่ยมชมจะถูกลบหลัง 24 ชั่วโมง' })}</span>` : ''}</span></div></div>` : ''}
 ${!o.noBanner && o.mode === 'handoff' ? html`<div class="banner handoff" role="status"><div class="wrap">${m.handoffBanner}</div></div>` : ''}
 <main id="main">${o.wide ? o.body : html`<div class="wrap ${o.narrow ? 'narrow' : ''}">${o.body}</div>`}</main>
 <footer class="site"><div class="wrap">

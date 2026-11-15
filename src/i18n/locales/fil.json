@@ -1105,5 +1105,12 @@
  "Where should the courier pick the parcel up? For example \"from Siam Paragon\".": "Saan kukunin ng courier ang parcel? Halimbawa \"mula Siam Paragon\".",
  "You are welcome! Anything else from Grab?": "Walang anuman! May iba ka pa bang kailangan sa Grab?",
  "You're welcome! Anything else from Grab?": "Walang anuman! May iba ka pa bang kailangan sa Grab?",
- "You have no orders yet. What would you like from Grab?": "Wala ka pang order. Ano ang gusto mo sa Grab?"
+ "You have no orders yet. What would you like from Grab?": "Wala ka pang order. Ano ang gusto mo sa Grab?",
+ "No connection to the server. Check the network and try again.": "Walang koneksyon sa server. Suriin ang network at subukan ulit.",
+ "The demo is busy right now. Please try again in a minute.": "Abala ang demo ngayon. Pakisubukan ulit pagkalipas ng isang minuto.",
+ "Try again": "Subukan ulit",
+ "Ari × Grab, home": "Ari × Grab, pangunahing pahina",
+ "Language": "Wika",
+ "DEMO": "DEMO",
+ "Ari mark, a white letter A on a violet to pink gradient. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "Logo ng Ari: puting titik A sa gradient na violet hanggang pink. Ari × Grab: Sabihin nang isang beses. Si Ari ang umo-order sa Grab. Panukalang partnership ng CSA PROJECT - FZCO. Hindi kaanib ng Grab."
 }

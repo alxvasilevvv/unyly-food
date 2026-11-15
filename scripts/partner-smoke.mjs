@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Partner API smoke test: one ride from estimate to order, with PASS/FAIL per step.
+// Partner API smoke test: one ride from estimate to order and its cancellation, with PASS/FAIL per step.
 //
-//   BASE=https://food.unyly.org PARTNER_ID=ari PARTNER_SECRET=... node scripts/partner-smoke.mjs
+//   BASE=https://unyly-food.unyly.org PARTNER_ID=ari PARTNER_SECRET=... node scripts/partner-smoke.mjs
 //
 // Optional: SMOKE_USER (default smoke-<time>), KEEP_USER=1 (do not delete the test user at the end),
 // ALLOW_LIVE=1 (confirm even when the partner runs in live mode: this places a REAL order).
@@ -19,7 +19,7 @@ const uid = process.env.SMOKE_USER || `smoke-${Date.now()}`;
 const U = `/partner/v1/users/${encodeURIComponent(uid)}`;
 
 /** One signed call. `path` is signed exactly as sent (path plus query string). */
-async function api(method, path, body) {
+async function api(method, path, body, { allowError = false } = {}) {
   const raw = body === undefined ? '' : JSON.stringify(body);
   const ts = String(Math.floor(Date.now() / 1000));
   const nonce = randomBytes(18).toString('base64url');
@@ -34,6 +34,7 @@ async function api(method, path, body) {
   let json = null;
   try { json = JSON.parse(text); } catch { /* not JSON: reported below */ }
   if (!json) throw new Error(`${method} ${path}: HTTP ${res.status}, body is not JSON: ${text.slice(0, 120)}`);
+  if (allowError) return { status: res.status, json };
   if (!res.ok || json.ok === false) throw new Error(`${method} ${path}: HTTP ${res.status} ${json.error?.code ?? ''} ${json.error?.message ?? ''}`.trim());
   return json;
 }
@@ -69,6 +70,13 @@ await step('user upsert', async () => {
   created = true;
   return `${r.user.created ? 'created' : 'existing'}, mode ${r.user.mode}`;
 });
+await step('saved place', async () => {
+  const r = await api('POST', `${U}/places`, { label: 'Smoke Home', line1: '88 Sukhumvit Soi 24', district: 'Khlong Toei', city: 'Bangkok' });
+  const id = need(r.place?.place_id, 'place.place_id');
+  const list = await api('GET', `${U}/places`);
+  if (!list.places.some((p) => p.place_id === id)) throw new Error('the new place is not in the list');
+  return `${r.place.label}, ${r.place.area}`;
+});
 await step('estimate_trip', async () => {
   const r = await api('POST', `${U}/tools/estimate_trip`, { arguments: { service: 'ride', pickup: 'Siam Paragon', dropoff: 'Suvarnabhumi airport' } });
   option = need((r.card?.options ?? []).find((o) => o.action), 'a selectable option on the card');
@@ -98,6 +106,21 @@ await step('events', async () => {
   const types = r.events.map((e) => e.type);
   for (const t of ['order.created', 'checkout.confirmed']) if (!types.includes(t)) throw new Error(`no ${t} event; got ${types.join(', ') || 'none'}`);
   return `${r.events.length} events, last seq ${r.events[r.events.length - 1].seq}`;
+});
+await step('cancellation', async () => {
+  if (mode !== 'demo') return 'skipped outside demo mode (a real cancellation may cost a fee)';
+  const order = await api('GET', `${U}/orders/${orderId}`);
+  const prepare = need(order.card.actions.find((a) => a.kind === 'prepare_cancel'), 'a prepare_cancel action on the order card');
+  const prepared = await api(prepare.endpoint.method, prepare.endpoint.path);
+  const yes = need(prepared.card?.actions.find((a) => a.kind === 'confirm'), 'a confirm action on the cancellation card');
+  const r = await api(yes.endpoint.method, yes.endpoint.path, { ...yes.endpoint.body, user_verification: 'tap' });
+  if (r.cancellation?.status !== 'executed') throw new Error(`cancellation status is ${r.cancellation?.status}`);
+  return `fee ${prepared.cancellation.fee.formatted}, order is ${need(r.order?.card?.status?.code, 'order status')}`;
+});
+await step('error shape', async () => {
+  const r = await api('GET', `${U}/orders/00000000-0000-4000-8000-000000000000`, undefined, { allowError: true });
+  if (r.status !== 404 || r.json.ok !== false || r.json.error?.code !== 'NOT_FOUND' || typeof r.json.error?.message !== 'string') throw new Error(`expected 404 { ok: false, error: { code: "NOT_FOUND", message } }, got HTTP ${r.status} ${JSON.stringify(r.json).slice(0, 120)}`);
+  return '404 NOT_FOUND in the common envelope';
 });
 
 // Cleanup runs even after a failure: the test user and its demo order are removed.

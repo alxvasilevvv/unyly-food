@@ -82,21 +82,39 @@
     s.innerHTML = P[name] || P.check;
     return s;
   };
+  // Distance with the unit as this language writes it ("32.5 km", "32,5 км", "32.5 กม.").
+  const km = (n) => {
+    try {
+      return new Intl.NumberFormat(lang, { style: 'unit', unit: 'kilometer', maximumFractionDigits: 1 }).format(Number(n));
+    } catch (e) {
+      return `${n} km`;
+    }
+  };
   const scroll = () => requestAnimationFrame(() => (chat.scrollTop = chat.scrollHeight));
   const withLang = (u) => `${u}${u.includes('?') ? '&' : '?'}lang=${encodeURIComponent(lang)}`;
   const failure = (code, status, message) => Object.assign(new Error(message || ''), { code, status });
   const request = async (method, url, body) => {
     let r;
+    let j;
+    // A request that never answers must not leave the chat locked: give up after 20 s.
+    const ac = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = ac ? setTimeout(() => ac.abort(), 20000) : null;
     try {
       r = await fetch(url, {
         method, credentials: 'same-origin',
         headers: { 'x-ari-demo': '1', ...(body ? { 'content-type': 'application/json' } : {}) },
         body: body ? JSON.stringify(body) : undefined,
+        signal: ac ? ac.signal : undefined,
+      });
+      j = await r.json().catch((e) => {
+        if (e && e.name === 'AbortError') throw e;
+        return null;
       });
     } catch (e) {
       throw failure('NETWORK', 0);
+    } finally {
+      clearTimeout(timer);
     }
-    const j = await r.json().catch(() => null);
     if (!j || !j.ok) {
       const err = (j && j.error) || {};
       throw failure(err.code || (r.status === 429 ? 'RATE_LIMITED' : 'HTTP'), r.status, err.message);
@@ -222,7 +240,7 @@
     if (!card.route || !card.route.from) return null;
     const r = el('div', 'ac-route');
     r.append(el('span', '', card.route.from), svg('arrow'), el('span', '', card.route.to));
-    if (card.route.distance_km) r.appendChild(el('small', '', `${card.route.distance_km} km`));
+    if (card.route.distance_km) r.appendChild(el('small', '', km(card.route.distance_km)));
     return r;
   };
   function renderCard(card, opts = {}) {
@@ -473,16 +491,19 @@
     overlay(sheet, false);
   };
   const faceId = () => new Promise((ok) => {
+    // The sheet of a chat that was reset must not touch the sheet of the next one.
+    const g = gen;
     sheet.hidden = false;
     sheet.className = 'ari-sheet scan';
     if (sheetLabel) sheetLabel.textContent = S.faceidHint;
     overlay(sheet, true);
     sheet.focus({ preventScroll: true });
     setTimeout(() => {
+      if (g !== gen) { ok(); return; }
       sheet.className = 'ari-sheet ok';
       if (sheetLabel) sheetLabel.textContent = S.faceid;
       setTimeout(() => {
-        closeSheet();
+        if (g === gen) closeSheet();
         ok();
       }, 650);
     }, 1150);
@@ -598,6 +619,8 @@
     if (st.is_final) islandTimer = setTimeout(() => island.classList.remove('live', 'done', 'ended'), 6000);
   }
 
+  // Voice for the call. The line is in the language of the cards, which <html lang> also names.
+  const SPEECH = { en: 'en-US', ru: 'ru-RU', th: 'th-TH', vi: 'vi-VN', id: 'id-ID', ms: 'ms-MY', fil: 'fil-PH', km: 'km-KH', my: 'my-MM', zh: 'zh-CN' };
   let pushTimer = null;
   function showPush(n) {
     $('push-title').textContent = n.title;
@@ -665,7 +688,7 @@
       try {
         if (window.speechSynthesis && window.SpeechSynthesisUtterance) {
           const u = new SpeechSynthesisUtterance(line);
-          u.lang = lang === 'th' ? 'th-TH' : lang === 'ru' ? 'ru-RU' : 'en-US';
+          u.lang = SPEECH[lang] || 'en-US';
           u.rate = 1.02;
           u.onend = finish;
           u.onerror = () => { clearTimeout(safety); safety = setTimeout(finish, readMs); };
@@ -775,6 +798,8 @@
     let i = 0;
     const iv = setInterval(() => {
       if (g !== gen) { clearInterval(iv); return; }
+      // Something else was sent meanwhile (a chip, Enter): stop dictating into the field.
+      if (busy) { clearInterval(iv); mic.classList.remove('rec'); input.value = ''; return; }
       input.value = text.slice(0, (i += 3));
       if (i >= text.length) {
         clearInterval(iv);
@@ -835,7 +860,11 @@
       const text = b && EX[Number(b.dataset.ex)];
       if (!text) return;
       presenter.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
-      await reset();
+      // A second tap while the new chat is still opening wins: only the latest scenario is sent.
+      const fresh = reset();
+      const g = gen;
+      await fresh;
+      if (g !== gen) return;
       ask(text);
     });
   }

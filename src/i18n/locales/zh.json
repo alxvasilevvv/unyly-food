@@ -1105,5 +1105,12 @@
  "Where should the courier pick the parcel up? For example \"from Siam Paragon\".": "骑手到哪里取包裹？例如“从 Siam Paragon 取件”。",
  "You are welcome! Anything else from Grab?": "不客气！还需要 Grab 的其他服务吗？",
  "You're welcome! Anything else from Grab?": "不客气！还需要 Grab 的其他服务吗？",
- "You have no orders yet. What would you like from Grab?": "你还没有订单。想从 Grab 订点什么？"
+ "You have no orders yet. What would you like from Grab?": "你还没有订单。想从 Grab 订点什么？",
+ "No connection to the server. Check the network and try again.": "无法连接服务器。请检查网络后重试。",
+ "The demo is busy right now. Please try again in a minute.": "演示当前繁忙，请一分钟后再试。",
+ "Try again": "重试",
+ "Ari × Grab, home": "Ari × Grab，首页",
+ "Language": "语言",
+ "DEMO": "演示",
+ "Ari mark, a white letter A on a violet to pink gradient. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "Ari 标志：紫色到粉色渐变上的白色字母 A。Ari × Grab：只需说一次。Ari 帮你下单 Grab。CSA PROJECT - FZCO 提出的合作提案。与 Grab 无隶属关系。"
 }

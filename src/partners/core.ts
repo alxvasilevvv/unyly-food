@@ -140,6 +140,7 @@ function optionsFromTrip(env: ToolEnvelope, args: Record<string, unknown>, l: Lo
           arguments: {
             service, pickup: args.pickup, dropoff: args.dropoff, items: [{ item_id: o.item_id, quantity: 1 }],
             ...(args.parcel_weight_kg !== undefined ? { parcel_weight_kg: args.parcel_weight_kg } : {}),
+            ...(typeof args.parcel_description === 'string' && args.parcel_description ? { parcel_description: args.parcel_description } : {}),
             ...(args.passengers !== undefined ? { passengers: args.passengers } : {}),
           },
         },
@@ -228,6 +229,11 @@ export async function checkoutCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, c
     ...(Number(bd.discount.amount_minor) ? [{ label: tr(l, T.discount), value: bd.discount.formatted }] : []),
   ];
   const pay = paymentRequired(ctx, c);
+  // A parcel shows what the courier will carry: the weight and the note given with it ("Fragile").
+  const parcel = service === 'express' ? (v.trip as any)?.parcel : undefined;
+  const parcelDetail: string | undefined = parcel
+    ? [parcel.weight_kg ? `${parcel.weight_kg} ${tr(l, { en: 'kg', ru: 'кг', th: 'กก.' })}` : null, parcel.description || null].filter(Boolean).join(' · ') || undefined
+    : undefined;
   return {
     schema: 'unyly.card.v1', type: 'checkout', id: c.id, service,
     title: trip ? (v.lines[0]?.name ?? '') : (v.restaurant_name ?? ''),
@@ -239,7 +245,7 @@ export async function checkoutCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, c
       ...(pay ? ['GrabPay'] : []),
     ],
     route: trip && v.trip ? { from: (v.trip as any).pickup?.name, to: (v.trip as any).dropoff?.name, distance_km: (v.trip as any).distance_km_estimate, minutes: (v.trip as any).drive_minutes_estimate } : undefined,
-    lines: (v.lines as any[]).map((x) => ({ title: x.name, quantity: x.quantity, detail: (x.modifiers_desc ?? []).join?.(', ') || undefined, value: money(Number(x.line_total_minor), c.currency, l).formatted })),
+    lines: (v.lines as any[]).map((x) => ({ title: x.name, quantity: x.quantity, detail: (x.modifiers_desc ?? []).join?.(', ') || parcelDetail, value: money(Number(x.line_total_minor), c.currency, l).formatted })),
     breakdown,
     total: { label: tr(l, T.total), value: bd.total.formatted, amount_minor: Number(c.total_minor), currency: c.currency },
     actions,

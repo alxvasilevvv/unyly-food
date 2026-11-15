@@ -40,7 +40,7 @@ const PICKS: Record<string, [string, RegExp][]> = {
     ['m3-malai', /garland|malai|гирлянд|พวงมาลัย/u],
   ],
   'demo-m4': [
-    ['m4-paracetamol', /paracetamol|fever|headache|парацетамол|температур|голов|พาราเซตามอล|ไข้|ปวดหัว/u],
+    ['m4-paracetamol', /paracetamol|fever|headache|парацетамол|температур|голов|พาราเซตามอล|ยาพารา|ไข้|ปวดหัว/u],
     ['m4-plasters', /plaster|band-?aid|пластыр|พลาสเตอร์/u],
     ['m4-ors', /rehydration|\bors\b|регидр|электролит|เกลือแร่/u],
     ['m4-lozenges', /throat|lozenge|горл|леденц|เจ็บคอ|ยาอม/u],
@@ -75,7 +75,7 @@ export interface ShopPlan {
   store_name: string;
   category: string;
   notice?: string;
-  lines: { item_id: string; name: string; quantity: number; unit_minor: number; modifiers: { group_id: string; option_ids: string[] }[]; option_note?: string }[];
+  lines: { item_id: string; name: string; quantity: number; unit_minor: number; modifiers: { group_id: string; option_ids: string[] }[]; option_note?: string; /** The number asked for, when the store limit cut it down. */ limited_from?: number }[];
   total_minor: number;
   delivery_fee_minor: number;
   service_fee_minor: number;
@@ -83,14 +83,53 @@ export interface ShopPlan {
   blocking: string[];
 }
 
-/** Pick items for a shop request and price them with the provider (same as quote_cart would). */
-export async function shopPlan(ctx: Ctx, actor: Actor, service: keyof typeof SHOP_STORE, q: string): Promise<ShopPlan> {
+const NUM_WORDS: Record<string, number> = {
+  two: 2, three: 3, four: 4, five: 5, couple: 2, 'два': 2, 'две': 2, 'три': 3, 'четыре': 4, 'пять': 5, 'пару': 2, 'สอง': 2, 'สาม': 3, 'สี่': 4, 'ห้า': 5,
+};
+const NUM_ALT = Object.keys(NUM_WORDS).join('|');
+/** Thai counters for whole things ("เค้ก 2 ก้อน", "พารา 2 แผง"); weights and sizes are not counts. */
+const TH_COUNTER = 'ก้อน|ชิ้น|อัน|กล่อง|แผง|ซอง|ขวด|หลอด|ช่อ';
+
+/**
+ * How many of an item the sentence asks for: a number right before the item word ("2 chocolate cakes",
+ * "три пластыря"), or a Thai number with a counter right after it. Only for things sold one by one;
+ * groceries and stems come in store packs, so a number there is not multiplied.
+ */
+function askedQuantity(text: string, at: number, len: number): number {
+  const before = new RegExp(`(?<![\\p{L}\\d.,])(\\d{1,2}|${NUM_ALT})\\s*(?:x\\s*|×\\s*)?(?:[\\p{L}\\p{M}]+\\s+){0,2}$`, 'u').exec(text.slice(Math.max(0, at - 40), at));
+  const after = new RegExp(`^[\\p{L}\\p{M}]*\\s*(\\d{1,2}|${NUM_ALT})\\s*(?:${TH_COUNTER})`, 'u').exec(text.slice(at + len, at + len + 30));
+  const k = before?.[1] ?? after?.[1];
+  if (!k) return 1;
+  const n = /^\d+$/.test(k) ? Number(k) : NUM_WORDS[k];
+  return n >= 1 && n <= 20 ? n : 1;
+}
+
+/** The items a shop request names. `matched` is false when nothing was named and the store default would be used. */
+export function shopPicks(service: keyof typeof SHOP_STORE, q: string): { ids: string[]; matched: boolean; quantity: Record<string, number> } {
   const storeId = SHOP_STORE[service];
   const text = q.toLowerCase();
   const table = PICKS[storeId];
   let ids = table.filter(([id, re]) => re.test(text) || (SHOP_WORDS[id] ?? []).some((w) => text.includes(w))).map(([id]) => id);
   // "A cake with candles" without a flavour is the birthday cake (the one that comes with candles).
   if (!ids.length && service === 'cakes' && OPTION_WORDS.candles.test(text)) ids = ['m5-birthday'];
+  const matched = ids.length > 0;
+  const quantity: Record<string, number> = {};
+  if (service === 'cakes' || service === 'pharmacy') {
+    for (const id of ids) {
+      const m = table.find(([x]) => x === id)![1].exec(text);
+      if (m) quantity[id] = askedQuantity(text, m.index, m[0].length);
+    }
+  }
+  return { ids, matched, quantity };
+}
+
+/** Pick items for a shop request and price them with the provider (same as quote_cart would). */
+export async function shopPlan(ctx: Ctx, actor: Actor, service: keyof typeof SHOP_STORE, q: string): Promise<ShopPlan> {
+  const storeId = SHOP_STORE[service];
+  const text = q.toLowerCase();
+  const table = PICKS[storeId];
+  const picked = shopPicks(service, q);
+  let ids = picked.ids;
   if (!ids.length) ids = service === 'groceries' ? ['m1-rice', 'm1-eggs', 'm1-water'] : [table[0][0]];
   // One cake per request: the cake named first in the sentence ("chocolate cake for a birthday" is one chocolate cake).
   if (service === 'cakes' && ids.length > 1) {
@@ -122,7 +161,10 @@ export async function shopPlan(ctx: Ctx, actor: Actor, service: keyof typeof SHO
       notes.push(`${g.name}: ${picked.map((o) => o.name).join(', ')}`);
     }
     const optNote = notes.join(', ');
-    lines.push({ item_id: it.id, name: it.name, quantity: 1, unit_minor: it.price_minor, modifiers, option_note: optNote || undefined });
+    // The store's per-order limit wins over the number asked for (household remedies: two or three packs).
+    const asked = picked.quantity[it.id] ?? 1;
+    const quantity = Math.max(1, Math.min(asked, it.max_quantity ?? 20));
+    lines.push({ item_id: it.id, name: it.name, quantity, unit_minor: it.price_minor, modifiers, option_note: optNote || undefined, ...(quantity < asked ? { limited_from: asked } : {}) });
   }
   if (!lines.length) throw new DomainError('OUT_OF_STOCK', 'Nothing from this request is available right now.');
   const cartLines: CartLine[] = lines.map((l) => ({ line_id: l.item_id, item_id: l.item_id, name: l.name, quantity: l.quantity, modifiers: l.modifiers }));

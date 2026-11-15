@@ -261,7 +261,7 @@ export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx, ipKe
       checkExternalId(ext);
       const after = Math.max(Number((req.query as any)?.after ?? 0) || 0, 0);
       const events = await listPartnerEventsFor(ctx, req.partner!.id, ext, after);
-      if (!events) throw new DomainError('NOT_FOUND', 'Unknown user. Create it first with PUT /partner/v1/users/{user_id}.');
+      if (!events) throw new DomainError('NOT_FOUND', 'Unknown user. Create it first with PUT /partner/v1/users/{uid}.');
       return ok(reply, { events });
     }));
 

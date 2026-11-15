@@ -153,8 +153,16 @@ export function parseIntent(input: string): Intent {
     /(\d{1,2})\s*(?:people|persons|pax|guests|of us|человек\S*|чел|персон\S*|คน)/.exec(q);
   if (party && Number(party[1]) !== out.budget_total_major) out.party_size = Number(party[1]);
   else {
-    const w = /(?:for |на |สำหรับ\s*)?(one|two|three|four|five|six|couple|одного|двоих|троих|четверых|пятерых|шестерых|двое|трое|четверо)(?=\s)|(หนึ่ง|สอง|สาม|สี่|ห้า|หก)\s*คน/.exec(q);
+    // A whole word only: "someone", "phone" and "острое" hold no number.
+    const w = /(?<!\p{L})(?:for |на |สำหรับ\s*)?(one|two|three|four|five|six|couple|одного|двоих|троих|четверых|пятерых|шестерых|двое|трое|четверо)(?=\s)|(หนึ่ง|สอง|สาม|สี่|ห้า|หก)\s*คน/u.exec(q);
     if (w) out.party_size = WORD_NUM[w[1] ?? w[2]];
+    // "me and my two colleagues", "я и двое коллег": the speaker counts too.
+    const plus = /(?<!\p{L})(?:me|myself|i) and (?:my )?(\d{1,2}|one|two|three|four|five|six|a|an) (?:\p{L}+ )?(?:colleagues?|friends?|coworkers?|guests?|kids?|children|people)|(?<!\p{L})(?:я|мы|мне|нам) и (?:мо[ийя]х? )?(\d{1,2}|двое|трое|четверо|два|две|три|четыре|пять) (?:коллег|друз|друг|подруг|гост|реб|дет)/u.exec(q);
+    if (plus) {
+      const k = plus[1] ?? plus[2];
+      const n = /^\d+$/.test(k) ? Number(k) : ({ a: 1, an: 1, 'два': 2, 'две': 2, 'три': 3, 'четыре': 4, 'пять': 5 } as Record<string, number>)[k] ?? WORD_NUM[k];
+      if (n) out.party_size = n + 1;
+    }
   }
   if (out.party_size !== undefined) out.party_size = Math.min(Math.max(out.party_size, 1), 12);
 
@@ -175,7 +183,7 @@ export function parseIntent(input: string): Intent {
   if (/\bvegan\b|веган|วีแกน/.test(q)) out.dietary.push('vegan');
   else if (/vegetarian|veggie|вегетариан|มังสวิรัติ|\sเจ\s|อาหารเจ/.test(q)) out.dietary.push('vegetarian');
   if (/halal|халял|ฮาลาล/.test(q)) out.dietary.push('halal');
-  if (/no pork|without pork|без свинин|ไม่(?:กิน|เอา|ใส่)หมู/.test(q)) out.dietary.push('no_pork');
+  if (/no pork|without pork|(?:not|n't|never) eat(?:s|ing)? pork|без свинин|не (?:ест|ем|едим|едят) свинин|ไม่(?:กิน|เอา|ใส่|ทาน)หมู/.test(q)) out.dietary.push('no_pork');
 
   packIntent(lower, out);
   if (/seafood|морепродукт|อาหารทะเล/.test(q) && !out.exclude_allergens.includes('shellfish')) out.cuisine = 'seafood';
@@ -202,7 +210,7 @@ export interface ServiceIntent {
   dropoff_home?: boolean;
 }
 
-const RIDE = /taxi|\bcab\b|\bride\b|grabcar|justgrab|grabbike|\bbike to\b|\bcar to\b|такси|поездк|отвез|довез|подвез|машину до|แท็กซี่|เรียกรถ|นั่งรถ|รถไป|วินมอเตอร์ไซค์|วิน(?=ไป)/u;
+const RIDE = /taxi|taksi|\btaxy\b|\btexi\b|\bcab\b|\bride\b|grabcar|justgrab|grabbike|grabtaxi|grabvan|\bbike to\b|\bcar to\b|\blift to\b|\bgrab to\b|такси|токси|мототакси|(?<!\p{L})байк\S* (?:до|в|на)(?!\p{L})|поездк|отвез|довез|подвез|машину до|แท็กซี่|แทกซี่|แท๊กซี่|เรียกรถ|นั่งรถ|รถไป|จองรถ|ขอรถ|หารถ|รถ(?:สำหรับ|ตู้|เก๋ง)|เรียกแกร็บ|วินมอเตอร์ไซค์|วิน(?=ไป)/u;
 const EXPRESS = /parcel|package|courier|\bsend\b|посылк|отправ|курьер|พัสดุ|ส่งของ|ส่งเอกสาร|แมสเซนเจอร์/u;
 // Weaker cues: they decide only when nothing in the sentence names a shop or a meal.
 const SOFT_EXPRESS = /\bdeliver\b|\bdocuments?\b|\benvelope\b|(?<!\p{L})достав(?:ь|ьте|ить)(?!\p{L})|документ|(?<!\p{L})пакет(?!\p{L})|конверт|เอกสาร/u;
@@ -214,18 +222,41 @@ const HOME_WORD = /\bhome\b|(?<!\p{L})домой(?!\p{L})|กลับบ้า�
 /** True when a place phrase means the user's home. */
 export const isHomePlace = (s: string | undefined) => !!s && HOME_PLACE.test(s.trim());
 const FLOWERS = /flower|bouquet|roses?\b|lil(?:y|ies)|orchid|garland|цвет|букет|(?<!\p{L})роз[ыау]?(?!\p{L})|лили|орхиде|ดอกไม้|กุหลาบ|ช่อ|พวงมาลัย|กล้วยไม้/u;
-const PHARMACY = /pharmac|paracetamol|plaster|band-?aid|thermometer|medicine|drugstore|headache|\bfever\b|sore throat|lozenge|sunscreen|repellent|antiseptic|аптек|парацетамол|пластыр|лекарств|градусник|термометр|болит голов|голова болит|от горл|болит горл|температур|от комаров|репеллент|от солнца|солнцезащит|антисепт|ร้านยา|ยาสามัญ|พาราเซตามอล|พลาสเตอร์|ปรอทวัดไข้|ยาแก้|ปวดหัว|เจ็บคอ|เป็นไข้|กันยุง|กันแดด|ยาอม/u;
+const PHARMACY = /pharmac|painkiller|pain ?relief|ibuprofen|aspirin|vitamins?\b|\bcough|(?:a|the|my) cold\b|cold medicine|\bflu\b|diarrh|stomach ?ache|antihistamine|eye drops|bandage|first aid|face masks?|\bpills?\b|\btablets?\b|головн\S* бол|от головы|обезбол|ибупрофен|аспирин|витамин|кашл|кашел|простуд|насморк|понос|диаре|таблетк|(?<!\p{L})бинт|ยาพารา|ขอยา|ซื้อยา|ยาลดไข้|แอสไพริน|ไอบูโพรเฟน|วิตามิน|แก้ไอ|เป็นหวัด|ท้องเสีย|ปวดท้อง|หน้ากากอนามัย|paracetamol|plaster|band-?aid|thermometer|medicine|drugstore|headache|\bfever\b|sore throat|lozenge|sunscreen|repellent|antiseptic|аптек|парацетамол|пластыр|лекарств|градусник|термометр|болит голов|голова болит|от горл|болит горл|температур|от комаров|репеллент|от солнца|солнцезащит|антисепт|ร้านยา|ยาสามัญ|พาราเซตามอล|พลาสเตอร์|ปรอทวัดไข้|ยาแก้|ปวดหัว|เจ็บคอ|เป็นไข้|กันยุง|กันแดด|ยาอม/u;
 const CAKES = /\bcakes?\b|cheesecake|торт|чизкейк|пирожн|เค้ก/u;
 const GROCERY = /grocer|supermarket|(?<!море)продукт|супермаркет|ของชำ|ซูเปอร์มาร์เก็ต|ของใช้ในบ้าน/u;
 const STAPLE = /\beggs?\b|\bmilk\b|\bwater\b|bananas?|\brice\b|\bcoffee\b|mango(?:es)?\b|яйц|молок|(?<!\p{L})кофе(?!\p{L})|манго|(?<!\p{L})вод[уаы](?!\p{L})|банан|(?<!\p{L})рис(?!\p{L})|ไข่ไก่|นมสด|น้ำดื่ม|กล้วย|ข้าวสาร|กาแฟ|มะม่วง|(?<!ข|ไม่ใส่|ไม่เอา|ไม่กิน|แพ้)นม/u;
 const MEAL = /dinner|lunch|breakfast|meal|ужин|обед|завтрак|ข้าวเย็น|มื้อ|อาหารเย็น|อาหารกลางวัน/u;
-const FOOD_CUE = /food|\beat|hungry|restaurant|pizza|burger|noodle|sushi|pad thai|curry|soup|salad|sandwich|chicken|tom yum|tom kha|som tam|fried rice|ramen|pasta|steak|kebab|dumpling|snack|vegan|vegetarian|halal|еда|еды|еду|поесть|покушать|перекус|голод|ресторан|пицц|бургер|лапш|суши|суп|салат|том ям|том кха|пад тай|рамен|стейк|шаурм|плов|(?<!\p{L})есть(?!\p{L})|веган|вегетариан|халял|อาหาร|กิน|หิว|ข้าว|ก๋วยเตี๋ยว|พิซซ่า|เบอร์เกอร์|ซูชิ|ส้มตำ|ผัดไทย|ต้มยำ|ไก่ทอด|แกง/u;
+const FOOD_CUE = /food|\beat|hungry|restaurant|pizza|burger|noodle|sushi|pad thai|curry|soup|salad|sandwich|chicken|tom yum|tom kha|som tam|fried rice|ramen|pasta|steak|kebab|dumpling|snack|fries|\bpho\b|taco|dim sum|bubble tea|dessert|ice cream|spicy|vegan|vegetarian|halal|еда|еды|еду|поесть|покушать|перекус|голод|ресторан|пицц|бургер|лапш|суши|суп|салат|том ям|том кха|пад тай|рамен|стейк|шаурм|плов|картошк\S* фри|пельмен|десерт|морожен|остр(?:ое|ого|енько)|(?<!\p{L})есть(?!\p{L})|веган|вегетариан|халял|อาหาร|กิน|หิว|ข้าว|ก๋วยเตี๋ยว|พิซซ่า|เบอร์เกอร์|ซูชิ|ส้มตำ|ผัดไทย|ต้มยำ|ไก่ทอด|แกง|ราเมง|สเต๊ก|ชานม|ของหวาน|ไอศกรีม|เผ็ด/u;
 /** True when the sentence asks for a meal: a meal or dish word, or anything the food parser understood. */
 export function hasFoodCue(input: string): boolean {
   const q = input.toLowerCase();
   if (MEAL.test(q) || FOOD_CUE.test(q) || hasWord(q, PK.meal)) return true;
   const i = parseIntent(input);
   return !!(i.cuisine || i.dietary.length || i.exclude_allergens.length || i.budget_total_major);
+}
+
+/** Every service the sentence names outright (not the default). Used to spot two requests in one sentence and small talk with no request at all. */
+export function serviceCues(input: string): DemoService[] {
+  const q = input.toLowerCase();
+  const S = PK.service;
+  const out: DemoService[] = [];
+  if (RIDE.test(q) || hasWord(q, S.ride) || START_GO.test(q) || SOFT_RIDE.test(q)) out.push('ride');
+  if (FLOWERS.test(q) || hasWord(q, S.flowers)) out.push('flowers');
+  if (PHARMACY.test(q) || hasWord(q, S.pharmacy)) out.push('pharmacy');
+  if (CAKES.test(q) || hasWord(q, S.cakes)) out.push('cakes');
+  if (EXPRESS.test(q) || hasWord(q, S.express) || SOFT_EXPRESS.test(q)) out.push('express');
+  if (GROCERY.test(q) || STAPLE.test(q) || hasWord(q, S.groceries)) out.push('groceries');
+  if (MEAL.test(q) || FOOD_CUE.test(q) || hasWord(q, PK.meal)) out.push('food');
+  return out;
+}
+
+/** Common misspellings of the words the demo map and the service rules look for. */
+export function fixTypos(input: string): string {
+  return input
+    .replace(/\b(?:arport|airprot|airpot|aiport|aeroport|air port)\b/giu, 'airport')
+    .replace(/(?<!\p{L})(?:аэрапорт|аеропорт|аиропорт)/giu, 'аэропорт')
+    .replace(/สนามบิล/gu, 'สนามบิน');
 }
 
 const WEIGHT_UNITS =['kg', 'кг', 'กก', 'กิโล', ...PK.weight].sort((a, b) => b.length - a.length).map(reEsc).join('|');
