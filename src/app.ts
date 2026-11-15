@@ -251,7 +251,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     const ok = db && mig > 0;
     return reply.code(ok ? 200 : 503).send({
       status: ok ? 'ready' : 'not_ready', db, migrations: mig,
-      demo_db: ctx.demoCtx ? 'memory' : 'shared',
+      demo_db: ctx.demoCtx ? (ctx.cfg.demoDb === 'memory' ? 'memory' : 'separate') : 'shared',
       ...(netProbe() ? { net: netProbe() } : {}),
       memory: { rss_mb: Math.round(process.memoryUsage().rss / (1024 * 1024)), limit_mb: memoryLimitMb() },
     });

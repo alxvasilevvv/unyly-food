@@ -3,6 +3,7 @@
 import { setFlagsFromString } from 'node:v8';
 import { runInNewContext } from 'node:vm';
 import type { Config } from './config.js';
+import type { Db } from './db/db.js';
 import { type Clock, createCtx, type Ctx } from './context.js';
 
 const CLEANUP_EVERY_MS = 10 * 60_000;
@@ -88,7 +89,38 @@ export async function createMemoryDemoCtx(cfg: Config, clock: Clock, log: (m: st
     log(`[demo-db] embedded database unavailable (${String(e?.message ?? e).slice(0, 200)}); the web demo uses the shared database`);
     return null;
   }
-  const memoryDb = db;
+  return demoHandle(cfg, clock, db, log);
+}
+
+/**
+ * DEMO_DATABASE_URL: the web demo on its own Postgres, placed next to the application host (the main database may
+ * be an ocean away, and every statement of an order then costs a round trip over that distance). Holds only the
+ * disposable guest data of /ari. Null when it is not set, cannot be reached within a few seconds or cannot be
+ * migrated: the demo then uses the shared database; never throws.
+ */
+export async function createRemoteDemoCtx(cfg: Config, clock: Clock, log: (m: string) => void = (m) => console.log(m)): Promise<DemoCtxHandle | null> {
+  if (!cfg.demoDatabaseUrl) return null;
+  let db: Db | undefined;
+  try {
+    const t0 = Date.now();
+    const { createDb } = await import('./db/db.js');
+    const { migrate } = await import('./db/migrate.js');
+    db = createDb(cfg.demoDatabaseUrl, 8);
+    const ok = await Promise.race([db.ping(), new Promise<boolean>((r) => setTimeout(() => r(false), 8000))]);
+    if (!ok) throw new Error('not reachable');
+    await migrate(db, (m) => log(`[demo-db] ${m}`));
+    const t1 = Date.now();
+    await db.query('SELECT 1');
+    log(`[demo-db] separate demo database ready in ${Date.now() - t0} ms (one statement: ${Date.now() - t1} ms); the web demo does not use the shared database`);
+  } catch (e: any) {
+    await db?.close().catch(() => {});
+    log(`[demo-db] separate demo database unavailable (${String(e?.message ?? e).slice(0, 200)}); the web demo uses the shared database`);
+    return null;
+  }
+  return demoHandle(cfg, clock, db, log);
+}
+
+function demoHandle(cfg: Config, clock: Clock, memoryDb: Db & { maintain?: () => Promise<void> }, log: (m: string) => void): DemoCtxHandle {
   const ctx = createCtx(cfg, memoryDb, clock);
   // At most this many guests are kept, whatever their age (GUEST_HOURLY_LIMIT already caps how fast they are created).
   const maxGuests = Math.max(cfg.guestHourlyLimit, 100);
@@ -103,7 +135,7 @@ export async function createMemoryDemoCtx(cfg: Config, clock: Clock, log: (m: st
     await memoryDb.query(`DELETE FROM audit_log WHERE created_at < now() - make_interval(secs => $1)`, [secs]);
     await memoryDb.query(`DELETE FROM provider_events WHERE received_at < now() - make_interval(secs => $1)`, [secs]);
     await memoryDb.query(`DELETE FROM demo_sim_orders d WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.provider = 'demo' AND o.provider_order_ref = d.ref) AND d.accepted_at < now() - interval '10 minutes'`);
-    await memoryDb.maintain();
+    await memoryDb.maintain?.();
     return old.rowCount + extra.rowCount;
   };
 

@@ -1,7 +1,7 @@
 import { buildApp } from './app.js';
 import { loadConfig } from './config.js';
 import { createCtx, OffsetClock } from './context.js';
-import { createMemoryDemoCtx } from './demo-ctx.js';
+import { createMemoryDemoCtx, createRemoteDemoCtx } from './demo-ctx.js';
 import { createDbFromCandidates } from './db/db.js';
 import { migrate } from './db/migrate.js';
 import { startJobs } from './jobs/worker.js';
@@ -13,7 +13,8 @@ await migrate(db, (m) => console.log(`[migrate] ${m}`));
 const ctx = createCtx(cfg, db, new OffsetClock());
 // DEMO_DB=memory: the public web demo (/ari) gets its own context on an embedded in-process database.
 // If that cannot start, the demo stays on the shared database (one log line, the site starts either way).
-const demo = cfg.demoDb === 'memory' ? await createMemoryDemoCtx(cfg, ctx.clock) : null;
+// DEMO_DATABASE_URL: the same on a separate Postgres next to this host. Either falls back to the shared database.
+const demo = (cfg.demoDb === 'memory' ? await createMemoryDemoCtx(cfg, ctx.clock) : null) ?? (await createRemoteDemoCtx(cfg, ctx.clock));
 if (demo) ctx.demoCtx = demo.ctx;
 const app = await buildApp(ctx);
 const stopJobs: () => Promise<void> = cfg.runJobs ? startJobs(ctx) : async () => {};

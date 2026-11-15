@@ -45,6 +45,8 @@ export interface Config {
    * the data is gone on restart. Falls back to 'shared' when the embedded database cannot start.
    */
   demoDb: 'shared' | 'memory';
+  /** DEMO_DATABASE_URL: a separate Postgres for the disposable data of the web demo, placed next to the application host. */
+  demoDatabaseUrl?: string;
   /** With demoDb 'memory': if the process uses more memory than this (MB, RSS) after start-up, the embedded database is closed and the shared one is used. */
   demoDbMaxRssMb: number;
   /**
@@ -174,6 +176,7 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     refreshTokenTtlSec: num('REFRESH_TOKEN_TTL_SEC', 30 * 24 * 3600, { int: true, positive: true }),
     runJobs: bool(process.env.RUN_JOBS, true),
     demoDb: demoDbMode(),
+    demoDatabaseUrl: process.env.DEMO_DATABASE_URL?.trim() || undefined,
     demoDbMaxRssMb: num('DEMO_DB_MAX_RSS_MB', 900, { positive: true }),
     stepUp: { enabled: stepUpEnabled(), thresholds: stepUpThresholds() },
     grabpay: overrides.grabpay ?? loadGrabPayConfig(overrides.webOrigin ?? webOrigin, overrides.env ?? env),
