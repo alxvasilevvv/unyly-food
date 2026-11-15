@@ -64,7 +64,7 @@ describe('Locale', () => {
   it('serves Thai pages with lang="th"', async () => {
     const r = await h.app.inject({ method: 'GET', url: '/?lang=th' });
     expect(r.body).toContain('<html lang="th">');
-    expect(r.body).toContain('ลองเดโม');
+    expect(r.body).toContain('เดโมสด');
   });
   it('every page states it is a concept not affiliated with Grab', async () => {
     for (const lang of ['en', 'th', 'ru']) {

@@ -71,7 +71,7 @@ describe('Discovery files and head metadata', () => {
     expect(root.name).toBe('urlset');
     expect(root.attrs.xmlns).toBe('http://www.sitemaps.org/schemas/sitemap/0.9');
     expect(root.attrs['xmlns:xhtml']).toBe('http://www.w3.org/1999/xhtml');
-    expect(root.children).toHaveLength(8);
+    expect(root.children).toHaveLength(PUBLIC_PATHS.length);
     const paths = root.children.map((u: any) => new URL(u.children.find((c: any) => c.name === 'loc').text).pathname);
     expect(paths.sort()).toEqual([...PUBLIC_PATHS].sort());
     for (const u of root.children) {

@@ -27,6 +27,8 @@ import { page } from './layout.js';
 import { ASSET_VERSION } from './assets.js';
 import { fmt, intlLocale, Locale, LOCALES, Messages, msg, tr } from './messages.js';
 import { registerShowcase } from './showcase.js';
+import { registerAriPages } from './ari-pages.js';
+import { registerAriDemo } from '../partners/webdemo.js';
 import { registerDocsRoutes } from './docs-routes.js';
 import { grabAccountSection, grabLoginButton, registerGrabIdRoutes } from './grabid-routes.js';
 import { CONTACT, instagramUrl, phoneLabel, whatsappUrl } from './contacts.js';
@@ -188,6 +190,8 @@ export interface Kit {
 }
 interface SendExtra {
   narrow?: boolean;
+  scripts?: string[];
+  wide?: boolean;
   status?: number;
   noBanner?: boolean;
   description?: string;
@@ -215,7 +219,7 @@ export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
       .send(
         page({
           title, locale: r.l, body, loggedIn: !!r.s, guest: !!r.s?.user.is_guest, mode: r.s?.user.mode ?? null, csrf: r.s?.csrf,
-          narrow: extra.narrow, path: r.path, noBanner: extra.noBanner, description: extra.description,
+          narrow: extra.narrow, path: r.path, noBanner: extra.noBanner, description: extra.description, scripts: extra.scripts, wide: extra.wide,
         }),
       );
 
@@ -1239,6 +1243,8 @@ ${await grabAccountSection(ctx, r, csrfField(r.s), req.query)}
     return send(reply, r, r.m.notFound, html`<h1>${r.m.notFound}</h1><div class="actions"><a class="btn" href="/">${tr(r.l, { ru: 'На главную', en: 'Home', th: 'หน้าแรก' })}</a><a class="btn secondary" href="/try">${tr(r.l, { ru: 'Открыть демо', en: 'Open the demo', th: 'เปิดเดโม' })}</a></div>`, { narrow: true, status: 404 });
   }
 
+  registerAriPages(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });
+  registerAriDemo(app, ctx, (req) => detectLocale(req, null));
   registerShowcase(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });
   registerDocsRoutes(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });
   registerGrabIdRoutes(app, { ctx, base, authed, send, csrfField, dt, errorBox, notFound, sameOrigin });

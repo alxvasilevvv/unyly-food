@@ -76,7 +76,7 @@ describe('Pages in every language', () => {
       }
     }
     const vi = await h.app.inject({ method: 'GET', url: '/?lang=vi' });
-    expect(vi.body).toContain(CATALOGS.vi['Try the demo']);
+    expect(vi.body).toContain(CATALOGS.vi['Live demo']);
     const zh = await h.app.inject({ method: 'GET', url: '/connect?lang=zh' });
     expect(zh.body).toContain(CATALOGS.zh['Connect your assistant'] ?? '');
   });

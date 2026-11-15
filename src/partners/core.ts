@@ -18,7 +18,7 @@ import {
   approveCancellation, cancelOrder, describeCancellation, getOrderStatus, listOrders, loadCancellation, loadOrder, prepareCancellation, OrderRow,
 } from '../services/orders.js';
 import { tr } from '../web/messages.js';
-import { Card, CardAction, CardOption, demoCourier, minutes, statusBlock, T } from './cards.js';
+import { Card, CardAction, CardOption, demoCourier, localText, minutes, statusBlock, T } from './cards.js';
 import type { PartnerConfig } from './config.js';
 import { callPartnerTool, ToolEnvelope } from './tools.js';
 import { partnerActor, PartnerUser } from './users.js';
@@ -59,7 +59,7 @@ function optionsFromStores(env: ToolEnvelope, l: Locale): Card | null {
         id: st.store_id,
         title: st.name,
         subtitle: sug ? sug.items.map((i: any) => `${i.quantity}× ${i.name}`).join(', ') : (st.cuisines ?? []).join(', '),
-        price: sug?.estimated_total?.formatted,
+        price: sug?.estimated_total ? money(Number(sug.estimated_total.amount_minor), sug.estimated_total.currency, l).formatted : undefined,
         eta: st.eta_estimate_minutes ? minutes(l, st.eta_estimate_minutes.min, st.eta_estimate_minutes.max) : undefined,
         badges,
         disabled_reason: blocked ? (notes[0] ?? tr(l, { en: 'Not available right now', ru: 'Сейчас недоступно', th: 'ไม่พร้อมให้บริการขณะนี้' })) : undefined,
@@ -74,8 +74,8 @@ function optionsFromStores(env: ToolEnvelope, l: Locale): Card | null {
       options.push({
         id: st.store_id,
         title: st.name,
-        subtitle: item ? `${item.name} · ${item.price.formatted}` : undefined,
-        price: item?.price?.formatted,
+        subtitle: item ? item.name : undefined,
+        price: item?.price ? money(Number(item.price.amount_minor), item.price.currency, l).formatted : undefined,
         eta: st.eta_estimate_minutes ? minutes(l, st.eta_estimate_minutes.min, st.eta_estimate_minutes.max) : undefined,
         disabled_reason: blocked ? (notes[0] ?? tr(l, { en: 'Not available right now', ru: 'Сейчас недоступно', th: 'ไม่พร้อมให้บริการขณะนี้' })) : undefined,
         action: blocked ? undefined : {
@@ -96,7 +96,7 @@ function optionsFromStores(env: ToolEnvelope, l: Locale): Card | null {
     title: service === 'food' ? tr(l, { en: 'Restaurants for you', ru: 'Рестораны для вас', th: 'ร้านอาหารสำหรับคุณ' }) : tr(l, { en: 'Shops near you', ru: 'Магазины рядом', th: 'ร้านค้าใกล้คุณ' }),
     subtitle: r.delivery_address ? `${r.delivery_address.label} · ${r.delivery_address.area ?? ''}`.trim() : undefined,
     demo: env.mode === 'demo', options, actions: [],
-    footnote: r.allergen_disclaimer ?? undefined,
+    footnote: localText(r.allergen_disclaimer, l),
   };
 }
 
@@ -110,7 +110,7 @@ function optionsFromTrip(env: ToolEnvelope, args: Record<string, unknown>, l: Lo
     route: { from: r.trip.pickup?.name, to: r.trip.dropoff?.name, distance_km: r.trip.distance_km_estimate, minutes: r.trip.drive_minutes_estimate },
     demo: env.mode === 'demo',
     options: r.options.map((o: any): CardOption => ({
-      id: o.item_id, title: o.name, subtitle: o.description, price: o.estimated_total?.formatted,
+      id: o.item_id, title: o.name, subtitle: o.description, price: o.estimated_total ? money(Number(o.estimated_total.amount_minor), o.estimated_total.currency, l).formatted : undefined,
       eta: o.eta_estimate_minutes ? minutes(l, o.eta_estimate_minutes.min, o.eta_estimate_minutes.max) : undefined,
       badges: o.seats ? [`${o.seats} ${tr(l, { en: 'seats', ru: 'мест', th: 'ที่นั่ง' })}`] : undefined,
       disabled_reason: o.fits === false ? (o.issues?.[0]?.message ?? tr(l, { en: 'Does not fit', ru: 'Не подходит', th: 'ไม่เหมาะสม' })) : undefined,
@@ -223,7 +223,7 @@ export async function checkoutCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, c
     breakdown,
     total: { label: tr(l, T.total), value: bd.total.formatted, amount_minor: Number(c.total_minor), currency: c.currency },
     actions,
-    footnote: [c.payment_method_label, c.cancellation_terms, v.eta.min ? `${tr(l, { en: 'ETA', ru: 'Время', th: 'เวลาโดยประมาณ' })} ${minutes(l, v.eta.min, v.eta.max)}` : null].filter(Boolean).join(' · '),
+    footnote: [localText(c.payment_method_label, l), localText(c.cancellation_terms, l), v.eta.min ? `${tr(l, { en: 'ETA', ru: 'Время', th: 'เวลาโดยประมาณ' })} ${minutes(l, v.eta.min, v.eta.max)}` : null].filter(Boolean).join(' · '),
     expires_at: open ? new Date(c.expires_at).toISOString() : undefined,
   };
 }
@@ -294,8 +294,15 @@ export async function confirmCheckout(ctx: Ctx, p: PartnerConfig, u: PartnerUser
 
 /** Demo orders from partner apps move at presentation speed (the whole trip in a couple of minutes). */
 async function speedUpDemo(ctx: Ctx, orderId: string) {
-  const o = (await ctx.db.query('SELECT provider_order_ref FROM orders WHERE id = $1', [orderId])).rows[0];
-  if (o) await ctx.db.query('UPDATE demo_sim_orders SET speed = GREATEST(speed, $2) WHERE ref = $1', [o.provider_order_ref, ctx.cfg.demoGuestSpeed]).catch(() => undefined);
+  const speed = Math.max(ctx.cfg.demoGuestSpeed * 2, 1);
+  const o = (await ctx.db.query('SELECT provider_order_ref, eta_at, created_at FROM orders WHERE id = $1', [orderId])).rows[0];
+  if (!o) return;
+  await ctx.db.query('UPDATE demo_sim_orders SET speed = GREATEST(speed, $2) WHERE ref = $1', [o.provider_order_ref, speed]).catch(() => undefined);
+  if (o.eta_at) {
+    // The ETA shown in the app follows the same clock as the faster simulation.
+    const secs = Math.max(30, Math.round((new Date(o.eta_at).getTime() - new Date(o.created_at).getTime()) / 1000 / speed));
+    await ctx.db.query(`UPDATE orders SET eta_at = created_at + make_interval(secs => $2) WHERE id = $1 AND mode = 'demo'`, [orderId, secs]);
+  }
 }
 
 async function confirmResult(ctx: Ctx, p: PartnerConfig, u: PartnerUser, checkoutId: string) {
@@ -367,7 +374,7 @@ export async function cancellationCard(ctx: Ctx, p: PartnerConfig, u: PartnerUse
         { id: 'keep', label: tr(l, T.keep), style: 'secondary', kind: 'decline' },
       ]
       : [],
-    footnote: c.terms,
+    footnote: localText(c.terms, l),
     expires_at: open ? new Date(c.expires_at).toISOString() : undefined,
   };
 }

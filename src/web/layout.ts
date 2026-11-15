@@ -20,10 +20,14 @@ export interface PageOpts {
   noBanner?: boolean;
   /** Ask search engines not to index the page. Private paths (see NOINDEX_PREFIXES) get it automatically. */
   noindex?: boolean;
+  /** Extra page scripts from /static (loaded deferred after app.js). */
+  scripts?: string[];
+  /** Full-bleed page body (no .wrap container): the page lays out its own sections. */
+  wide?: boolean;
 }
 
 /** Public, indexable pages: listed in the sitemap and given hreflang alternates. */
-export const PUBLIC_PATHS = ['/', '/try', '/connect', '/for-grab', '/help', '/contact', '/privacy', '/docs'] as const;
+export const PUBLIC_PATHS = ['/', '/ari', '/for-grab', '/developers', '/assistants', '/try', '/connect', '/help', '/contact', '/privacy', '/docs'] as const;
 /** Pages behind sign-in or single-use flows: always noindex. */
 export const NOINDEX_PREFIXES = ['/app', '/confirm', '/login', '/oauth', '/auth'];
 /** Open Graph locale per interface language. */
@@ -68,10 +72,10 @@ export function page(o: PageOpts): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${o.title} · Unyly</title>
+<title>${o.title} · Ari × Grab</title>
 <meta name="description" content="${o.description ?? m.brandTagline}">
 <meta name="theme-color" content="#0a8a53">
-<meta property="og:title" content="${o.title} · Unyly">
+<meta property="og:title" content="${o.title} · Ari × Grab">
 <meta property="og:description" content="${o.description ?? m.brandTagline}">
 ${noindex ? html`<meta name="robots" content="noindex">` : ''}
 ${isPublic && !noindex ? html`<link rel="canonical" href="${abs(`${path}?lang=${l}`)}">` : ''}
@@ -85,7 +89,7 @@ ${path ? html`<meta property="og:url" content="${abs(`${path}?lang=${l}`)}">` : 
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Unyly pixel unicorn. Tell your AI what you need. Confirm with one tap. Concept for Grab, not affiliated with Grab.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="${o.title} · Unyly">
+<meta name="twitter:title" content="${o.title} · Ari × Grab">
 <meta name="twitter:description" content="${o.description ?? m.brandTagline}">
 <meta name="twitter:image" content="${abs(OG_IMAGE_PATH)}">
 <link rel="preload" href="/static/fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -97,26 +101,27 @@ ${LOCALE_FONT[l] ? html`<link rel="preload" href="/static/fonts/${LOCALE_FONT[l]
 <link rel="manifest" href="/manifest.webmanifest">
 <script type="application/ld+json">${raw(ORG_LD)}</script>
 <script src="/static/app.js?v=${ASSET_VERSION}" defer></script>
+${(o.scripts ?? []).map((x) => html`<script src="/static/${x}?v=${ASSET_VERSION}" defer></script>`)}
 </head>
 <body>
 <a class="skip" href="#main">${tr(l, { ru: 'К содержанию', en: 'Skip to content', th: 'ข้ามไปยังเนื้อหา' })}</a>
 <aside class="concept-bar" aria-label="${tr(l, { ru: 'О демо', en: 'About this demo', th: 'เกี่ยวกับเดโมนี้' })}"><div class="wrap">
   <span class="dot" aria-hidden="true"></span>
   <span>${tr(l, {
-    ru: 'Концепт-демо для партнёрства с Grab. Не связан с Grab и не одобрен Grab.',
-    en: 'Concept demo built for a Grab partnership. Not affiliated with or endorsed by Grab.',
-    th: 'เดโมแนวคิดสำหรับความร่วมมือกับ Grab ไม่ได้เกี่ยวข้องหรือได้รับการรับรองจาก Grab',
+    ru: 'ARI × Grab: предложение о партнёрстве от CSA PROJECT - FZCO. Пока не связано с Grab и не одобрено Grab. Демо-данные вымышлены.',
+    en: 'ARI × Grab is a partnership proposal by CSA PROJECT - FZCO. Not yet affiliated with or endorsed by Grab. Demo data is fictional.',
+    th: 'ARI × Grab เป็นข้อเสนอความร่วมมือจาก CSA PROJECT - FZCO ยังไม่ได้เกี่ยวข้องหรือได้รับการรับรองจาก Grab ข้อมูลเดโมเป็นข้อมูลสมมติ',
   })} <a href="/for-grab#disclaimer">${tr(l, { ru: 'Подробнее', en: 'Details', th: 'รายละเอียด' })}</a></span>
 </div></aside>
 <header class="site"><div class="wrap">
-  <a class="logo" href="/"><span class="logo-mark" aria-hidden="true"><img src="/static/brand/unicorn.png?v=${ASSET_VERSION}" width="64" height="64" alt=""></span><span class="logo-text"><span class="logo-word">unyly</span><span class="logo-sub">${tr(l, { ru: 'для Grab · концепт', en: 'for Grab · concept', th: 'สำหรับ Grab · แนวคิด' })}</span></span></a>
+  <a class="logo" href="/" aria-label="ARI × Grab, home"><span class="ari-mark" aria-hidden="true">A</span><span class="logo-text"><span class="logo-word">Ari <span class="x">×</span> Grab</span><span class="logo-sub">${tr(l, { ru: 'на движке Unyly', en: 'powered by Unyly', th: 'ขับเคลื่อนโดย Unyly' })}</span></span></a>
   <nav class="main" aria-label="${tr(l, { ru: 'Основная навигация', en: 'Main', th: 'เมนูหลัก' })}">
     <a href="/#how" class="hide-md">${m.navHow}</a>
     <a href="/for-grab" class="hide-md" ${cur('/for-grab')}>${tr(l, { ru: 'Для Grab', en: 'For Grab', th: 'สำหรับ Grab' })}</a>
-    <a href="/connect" class="hide-md" ${cur('/connect')}>${m.navConnect}</a>
+    <a href="/developers" class="hide-md" ${cur('/developers')}>${tr(l, { ru: 'Разработчикам', en: 'Developers', th: 'นักพัฒนา' })}</a>
     <a href="/docs" class="hide-md" ${cur('/docs')}>${tr(l, { ru: 'Документация', en: 'Docs', th: 'เอกสาร' })}</a>
-    ${o.loggedIn && !o.guest ? html`<a href="/app" class="hide-sm" ${cur('/app')}>${m.navApp}</a>` : html`<a href="/login" class="hide-sm" ${cur('/login')}>${m.navLogin}</a>`}
-    <a href="/try" class="cta" ${cur('/try')}>${tr(l, { ru: 'Попробовать', en: 'Try the demo', th: 'ลองเดโม' })}</a>
+    ${o.loggedIn && !o.guest ? html`<a href="/app" class="hide-sm" ${cur('/app')}>${m.navApp}</a>` : ''}
+    <a href="/ari" class="cta" ${cur('/ari')}>${tr(l, { ru: 'Живое демо', en: 'Live demo', th: 'เดโมสด' })}</a>
     <details class="lang-menu">
       <summary>${icon('globe')}<span><span class="sr-only">Language: </span>${l.toUpperCase()}</span></summary>
       <ul role="list">
@@ -127,22 +132,25 @@ ${LOCALE_FONT[l] ? html`<link rel="preload" href="/static/fonts/${LOCALE_FONT[l]
 </div></header>
 ${!o.noBanner && o.mode === 'demo' ? html`<div class="banner demo" role="status"><div class="wrap"><span class="pill warn">DEMO</span><span>${m.demoBanner}${o.guest ? html` <span class="guest-note">${tr(l, { ru: 'Гостевой сеанс удаляется через 24 часа.', en: 'Guest sessions are deleted after 24 hours.', th: 'เซสชันผู้เยี่ยมชมจะถูกลบหลัง 24 ชั่วโมง' })}</span>` : ''}</span></div></div>` : ''}
 ${!o.noBanner && o.mode === 'handoff' ? html`<div class="banner handoff" role="status"><div class="wrap">${m.handoffBanner}</div></div>` : ''}
-<main id="main"><div class="wrap ${o.narrow ? 'narrow' : ''}">${o.body}</div></main>
+<main id="main">${o.wide ? o.body : html`<div class="wrap ${o.narrow ? 'narrow' : ''}">${o.body}</div>`}</main>
 <footer class="site"><div class="wrap">
   <div class="cols">
     <div class="foot-brand">
-      <a class="logo" href="/"><span class="logo-mark" aria-hidden="true"><img src="/static/brand/unicorn.png?v=${ASSET_VERSION}" width="64" height="64" alt=""></span><span class="logo-text"><span class="logo-word">unyly</span></span></a>
+      <a class="logo" href="/"><span class="ari-mark" aria-hidden="true">A</span><span class="logo-text"><span class="logo-word">Ari <span class="x">×</span> Grab</span><span class="logo-sub">${tr(l, { ru: 'на движке Unyly', en: 'powered by Unyly', th: 'ขับเคลื่อนโดย Unyly' })}</span></span></a>
       <p>${m.footerDisclaimer}</p>
     </div>
     <div class="foot-col"><p class="foot-h">${tr(l, { ru: 'Продукт', en: 'Product', th: 'ผลิตภัณฑ์' })}</p>
       ${o.loggedIn && !o.guest ? html`<a href="/app">${m.navApp}</a>` : html`<a href="/login">${m.navLogin}</a>`}
-      <a href="/try">${tr(l, { ru: 'Демо', en: 'Live demo', th: 'เดโม' })}</a>
+      <a href="/ari">${tr(l, { ru: 'Живое демо Ari', en: 'Ari live demo', th: 'เดโมสดของ Ari' })}</a>
       <a href="/#how">${m.navHow}</a>
+      <a href="/developers">${tr(l, { ru: 'Partner API', en: 'Partner API', th: 'Partner API' })}</a>
+      <a href="/assistants">${tr(l, { ru: 'Другие ИИ-ассистенты (MCP)', en: 'Other AI assistants (MCP)', th: 'ผู้ช่วย AI อื่นๆ (MCP)' })}</a>
       <a href="/connect">${m.connectTitle}</a>
       <a href="/docs">${tr(l, { ru: 'Документация', en: 'Documentation', th: 'เอกสาร' })}</a>
     </div>
     <div class="foot-col"><p class="foot-h">${tr(l, { ru: 'О проекте', en: 'Project', th: 'โครงการ' })}</p>
       <a href="/for-grab">${tr(l, { ru: 'Предложение для Grab', en: 'Proposal for Grab', th: 'ข้อเสนอสำหรับ Grab' })}</a>
+      <a href="https://apps.apple.com/app/id6831932629" rel="noopener">${tr(l, { ru: 'Ari в App Store', en: 'Ari on the App Store', th: 'Ari บน App Store' })}</a>
       <a href="${REPO_URL}" rel="noopener">${tr(l, { ru: 'Исходный код', en: 'Source code', th: 'ซอร์สโค้ด' })}</a>
       <a href="/help">${m.navHelp}</a>
       <a href="/privacy">${m.footerPrivacy}</a>

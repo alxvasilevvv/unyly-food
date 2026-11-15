@@ -51,7 +51,7 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
   const baht = (minor: number, l: Locale) => formatMinor(minor, 'THB', l).replace(/\.00(?=\D*$)/, '').replace(/,00(?=\D*$)/, '');
 
   // ---------------- Landing ----------------
-  app.get('/', async (req, reply) => {
+  app.get('/assistants', async (req, reply) => {
     const r = await base(req, reply);
     const { l, m } = r;
     const phone = html`<div class="phone" aria-hidden="true"><div class="phone-screen">
@@ -183,7 +183,7 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
   });
 
   // ---------------- For Grab ----------------
-  app.get('/for-grab', async (req, reply) => {
+  app.get('/for-grab/assistants', async (req, reply) => {
     const r = await base(req, reply);
     const l = r.l;
     const origin = ctx.cfg.webOrigin;
