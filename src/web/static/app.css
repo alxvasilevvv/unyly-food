@@ -2,12 +2,8 @@
 @font-face { font-family: "Inter"; font-style: normal; font-display: swap; font-weight: 100 900; src: url(/static/fonts/inter-latin-wght-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: "Inter"; font-style: normal; font-display: swap; font-weight: 100 900; src: url(/static/fonts/inter-latin-ext-wght-normal.woff2) format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 @font-face { font-family: "Inter"; font-style: normal; font-display: swap; font-weight: 100 900; src: url(/static/fonts/inter-cyrillic-wght-normal.woff2) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
-@font-face { font-family: "Manrope"; font-style: normal; font-display: swap; font-weight: 200 800; src: url(/static/fonts/manrope-latin-wght-normal.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2212, U+FEFF; }
-@font-face { font-family: "Manrope"; font-style: normal; font-display: swap; font-weight: 200 800; src: url(/static/fonts/manrope-cyrillic-wght-normal.woff2) format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
 @font-face { font-family: "Noto Sans Thai"; font-style: normal; font-display: swap; font-weight: 100 900; src: url(/static/fonts/noto-sans-thai-thai-wght-normal.woff2) format("woff2"); unicode-range: U+02D7, U+0303, U+0331, U+0E01-0E5B, U+200C-200D, U+25CC; }
 @font-face { font-family: "Inter"; font-style: normal; font-display: swap; font-weight: 100 900; src: url(/static/fonts/inter-vietnamese-wght-normal.woff2) format("woff2"); unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
-@font-face { font-family: "Manrope"; font-style: normal; font-display: swap; font-weight: 200 800; src: url(/static/fonts/manrope-latin-ext-wght-normal.woff2) format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
-@font-face { font-family: "Manrope"; font-style: normal; font-display: swap; font-weight: 200 800; src: url(/static/fonts/manrope-vietnamese-wght-normal.woff2) format("woff2"); unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
 @font-face { font-family: "Noto Sans Khmer"; font-style: normal; font-display: swap; font-weight: 100 900; src: url(/static/fonts/noto-sans-khmer-khmer-wght-normal.woff2) format("woff2"); unicode-range: U+1780-17FF, U+19E0-19FF, U+200C-200D, U+25CC; }
 @font-face { font-family: "Noto Sans Myanmar"; font-style: normal; font-display: swap; font-weight: 100 900; src: url(/static/fonts/noto-sans-myanmar-myanmar-wght-normal.woff2) format("woff2"); unicode-range: U+1000-109F, U+200C-200D, U+25CC, U+A92E, U+A9E0-A9FE, U+AA60-AA7F; }
 
@@ -47,14 +43,14 @@
   --radius-sm: 12px;
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px rgba(0, 0, 0, .35);
   --shadow-lg: 0 24px 60px rgba(0, 0, 0, .55);
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Noto Sans Thai", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
-  --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Noto Sans Thai", system-ui, sans-serif;
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Noto Sans Thai", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --display: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Noto Sans Thai", system-ui, sans-serif;
   color-scheme: dark;
 }
 :lang(th) { --font: "Noto Sans Thai", "Inter", system-ui, sans-serif; --display: "Noto Sans Thai", "Inter", system-ui, sans-serif; }
 :lang(km) { --font: "Noto Sans Khmer", "Inter", system-ui, sans-serif; --display: "Noto Sans Khmer", "Inter", system-ui, sans-serif; line-height: 1.7; }
 :lang(my) { --font: "Noto Sans Myanmar", "Inter", system-ui, sans-serif; --display: "Noto Sans Myanmar", "Inter", system-ui, sans-serif; line-height: 1.8; }
-:lang(zh) { --font: -apple-system, "Inter", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif; --display: -apple-system, "Inter", "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif; }
+:lang(zh) { --font: "Inter", -apple-system, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif; --display: "Inter", -apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif; }
 :lang(th) body { line-height: 1.7; }
 
 * { box-sizing: border-box; }
@@ -64,7 +60,7 @@ html, body { overflow-x: clip; }
 body { margin: 0; background: radial-gradient(1100px 560px at 88% -120px, rgba(40, 160, 95, .13), transparent 70%) no-repeat, var(--bg); color: var(--text); font: 16px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
 img, svg { max-width: 100%; display: block; }
 a { color: var(--brand); text-underline-offset: 3px; }
-a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; border-radius: 8px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
 h1, h2, h3 { font-family: var(--display); color: var(--ink); letter-spacing: -.02em; }
 h1 { font-size: clamp(34px, 6vw, 60px); line-height: 1.04; margin: 0 0 18px; font-weight: 800; }
 h2 { font-size: clamp(24px, 3.4vw, 36px); line-height: 1.15; margin: 56px 0 16px; font-weight: 800; }
@@ -99,7 +95,6 @@ nav.main a.cta:hover { background: var(--brand-2); }
 .lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; margin-left: 8px; background: var(--surface); }
 .lang a { padding: 6px 10px !important; border-radius: 0 !important; font-size: 12px !important; font-weight: 700 !important; color: var(--muted) !important; }
 .lang a[aria-current="true"] { background: var(--ink); color: var(--bg) !important; }
-.menu-toggle { display: none; }
 @media (max-width: 860px) {
   nav.main .hide-sm { display: none; }
   header.site .wrap { min-height: 60px; gap: 8px; }
@@ -107,7 +102,6 @@ nav.main a.cta:hover { background: var(--brand-2); }
   nav.main a { padding: 8px 9px; font-size: 14px; }
   nav.main a.cta { padding: 8px 12px; }
 }
-@media (max-width: 420px) { nav.main a.nav-help { display: none; } }
 nav.main a.cta { white-space: nowrap; }
 /* Small phones: the unicorn mark alone keeps room for the demo button in long-script languages. */
 @media (max-width: 380px) { .logo-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } nav.main a.cta { padding: 8px 10px; font-size: 13.5px; } }
@@ -311,7 +305,6 @@ table.lines tr.total td { border-bottom: 0; font: 800 20px var(--display); paddi
 footer.site { border-top: 1px solid var(--line); padding: 32px 0 44px; font-size: 14px; color: var(--muted); background: var(--bg-2); }
 footer.site .cols { display: flex; gap: 24px; justify-content: space-between; flex-wrap: wrap; align-items: flex-start; }
 footer.site p { max-width: 640px; }
-.foot-links { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
 
 /* ---------- Icons & utilities ---------- */
 svg.i { width: 1.15em; height: 1.15em; flex: none; display: inline-block; vertical-align: -0.2em; }
@@ -1720,3 +1713,90 @@ footer.site { background: #070a08; border-top-color: rgba(255, 255, 255, .06); }
 @media (max-width: 700px) { .ari-face { margin: 0 0 22px -10px; gap: 16px; } .ari-face .ari-eyes { width: 132px; } }
 @media print { .ari-eyes, .ari-face { display: none !important; } .logo .ari-mark { filter: none; } }
 @media (max-width: 700px) { .step-card h3 { align-self: flex-start; } }
+
+/* ---- Ari round 6: audit fixes (LED digits, courier row, call screen on short phones, tap targets, focus). */
+/* LED digits sit on the text baseline and use whole-pixel dot pitches (14 / 21 / 28 px tall) so they stay crisp. */
+.dm { color: var(--mint-2); vertical-align: baseline; align-items: flex-end; }
+.dm svg { height: 14px; filter: drop-shadow(0 0 3px rgba(52, 209, 122, .55)); }
+.ari-island.live span.dm:last-child, .ari-island.live span.dm { vertical-align: -2px; }
+.ari-island .dm svg { height: 14px; filter: none; }
+.ac-status small { align-items: baseline; }
+.ac-status small .dm { font-size: inherit; margin: 0 2px 0 3px; }
+.ac-status small .dm svg { height: 21px; }
+.ari-call.active .call-top small { min-height: 28px; padding-top: 4px; }
+.ari-call.active .call-top small .dm svg { height: 28px; filter: drop-shadow(0 0 6px rgba(52, 209, 122, .6)); }
+.ari-card .dm svg { height: 14px; }
+.ari-card .ac-status small .dm svg { height: 21px; }
+
+/* Driver row: name and rating wrap as whole pieces, the vehicle sits on its own line. */
+.ac-courier .cr-who { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.ac-courier .cr-who b { display: inline; white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+.ac-courier .cr-rate { color: #c5cac6; font-weight: 600; font-size: 12.5px; white-space: nowrap; }
+.ac-courier .cr-veh { display: block; }
+
+/* Call screen on a short phone (the 390 px wide mock): smaller eyes and controls so Speaker, Mute and Captions still fit. */
+@container ariscreen (max-height: 700px) {
+  .ari-call { padding: 48px 20px 26px; }
+  .ari-call.active .call-tools { display: flex; gap: 20px; margin: 8px 0 12px; }
+  .call-tool { gap: 5px; font-size: 11px; }
+  .call-tool i { width: 46px; height: 46px; }
+  .call-tool i svg { width: 20px; height: 20px; }
+  .ari-call.active .call-eyes { width: min(150px, 46%); margin: 6% 0 3%; }
+  .ari-call.active .call-who { margin-top: 8px; }
+  .call-line { font-size: 14.5px; line-height: 1.4; }
+}
+@container ariscreen (max-height: 590px) { .ari-call.active .call-tools { display: none; } }
+
+/* Keyboard focus: one mint ring everywhere; it follows the shape of the control (pills stay pills). */
+:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+a:not([class]):focus-visible { border-radius: 4px; }
+.btn:focus-visible, nav.main a.cta:focus-visible, .ac-btn:focus-visible, .ari-send:focus-visible { outline-color: var(--mint); }
+.ari-phone :focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.ari-card:focus, .ari-sheet:focus, .ari-call:focus, main:focus { outline: none; }
+
+/* Page scrollbars and inner scrollers in the dark palette. */
+html { scrollbar-color: #2f3431 #050806; }
+.trace-list, .table-wrap, .doc-table-wrap, pre.code, .docs-toc, .lang-menu ul { scrollbar-width: thin; scrollbar-color: #2f3431 transparent; }
+
+/* Tap targets of at least 44 px on phones and tablets. */
+@media (max-width: 999px), (pointer: coarse) {
+  nav.main a.cta, nav.main .lang-menu > summary, nav.main .nav-menu > summary { min-height: 44px; min-width: 44px; }
+  header.site .logo, footer.site .logo { position: relative; }
+  header.site .logo::after, footer.site .logo::after { content: ""; position: absolute; inset: -15px -6px; }
+  footer.site .foot-col a { min-height: 44px; }
+  footer.site .foot-col { gap: 0; }
+  .doc-copy { position: relative; }
+  .doc-copy::after { content: ""; position: absolute; inset: -9px -4px; }
+  .lang-menu li a, nav.main .nav-menu li a, .docs-toc-list a, .svc-chips a, .contact-card .links a, .small-cards .card > a, .ari-doc .grid3 .card > a { min-height: 44px; }
+  .skip { padding: 11px 14px; }
+  nav.main .nav-menu li a { display: flex; align-items: center; }
+  .hero-note a, .legacy-note a, .docs-dl a { position: relative; }
+  .hero-note a::after, .legacy-note a::after { content: ""; position: absolute; inset: -11px -4px; }
+  .docs-dl a::after { content: ""; position: absolute; inset: -6px 0; }
+}
+/* An accordion row opens from anywhere on the row, not only from its text. */
+details:not([class]) > summary, details.client > summary { margin: -14px -16px; padding: 14px 16px; border-radius: 14px; }
+
+/* A declined or cancelled card ends in a neutral pill, not a green one. */
+.ari-card .ac-done.off { background: rgba(255, 255, 255, .06); color: #c5cac6; }
+.ari-card.cancelled .ac-done.off, .ari-card[data-type="cancellation"] .ac-done.off { background: rgba(240, 96, 93, .12); color: #f58e8b; }
+.ac-status small .dm { transform: translateY(1px); }
+
+/* Legacy MCP page: no bright food plates around the phone, no underline on the headline, muted dish thumbnails. */
+.hero-art .plate { display: none; }
+.hero h1 .hl { text-decoration: none; }
+.bubble.ai .opt svg, .opt-card .art svg, .route-card .art svg { filter: saturate(.55) brightness(.92); }
+
+/* Form fields read as fields on dark cards; the destructive button keeps AA contrast. */
+input[type=text], input[type=email], input[type=number], input[type=tel], input:not([type]), select, textarea { background: #0c0f0d; border-color: rgba(255, 255, 255, .14); }
+.ari-composer input { background: var(--card); }
+.btn.danger { color: #1f0606; }
+.contact-hero .unicorn img { filter: grayscale(1) brightness(1.15); }
+.ac-opt.picked small { color: #b4bab6; }
+/* The hero phone grows with its content, so the last card is never cut by the tab bar in longer languages. */
+.ari-hero .hero-phone .ari-screen { height: auto; min-height: 700px; }
+.ari-hero .hero-phone .ari-chat { flex: 1 0 auto; overflow: visible; }
+/* Hero chips hang off the left edge of the phone and grow away from it, whatever the language. */
+@media (min-width: 1280px) {
+  .ari-hero .float-chip.f1, .ari-hero .float-chip.f2 { left: auto; right: 316px; width: max-content; max-width: 264px; }
+}

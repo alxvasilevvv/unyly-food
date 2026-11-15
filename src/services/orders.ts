@@ -194,7 +194,7 @@ export async function getOrderStatus(ctx: Ctx, actor: Actor, orderId: string) {
 }
 
 /** The order together with the demo simulator's row for it (null for other providers), in one statement. */
-async function loadOrderWithSim(q: Queryable, userId: string, id: string): Promise<{ order: OrderRow; sim: Record<string, any> | null }> {
+export async function loadOrderWithSim(q: Queryable, userId: string, id: string): Promise<{ order: OrderRow; sim: Record<string, any> | null }> {
   const r = await q.query<OrderRow & { j_sim: Record<string, any> | null }>(
     `SELECT o.*, to_jsonb(d) AS j_sim FROM orders o LEFT JOIN demo_sim_orders d ON o.provider = 'demo' AND d.ref = o.provider_order_ref WHERE o.id = $1 AND o.user_id = $2`,
     [id, userId],
@@ -300,21 +300,43 @@ export interface CancellationRow {
 export const cancelConfirmUrl = (ctx: Ctx, id: string) => `${ctx.cfg.webOrigin}/confirm-cancel/${id}`;
 const CANCEL_TTL_MS = 5 * 60_000;
 
+type OrderWithSim = { order: OrderRow; sim: Record<string, any> | null };
+const sameOrder = (k: OrderWithSim | undefined, userId: string, orderId: string) => (k && k.order.id === orderId && k.order.user_id === userId ? k : undefined);
+
+/** Cancellation terms from the provider; a demo order uses the simulator row that was read with the order. */
+function cancellationTerms(ctx: Ctx, got: OrderWithSim) {
+  const o = got.order;
+  const provider = ctx.provider(o.mode);
+  const demo = ctx.providers.demo;
+  return callProvider(() => (provider === demo && got.sim ? demo.getCancellationTerms(o.provider_order_ref, got.sim) : provider.getCancellationTerms(o.provider_order_ref)));
+}
+
 export async function prepareCancellation(ctx: Ctx, actor: Actor, orderId: string) {
-  const o = await loadOrder(ctx.db, actor.userId, orderId);
+  return (await prepareCancellationOf(ctx, actor, orderId)).request;
+}
+
+/**
+ * prepareCancellation, also returning the order it was prepared for. `known`: the order (and simulator row) the
+ * caller read for this user in this same request. The earlier open requests are superseded and the new one is
+ * stored and audited in one statement (atomic on its own; the UPDATE works on the statement snapshot, so it
+ * cannot touch the new row).
+ */
+export async function prepareCancellationOf(ctx: Ctx, actor: Actor, orderId: string, known?: OrderWithSim): Promise<{ request: CancellationRow; order: OrderRow }> {
+  const got = sameOrder(known, actor.userId, orderId) ?? (await loadOrderWithSim(ctx.db, actor.userId, orderId));
+  const o = got.order;
   requireCapability(ctx, o.mode, 'cancel_order');
   if (TERMINAL.includes(o.fulfillment_status)) throw new DomainError('CANCELLATION_NOT_ALLOWED', `Order is already ${o.fulfillment_status}`);
-  const terms = await callProvider(() => ctx.provider(o.mode).getCancellationTerms(o.provider_order_ref));
+  const terms = await cancellationTerms(ctx, got);
   if (!terms.allowed) throw new DomainError('CANCELLATION_NOT_ALLOWED', terms.terms);
-  return ctx.db.tx(async (q) => {
-    await q.query(`UPDATE cancellation_requests SET status='invalidated' WHERE order_id=$1 AND status='awaiting_user'`, [o.id]);
-    const r = await q.query<CancellationRow>(
-      `INSERT INTO cancellation_requests (user_id, order_id, fee_minor, currency, terms, status, expires_at) VALUES ($1,$2,$3,$4,$5,'awaiting_user',$6) RETURNING *`,
-      [actor.userId, o.id, terms.fee_minor, terms.currency, terms.terms, new Date(ctx.clock.now().getTime() + CANCEL_TTL_MS)],
-    );
-    await audit(q, { userId: actor.userId, actor: actorLabel(actor), action: 'cancellation.prepared', mode: o.mode, entity: 'order', entityId: o.id, details: { fee: terms.fee_minor } });
-    return r.rows[0];
-  });
+  const r = await ctx.db.query<CancellationRow>(
+    `WITH inv AS (UPDATE cancellation_requests SET status='invalidated' WHERE order_id=$2 AND status='awaiting_user'),
+          ins AS (INSERT INTO cancellation_requests (user_id, order_id, fee_minor, currency, terms, status, expires_at) VALUES ($1,$2,$3,$4,$5,'awaiting_user',$6) RETURNING *),
+          au AS (INSERT INTO audit_log (user_id, actor, action, mode, entity, entity_id, details)
+                 SELECT ins.user_id, $7, 'cancellation.prepared', $8, 'order', ins.order_id::text, $9::jsonb FROM ins)
+     SELECT * FROM ins`,
+    [actor.userId, o.id, terms.fee_minor, terms.currency, terms.terms, new Date(ctx.clock.now().getTime() + CANCEL_TTL_MS), actorLabel(actor), o.mode, JSON.stringify({ fee: terms.fee_minor })],
+  );
+  return { request: r.rows[0], order: o };
 }
 
 export async function loadCancellation(q: Queryable, userId: string, id: string, lock = false) {
@@ -325,29 +347,43 @@ export async function loadCancellation(q: Queryable, userId: string, id: string,
 
 /** Human approval from the web page. Re-checks the fee: if it changed, the request is invalidated. */
 export async function approveCancellation(ctx: Ctx, userId: string, id: string, via = 'web') {
-  const c = await loadCancellation(ctx.db, userId, id);
+  return (await approveCancellationOf(ctx, userId, id, via)).request;
+}
+
+/**
+ * approveCancellation, also returning the order when it was read. `known.request` / `known.order`: rows the caller
+ * read for this user in this same request. The approval is one statement: the update is guarded by the expected
+ * status (re-checked on the locked row), and the audit row is written from its result.
+ */
+export async function approveCancellationOf(
+  ctx: Ctx, userId: string, id: string, via = 'web', known: { request?: CancellationRow; order?: OrderWithSim } = {},
+): Promise<{ request: CancellationRow; order?: OrderRow }> {
+  const c = known.request && known.request.id === id && known.request.user_id === userId ? known.request : await loadCancellation(ctx.db, userId, id);
   if (c.status !== 'awaiting_user') {
-    if (['approved', 'executing', 'executed'].includes(c.status)) return c;
+    if (['approved', 'executing', 'executed'].includes(c.status)) return { request: c };
     throw new DomainError('CONFIRMATION_INVALIDATED', `Cancellation request is ${c.status}`);
   }
   if (new Date(c.expires_at).getTime() <= ctx.clock.now().getTime()) {
     await ctx.db.query(`UPDATE cancellation_requests SET status='expired' WHERE id=$1 AND status='awaiting_user'`, [id]);
     throw new DomainError('CONFIRMATION_EXPIRED', 'Cancellation confirmation expired; prepare it again');
   }
-  const o = await loadOrder(ctx.db, userId, c.order_id);
-  const terms = await callProvider(() => ctx.provider(o.mode).getCancellationTerms(o.provider_order_ref));
+  const got = sameOrder(known.order, userId, c.order_id) ?? (await loadOrderWithSim(ctx.db, userId, c.order_id));
+  const o = got.order;
+  const terms = await cancellationTerms(ctx, got);
   if (!terms.allowed || terms.fee_minor !== Number(c.fee_minor)) {
     await ctx.db.query(`UPDATE cancellation_requests SET status='invalidated' WHERE id=$1 AND status='awaiting_user'`, [id]);
     throw new DomainError('PRICE_CHANGED', `Cancellation terms changed: ${terms.terms}`);
   }
   try {
-    return await ctx.db.tx(async (q) => {
-      const locked = await loadCancellation(q, userId, id, true);
-      if (locked.status !== 'awaiting_user') return locked;
-      const r = await q.query<CancellationRow>(`UPDATE cancellation_requests SET status='approved', approved_at=$2 WHERE id=$1 RETURNING *`, [id, ctx.clock.now()]);
-      await audit(q, { userId, actor: via, action: 'cancellation.approved', mode: o.mode, entity: 'order', entityId: o.id });
-      return r.rows[0];
-    });
+    const r = await ctx.db.query<CancellationRow>(
+      `WITH u AS (UPDATE cancellation_requests SET status='approved', approved_at=$3 WHERE id=$1 AND user_id=$2 AND status='awaiting_user' RETURNING *),
+            au AS (INSERT INTO audit_log (user_id, actor, action, mode, entity, entity_id, details)
+                   SELECT u.user_id, $4, 'cancellation.approved', $5, 'order', u.order_id::text, '{}'::jsonb FROM u)
+       SELECT * FROM u`,
+      [id, userId, ctx.clock.now(), via, o.mode],
+    );
+    // No row: a parallel request moved it on first; report what it is now.
+    return { request: r.rows[0] ?? (await loadCancellation(ctx.db, userId, id)), order: o };
   } catch (e: any) {
     if (e?.code === '23505') throw new DomainError('CANCELLATION_NOT_ALLOWED', 'Another cancellation for this order is already in progress.');
     throw e;
@@ -355,24 +391,45 @@ export async function approveCancellation(ctx: Ctx, userId: string, id: string, 
 }
 
 export async function cancelOrder(ctx: Ctx, actor: Actor, cancellationId: string) {
-  const pre = await loadCancellation(ctx.db, actor.userId, cancellationId);
-  const o = await loadOrder(ctx.db, actor.userId, pre.order_id);
+  return (await cancelOrderOf(ctx, actor, cancellationId)).result;
+}
+
+/**
+ * cancelOrder, also returning the rows it leaves behind (the request, and the order as refreshed after the
+ * provider answered). `known`: the request and its order as read for this user in this same request.
+ * The claim (approved -> executing) is one guarded statement, so exactly one caller sends the cancellation.
+ */
+export async function cancelOrderOf(
+  ctx: Ctx, actor: Actor, cancellationId: string, known: { request?: CancellationRow; order?: OrderRow } = {},
+): Promise<{ result: ReturnType<typeof describeCancellation>; request: CancellationRow; order?: OrderRow }> {
+  const pre = known.request && known.request.id === cancellationId && known.request.user_id === actor.userId ? known.request : await loadCancellation(ctx.db, actor.userId, cancellationId);
+  const o = known.order && known.order.id === pre.order_id && known.order.user_id === actor.userId ? known.order : await loadOrder(ctx.db, actor.userId, pre.order_id);
   requireCapability(ctx, o.mode, 'cancel_order');
-  const claimed = await ctx.db.tx(async (q) => {
-    const c = await loadCancellation(q, actor.userId, cancellationId, true);
-    if (c.status === 'awaiting_user') {
-      throw new DomainError('CONFIRMATION_REQUIRED', 'The user must confirm the cancellation (and any fee) on the Unyly page first.', { confirm_url: cancelConfirmUrl(ctx, c.id) });
+  const claim = () => ctx.db.query<CancellationRow>(
+    `UPDATE cancellation_requests SET status='executing', executing_at=$3 WHERE id=$1 AND user_id=$2 AND status='approved' RETURNING *`,
+    [cancellationId, actor.userId, ctx.clock.now()],
+  );
+  let c = (await claim()).rows[0];
+  if (!c) {
+    let now = await loadCancellation(ctx.db, actor.userId, cancellationId);
+    // Approved in the instant between the two statements: claim it after all.
+    if (now.status === 'approved') {
+      c = (await claim()).rows[0];
+      if (!c) now = await loadCancellation(ctx.db, actor.userId, cancellationId);
     }
-    if (c.status !== 'approved') return { done: c };
-    await q.query(`UPDATE cancellation_requests SET status='executing', executing_at=$2 WHERE id=$1`, [c.id, ctx.clock.now()]);
-    return { go: c };
-  });
-  if ('done' in claimed) return describeCancellation(claimed.done!);
-  const c = claimed.go!;
-  await executeCancellation(ctx, c, o, actorLabel(actor));
-  await getOrderStatus(ctx, actor, o.id).catch(() => undefined);
-  await settleOrder(ctx, o.id); // paid Live order cancelled before pickup: full GrabPay refund
-  return describeCancellation(await loadCancellation(ctx.db, actor.userId, c.id));
+    if (!c) {
+      if (now.status === 'awaiting_user') {
+        throw new DomainError('CONFIRMATION_REQUIRED', 'The user must confirm the cancellation (and any fee) on the Unyly page first.', { confirm_url: cancelConfirmUrl(ctx, now.id) });
+      }
+      return { result: describeCancellation(now), request: now };
+    }
+  }
+  const executed = await executeCancellation(ctx, c, o, actorLabel(actor));
+  const fresh = await refreshOrder(ctx, actor, o.id).catch(() => undefined);
+  // A paid Live order cancelled before pickup: full GrabPay refund (only Live orders are paid in advance).
+  if (o.mode === 'live') await settleOrder(ctx, o.id);
+  const after = executed && o.mode !== 'live' ? executed : await loadCancellation(ctx.db, actor.userId, c.id);
+  return { result: describeCancellation(after), request: after, order: fresh?.row };
 }
 
 export function describeCancellation(c: CancellationRow) {
@@ -397,7 +454,8 @@ export function describeCancellation(c: CancellationRow) {
   };
 }
 
-async function executeCancellation(ctx: Ctx, c: CancellationRow, o: OrderRow, actor: string) {
+/** Sends the cancellation and records the outcome. Returns the request row when the provider cancelled the order. */
+async function executeCancellation(ctx: Ctx, c: CancellationRow, o: OrderRow, actor: string): Promise<CancellationRow | undefined> {
   const provider = ctx.provider(o.mode);
   try {
     const r = await withTimeout(
@@ -406,8 +464,14 @@ async function executeCancellation(ctx: Ctx, c: CancellationRow, o: OrderRow, ac
       () => new ProviderOutcomeUnknownError('timeout'),
     );
     if (r.outcome === 'cancelled') {
-      await ctx.db.query(`UPDATE cancellation_requests SET status='executed', executed_at=$2 WHERE id=$1 AND status IN ('executing','unknown')`, [c.id, ctx.clock.now()]);
-      await audit(ctx.db, { userId: c.user_id, actor, action: 'order.cancelled', mode: o.mode, entity: 'order', entityId: o.id, details: { fee: r.fee_minor } });
+      // The status and its audit row in one statement.
+      const u = await ctx.db.query<CancellationRow>(
+        `WITH u AS (UPDATE cancellation_requests SET status='executed', executed_at=$2 WHERE id=$1 AND status IN ('executing','unknown') RETURNING *),
+              au AS (INSERT INTO audit_log (user_id, actor, action, mode, entity, entity_id, details) VALUES ($3,$4,'order.cancelled',$5,'order',$6,$7))
+         SELECT * FROM u`,
+        [c.id, ctx.clock.now(), c.user_id, actor, o.mode, o.id, JSON.stringify({ fee: r.fee_minor })],
+      );
+      return u.rows[0];
     } else {
       const code = r.message.startsWith('FEE_CHANGED') ? 'FEE_CHANGED' : 'PROVIDER_REJECTED';
       // Leaves the "active" set, so the user can prepare a new cancellation with the new terms.
@@ -416,6 +480,7 @@ async function executeCancellation(ctx: Ctx, c: CancellationRow, o: OrderRow, ac
   } catch {
     await ctx.db.query(`UPDATE cancellation_requests SET status='unknown', error_code='CANCELLATION_UNKNOWN' WHERE id=$1 AND status='executing'`, [c.id]);
   }
+  return undefined;
 }
 
 /**

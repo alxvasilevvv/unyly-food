@@ -264,7 +264,7 @@ export function dotText(text: string, cls = '') {
   for (const ch of text) {
     const g = DM_FONT[ch];
     if (!g) continue;
-    g.forEach((row, y) => { for (let c = 0; c < row.length; c++) if (row[c] === '1') dots += `<circle cx="${(x + c) * 2 + 1}" cy="${y * 2 + 1}" r=".8"/>`; });
+    g.forEach((row, y) => { for (let c = 0; c < row.length; c++) if (row[c] === '1') dots += `<circle cx="${(x + c) * 2 + 1}" cy="${y * 2 + 1}" r=".9"/>`; });
     x += g[0]!.length + 1;
   }
   const w = Math.max(2, (x - 1) * 2);

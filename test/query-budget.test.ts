@@ -49,37 +49,41 @@ describe('database round trips per step', () => {
 
   it('website demo: session, message, action, confirm', async () => {
     const s = await counted(() => post('/ari/api/session?lang=ru'));
-    expect(s.trips).toBeLessThanOrEqual(8);
+    expect(s.trips).toBeLessThanOrEqual(5); // BEGIN with the guest lock, the count, the user, the home address, COMMIT
     expect(s.tx).toBe(1); // the guest and the demo home address are created together
     expect(s.out.grab.linked).toBe(false);
     expect(s.out.last_event).toBe(0);
     const again = await counted(() => post('/ari/api/session?lang=ru'));
-    expect(again.trips).toBeLessThanOrEqual(3);
+    expect(again.trips).toBe(1); // the user, the Grab link and the newest event number in one statement
     expect(again.out.user.id).toBe(s.out.user.id);
 
     const m = await counted(() => post('/ari/api/message?lang=ru', { text: 'Такси от Сиам Парагона до аэропорта Суварнабхуми' }));
     expect(m.out.card.type).toBe('options');
-    expect(m.trips).toBeLessThanOrEqual(3);
+    expect(m.trips).toBe(1); // the user and the saved places together
     expect(m.tx).toBe(0);
 
     const opt = m.out.card.options.find((o: any) => o.action);
     const a = await counted(() => post('/ari/api/action?lang=ru', { tool: opt.action.tool.name, arguments: opt.action.tool.arguments }));
     expect(a.out.card.type).toBe('checkout');
-    expect(a.trips).toBeLessThanOrEqual(15);
+    expect(a.trips).toBeLessThanOrEqual(8); // user, cart, quote, one transaction of four round trips, the card
+    expect(a.tx).toBe(1);
 
     const confirm = a.out.card.actions.find((x: any) => x.kind === 'confirm');
     const c = await counted(() => post('/ari/api/confirm?lang=ru', { checkout_id: a.out.card.id, confirm_hash: confirm.endpoint.body.confirm_hash }));
     expect(c.out.card.type).toBe('order');
     expect(c.out.trace[0].grab).toMatch(/Ride booking/);
-    expect(c.trips).toBeLessThanOrEqual(40);
+    // user + checkout, one transaction (BEGIN with the cart lock, checkout lock + reads, writes, COMMIT), the provider,
+    // and one statement for the order with its events. The answer is built from the rows those statements returned.
+    expect(c.trips).toBeLessThanOrEqual(7);
+    expect(c.tx).toBe(1);
     orderId = c.out.order_id;
   });
 
-  it('website demo: a poll with no news is three reads and writes nothing', async () => {
+  it('website demo: a poll with no news is one read and writes nothing', async () => {
     await get(`/ari/api/orders/${orderId}?lang=ru`); // picks up whatever the simulation has by now
     const p = await counted(() => get(`/ari/api/orders/${orderId}?lang=ru`));
     expect(p.out.card.type).toBe('order');
-    expect(p.trips).toBeLessThanOrEqual(3);
+    expect(p.trips).toBe(1);
     expect(p.tx).toBe(0);
     expect(p.log.some((x) => /^\s*(tx )?(INSERT|UPDATE|DELETE)/i.test(x))).toBe(false);
 
@@ -99,7 +103,8 @@ describe('database round trips per step', () => {
     h.clock.advance(10 * 60_000);
     const p = await counted(() => get(`/ari/api/orders/${orderId}?lang=ru`));
     expect(p.out.card.status.code).not.toBe(before);
-    expect(p.trips).toBeLessThanOrEqual(10);
+    expect(p.trips).toBeLessThanOrEqual(3); // the read, the simulator step, the order (update, audit and event in one statement)
+    expect(p.tx).toBe(0);
     const stored = (await h.db.query('SELECT fulfillment_status FROM orders WHERE id = $1', [orderId])).rows[0];
     expect(stored.fulfillment_status).toBe(p.out.card.status.code);
     const ev = (await get(`/ari/api/events?after=${seq}`)).events;
@@ -139,12 +144,13 @@ describe('database round trips per step', () => {
     const opt = est.out.json.card.options.find((o: any) => o.action);
     const cart = await counted(() => api('POST', `${U}/tools/create_cart`, { arguments: opt.action.tool.arguments }));
     expect(cart.out.json.card.type).toBe('checkout');
-    expect(cart.trips).toBeLessThanOrEqual(18);
+    expect(cart.trips).toBeLessThanOrEqual(11);
 
     const cf = cart.out.json.card.actions.find((x: any) => x.kind === 'confirm');
     const done = await counted(() => api('POST', cf.endpoint.path, { ...cf.endpoint.body, user_verification: 'biometric' }));
     expect(done.out.status).toBe(200);
-    expect(done.trips).toBeLessThanOrEqual(42);
+    expect(done.trips).toBeLessThanOrEqual(10); // nonce, user, checkout, the seven of the confirmation itself
+    expect(done.tx).toBe(1);
     const oid = done.out.json.order.id;
 
     await api('GET', `${U}/orders/${oid}`);

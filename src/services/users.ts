@@ -68,6 +68,15 @@ export async function actorAddresses(ctx: Ctx, actor: Actor): Promise<AddressRow
 }
 
 /**
+ * One saved address of the acting user: from the address list this call already holds when it is there
+ * (addresses are immutable once created; a deleted one is not in the list), otherwise read like getAddress.
+ */
+export async function actorAddress(ctx: Ctx, actor: Actor, id: string): Promise<AddressRow> {
+  const known = memos.get(actor)?.addresses?.find((a) => a.id === id && a.user_id === actor.userId);
+  return known ?? getAddress(ctx.db, actor.userId, id);
+}
+
+/**
  * `verified`: the caller has just proven ownership of the email (email-code sign-in). Accounts
  * created without that proof (passkey registration) start with email_verified_at = NULL.
  * An existing account is returned as is: verifying it is the caller's job (see verifyLoginCode).

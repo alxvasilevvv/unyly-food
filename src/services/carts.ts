@@ -11,7 +11,7 @@ import { buildTrip } from '../providers/demo/places.js';
 import { DEMO_CITY, DEMO_DISTRICTS } from '../providers/demo/catalog.js';
 import type { CartLine, Mode, Place, SelectedModifier, Trip } from '../providers/types.js';
 import { callProvider, newLineId, requireCapability } from './common.js';
-import { actorAddresses, actorUser, AddressRow, addressFingerprint, forgetActorAddresses, getAddress, listAddresses, maskedAddress, toDeliveryAddress } from './users.js';
+import { actorAddress, actorAddresses, actorUser, AddressRow, addressFingerprint, forgetActorAddresses, getAddress, listAddresses, maskedAddress, toDeliveryAddress } from './users.js';
 
 export const MAX_LINES = 30;
 export const MAX_QTY = 20;
@@ -535,7 +535,8 @@ export async function quoteCart(ctx: Ctx, actor: Actor, cartId: string, opts: { 
     if (!cart.address_id) {
       throw new DomainError('ADDRESS_REQUIRED', 'A delivery address is required', undefined, `Add an address at ${ctx.cfg.webOrigin}/app/addresses, then call update_cart with set_address or quote again.`);
     }
-    addr = await getAddress(ctx.db, actor.userId, cart.address_id).catch(() => {
+    // From the address list of this call when it holds one; prepareCheckout checks the address again under the cart lock.
+    addr = await actorAddress(ctx, actor, cart.address_id).catch(() => {
       throw new DomainError('ADDRESS_REQUIRED', 'The cart address was deleted; choose another address');
     });
     fingerprint = addressFingerprint(addr);

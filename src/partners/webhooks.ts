@@ -85,7 +85,8 @@ export function partnerEventParams(userId: string, type: PartnerEventType, data:
 /**
  * The event insert as two CTEs (`<name>_pu`, `<name>`), so it can also ride in the statement that makes the change it
  * reports. Its seven parameters start at $first. `when` is an extra SQL condition (it may read earlier CTEs of the
- * statement). Regular users match no partner row and store nothing.
+ * statement). Regular users match no partner row and store nothing. The insert returns the id of the stored row, so a
+ * later CTE that reads `<name>` runs after it (two events of one statement keep their order).
  */
 export function partnerEventCtes(name: string, first: number, when = 'true'): string {
   const p = (i: number) => `$${first + i}`;
@@ -97,7 +98,7 @@ export function partnerEventCtes(name: string, first: number, when = 'true'): st
                    || CASE WHEN ${p(5)}::jsonb IS NULL THEN '{}'::jsonb
                            ELSE jsonb_build_object('notify', COALESCE(${p(5)}::jsonb -> (CASE WHEN pu.locale IN ('ru','th') OR pu.partner_id = ${p(6)}::text THEN pu.locale::text ELSE 'en' END), ${p(5)}::jsonb -> 'en')) END
               FROM ${name}_pu pu
-            ON CONFLICT DO NOTHING)`;
+            ON CONFLICT DO NOTHING RETURNING id)`;
 }
 
 export async function enqueuePartnerEvent(
@@ -170,7 +171,8 @@ export async function listPartnerEvents(ctx: Ctx, userId: string, after = 0, lim
   return r.rows.map(storedEvent);
 }
 
-function storedEvent(x: any): StoredEvent {
+/** A partner_webhooks row (as a row or as JSON) in the shape of the events API. */
+export function storedEvent(x: any): StoredEvent {
   return ({
     // Same shape as the webhook body: event_id, seq, then the stored payload fields.
     event_id: x.event_id, seq: Number(x.id), type: x.event_type, partner_id: x.payload.partner_id, user_id: x.payload.user_id,

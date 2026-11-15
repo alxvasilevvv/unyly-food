@@ -7,7 +7,10 @@ import type { Queryable } from '../db/db.js';
 import { isLocaleCode, Locale } from '../domain/locales.js';
 import { DomainError } from '../domain/errors.js';
 import { REGION_CODES } from '../domain/regions.js';
-import { deleteAccount, type UserRow } from '../services/users.js';
+import { deleteAccount, type AddressRow, type UserRow } from '../services/users.js';
+import { addressesJsonSql } from '../services/carts.js';
+import type { CheckoutWithQuoteExpiry } from '../services/checkout.js';
+import type { OrderRow } from '../services/orders.js';
 import type { PartnerConfig } from './config.js';
 
 export const EXT_ID_RE = /^[A-Za-z0-9._:@-]{1,128}$/;
@@ -23,6 +26,8 @@ export interface PartnerUser {
   created: boolean;
   /** The users row read together with the mapping, so a tool call in the same request does not read it again. Never serialized. */
   row?: UserRow;
+  /** The user's saved addresses (default first) when they were read together with the user in this request. Never serialized. */
+  addresses?: AddressRow[];
 }
 
 /** Splits the joined row (users columns plus pu_display_name) into the PartnerUser and its users row. */
@@ -78,36 +83,97 @@ export async function upsertPartnerUser(
       if (found) return found;
     }
     // Users rows need an email; partner users get a non-routable placeholder (never mailed).
+    // The user, the mapping, default preferences, provider connections and the audit row in one statement
+    // (the foreign keys to the new user are checked when the statement ends).
     const row = (await q.query<UserRow>(
-      `INSERT INTO users (email, locale, region, mode, onboarded_at, partner_id, is_guest, guest_ip_hash) VALUES ($1,$2,$3,$4, now(), $5, $6, $7) RETURNING *`,
-      [`${p.id}-${randomUUID()}@partner.unyly.invalid`, locale ?? 'en', region ?? 'TH', p.mode, p.id, !!opts.guestIpHash, opts.guestIpHash ?? null],
-    )).rows[0];
-    // The mapping, default preferences, provider connections and the audit row in one statement.
-    await q.query(
-      `WITH pu AS (INSERT INTO partner_users (partner_id, external_user_id, user_id, display_name) VALUES ($1,$2,$3,$4)),
-            pr AS (INSERT INTO preferences (user_id, default_party_size) VALUES ($3, 2) ON CONFLICT DO NOTHING),
+      `WITH u AS (INSERT INTO users (email, locale, region, mode, onboarded_at, partner_id, is_guest, guest_ip_hash) VALUES ($1,$2,$3,$4, now(), $5, $6, $7) RETURNING *),
+            pu AS (INSERT INTO partner_users (partner_id, external_user_id, user_id, display_name) SELECT $5, $8, u.id, $9 FROM u),
+            pr AS (INSERT INTO preferences (user_id, default_party_size) SELECT u.id, 2 FROM u ON CONFLICT DO NOTHING),
             pc AS (INSERT INTO provider_connections (user_id, provider, mode, status)
-                   SELECT $3::uuid, x.provider, x.mode, 'connected' FROM (VALUES ('demo','demo'), ('grab', $5::text)) AS x(provider, mode)
-                    WHERE x.provider = 'demo' OR $5::text <> 'demo' ON CONFLICT DO NOTHING)
-       INSERT INTO audit_log (user_id, actor, action, mode, entity, entity_id, details) VALUES ($3, $6, 'user.partner_created', $5, NULL, NULL, '{}'::jsonb)`,
-      [p.id, ext, row.id, displayName ?? null, p.mode, `partner:${p.id}`],
-    );
+                   SELECT u.id, x.provider, x.mode, 'connected' FROM u, (VALUES ('demo','demo'), ('grab', $4::text)) AS x(provider, mode)
+                    WHERE x.provider = 'demo' OR $4::text <> 'demo' ON CONFLICT DO NOTHING),
+            au AS (INSERT INTO audit_log (user_id, actor, action, mode, entity, entity_id, details) SELECT u.id, $10, 'user.partner_created', $4::text, NULL, NULL, '{}'::jsonb FROM u)
+       SELECT * FROM u`,
+      [`${p.id}-${randomUUID()}@partner.unyly.invalid`, locale ?? 'en', region ?? 'TH', p.mode, p.id, !!opts.guestIpHash, opts.guestIpHash ?? null,
+        ext, displayName ?? null, `partner:${p.id}`],
+    )).rows[0];
     return { user_id: row.id, partner_id: p.id, external_user_id: ext, display_name: displayName ?? null, locale: locale ?? 'en', region: region ?? 'TH', mode: p.mode, created: true, row };
   };
   if (opts.q) return run(opts.q);
   return (await touch(ctx.db)) ?? ctx.db.tx(run);
 }
 
+/**
+ * What else to read in the same statement as the user (one round trip instead of two or three): every part is a
+ * JSON sub-select scoped to that user, so nothing of another user can come back.
+ */
+export interface UserExtras {
+  /** Saved addresses, default first (as listAddresses). */
+  addresses?: boolean;
+  /** Grab link status and the newest event sequence (the session call). */
+  session?: boolean;
+  /** This checkout with the expiry of its quote (as loadCheckoutWithQuoteExpiry), when it belongs to the user. */
+  checkoutId?: string;
+  /** This order and its demo simulator row, when it belongs to the user. */
+  orderId?: string;
+  /** With orderId or on its own: the user's events after this sequence number (at most 50, as the events poll). */
+  eventsAfter?: number;
+}
+
+export interface UserExtrasResult {
+  grab?: { external_ref: string | null; created_at: string } | null;
+  lastEvent?: number;
+  checkout?: CheckoutWithQuoteExpiry | null;
+  order?: { order: OrderRow; sim: Record<string, any> | null } | null;
+  events?: { id: number; event_id: string; event_type: string; payload: any; created_at: string }[];
+}
+
 /** Existing user only (every route except PUT /users/{id} requires the user to exist). */
 export async function loadPartnerUser(ctx: Ctx, p: PartnerConfig, ext: string): Promise<PartnerUser> {
+  return (await loadPartnerUserWith(ctx, p, ext, {})).user;
+}
+
+/** loadPartnerUser plus the rows named in `want`, in one statement. */
+export async function loadPartnerUserWith(ctx: Ctx, p: PartnerConfig, ext: string, want: UserExtras): Promise<{ user: PartnerUser; extra: UserExtrasResult }> {
   checkExternalId(ext);
+  const params: unknown[] = [p.id, ext];
+  const arg = (v: unknown) => `$${params.push(v)}`;
+  const cols: string[] = [];
+  if (want.addresses) cols.push(`${addressesJsonSql('u.id')} AS x_addresses`);
+  if (want.session) {
+    cols.push(`(SELECT to_jsonb(g) FROM (SELECT external_ref, created_at FROM provider_connections WHERE user_id = u.id AND provider = 'grab_account' AND status = 'connected' ORDER BY created_at DESC LIMIT 1) g) AS x_grab`);
+    cols.push('(SELECT max(id) FROM partner_webhooks WHERE user_id = u.id) AS x_last_event');
+  }
+  if (want.checkoutId) {
+    cols.push(`(SELECT to_jsonb(k) FROM (SELECT c.*, (SELECT expires_at FROM quotes WHERE id = c.quote_id) AS quote_expires_at FROM checkouts c WHERE c.id = ${arg(want.checkoutId)}::uuid AND c.user_id = u.id) k) AS x_checkout`);
+  }
+  if (want.orderId) {
+    cols.push(`(SELECT jsonb_build_object('order', to_jsonb(o), 'sim', to_jsonb(d)) FROM orders o LEFT JOIN demo_sim_orders d ON o.provider = 'demo' AND d.ref = o.provider_order_ref
+                 WHERE o.id = ${arg(want.orderId)}::uuid AND o.user_id = u.id) AS x_order`);
+  }
+  if (want.eventsAfter !== undefined) {
+    cols.push(`(SELECT COALESCE(jsonb_agg(to_jsonb(w) ORDER BY w.id), '[]'::jsonb)
+                  FROM (SELECT id, event_id, event_type, payload, created_at FROM partner_webhooks WHERE user_id = u.id AND id > ${arg(want.eventsAfter)}::bigint ORDER BY id LIMIT 50) w) AS x_events`);
+  }
   const r = (await ctx.db.query(
-    `SELECT pu.display_name AS pu_display_name, u.* FROM partner_users pu JOIN users u ON u.id = pu.user_id
+    `SELECT pu.display_name AS pu_display_name, u.*${cols.map((c) => `,\n            ${c}`).join('')}
+       FROM partner_users pu JOIN users u ON u.id = pu.user_id
       WHERE pu.partner_id = $1 AND pu.external_user_id = $2 AND u.deleted_at IS NULL`,
-    [p.id, ext],
+    params,
   )).rows[0];
   if (!r) throw new DomainError('NOT_FOUND', 'Unknown user. Create it first with PUT /partner/v1/users/{uid}.');
-  return fromJoined(p, ext, r);
+  const { x_addresses, x_grab, x_last_event, x_checkout, x_order, x_events, ...joined } = r;
+  const user = fromJoined(p, ext, joined);
+  if (want.addresses) user.addresses = (x_addresses ?? []) as AddressRow[];
+  const extra: UserExtrasResult = {};
+  if (want.session) {
+    extra.grab = x_grab ?? null;
+    extra.lastEvent = Number(x_last_event ?? 0);
+  }
+  if (want.checkoutId) extra.checkout = x_checkout ?? null;
+  if (want.orderId) extra.order = x_order?.order ? { order: x_order.order as OrderRow, sim: x_order.sim ?? null } : null;
+  if (want.eventsAfter !== undefined) extra.events = x_events ?? [];
+  return { user, extra };
 }
 
 export async function deletePartnerUser(ctx: Ctx, p: PartnerConfig, ext: string) {

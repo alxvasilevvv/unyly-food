@@ -328,10 +328,15 @@ export class DemoProvider implements Provider {
     return { provider_order_ref: ref, status: row.status, payment_status: 'not_charged_demo', sequence: row.sequence };
   }
 
-  async getCancellationTerms(ref: string): Promise<CancellationTerms> {
+  async getCancellationTerms(ref: string, known?: Record<string, any> | null): Promise<CancellationTerms> {
     this.guard();
-    const row = await this.advance(ref);
+    const row = await this.advance(ref, known);
     if (!row) throw Object.assign(new Error('order not found'), { notFound: true });
+    return this.termsOf(row);
+  }
+
+  /** The cancellation terms of a simulator row as it stands (already advanced to the demo clock). */
+  private termsOf(row: Record<string, any>): CancellationTerms {
     const service: Service = row.payload.service ?? 'food';
     const food = (row.payload.lines as CartLine[]).length ? row.total_minor : 0;
     if (service === 'ride' || service === 'express') {
@@ -353,9 +358,11 @@ export class DemoProvider implements Provider {
 
   async cancelOrder(ref: string, _key: string, maxFeeMinor: number): Promise<CancelResult> {
     this.guard();
-    const already = (await this.deps.db.query('SELECT status FROM demo_sim_orders WHERE ref=$1', [ref])).rows[0];
-    if (already?.status === 'cancelled') return { outcome: 'cancelled', fee_minor: 0 }; // idempotent repeat
-    const terms = await this.getCancellationTerms(ref);
+    // One read: the row, advanced to the demo clock (a cancelled row is returned as it is).
+    const current = await this.advance(ref);
+    if (current?.status === 'cancelled') return { outcome: 'cancelled', fee_minor: 0 }; // idempotent repeat
+    if (!current) throw Object.assign(new Error('order not found'), { notFound: true });
+    const terms = this.termsOf(current);
     if (!terms.allowed) return { outcome: 'rejected', message: terms.terms };
     if (terms.fee_minor > maxFeeMinor) return { outcome: 'rejected', message: `FEE_CHANGED: cancellation fee is now ${terms.fee_minor}` };
     const u = await this.deps.db.query(

@@ -4,6 +4,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import type { Ctx } from '../context.js';
+import { txLeading } from '../db/db.js';
 import { hmac, safeEqual, UUID_RE } from '../domain/crypto.js';
 import { DomainError, isDomainError } from '../domain/errors.js';
 import type { Locale } from '../domain/locales.js';
@@ -12,6 +13,7 @@ import { money } from '../domain/money.js';
 import { DEMO_RESTAURANTS } from '../providers/demo/catalog.js';
 import { resolvePlace } from '../providers/demo/places.js';
 import { callProvider } from '../services/common.js';
+import { declineCheckout } from '../services/checkout.js';
 import { DemoService, detectService, fixTypos, hasFoodCue, parseIntent, serviceCues } from '../web/intent.js';
 import { SHOP_STORE, shopPicks, shopPlan } from '../web/try-services.js';
 import { tr } from '../web/messages.js';
@@ -20,10 +22,10 @@ import { CATALOGS } from '../i18n/generated.js';
 import { Card, CardOption, chatLocale, dataText, localText, trf } from './cards.js';
 import { WEB_DEMO_PARTNER } from './config.js';
 import {
-  cancellationCard, checkoutCard, confirmCancelPartner, confirmCheckout, declineCheckoutPartner, grabLinkStatus, orderCard, prepareCancelPartner, runTool, startGrabLink,
+  cancellationCard, checkoutCard, confirmCancelWithRows, confirmCheckout, grabLinkView, orderCard, prepareCancelPartner, runTool, startGrabLink,
 } from './core.js';
-import { loadPartnerUser, partnerActor, PartnerUser, upsertPartnerUser } from './users.js';
-import { lastPartnerEventSeq, listPartnerEventsFor } from './webhooks.js';
+import { loadPartnerUserWith, partnerActor, PartnerUser, UserExtras, UserExtrasResult, upsertPartnerUser } from './users.js';
+import { listPartnerEvents, listPartnerEventsFor, storedEvent } from './webhooks.js';
 
 const P = WEB_DEMO_PARTNER;
 const COOKIE = 'ari_demo';
@@ -492,7 +494,7 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
     }
     if (si.service === 'ride' || si.service === 'express') {
       // The saved places are read once here and handed to the tool call below, which resolves pickup and drop-off against them.
-      const places = await listAddresses(ctx.db, u.user_id);
+      const places = u.addresses ?? (await listAddresses(ctx.db, u.user_id));
       const addr = places.find((a) => a.is_default);
       // "Home" in any language is the saved default place, whatever language its label was saved in.
       si.pickup = placeAlias(si.pickup);
@@ -682,7 +684,7 @@ async function foodTurn(ctx: Ctx, u: PartnerUser, l: Locale, q: string, typed: s
   const partyGuess = intent.party_size || counted ? undefined : partyChips(l, typed, people);
   if (dishFits && r.card?.options) {
     // The named dishes, priced with delivery and fees, at every open restaurant that has them.
-    const addr = (await listAddresses(ctx.db, u.user_id)).find((a) => a.is_default);
+    const addr = (u.addresses ?? (await listAddresses(ctx.db, u.user_id))).find((a) => a.is_default);
     const provider = ctx.provider('demo');
     const mild = /not (?:too )?spicy|no spic|mild|не остр|неостр|ไม่เผ็ด/iu.test(q);
     const hot = !mild && /spicy|extra hot|остр|เผ็ด/iu.test(q);
@@ -846,8 +848,8 @@ async function createDemoUser(ctx: Ctx, ip: string, locale: Locale): Promise<Par
   const ipHash = hmac(ctx.cfg.demoWebhookSecret, `guest-ip:${ip}`).slice(0, 32);
   // Count and create under one lock so parallel requests cannot exceed the per-IP and global caps.
   // The user and the demo home address are written in the same transaction (one BEGIN/COMMIT).
-  const u = await ctx.db.tx(async (q) => {
-    await q.query("SELECT pg_advisory_xact_lock(hashtext('unyly.guest_create'))");
+  // The lock statement has no parameters, so it can travel with BEGIN (see txLeading).
+  const u = await txLeading(ctx.db, "SELECT pg_advisory_xact_lock(hashtext('unyly.guest_create'))", async (q) => {
     const c = (await q.query(
       `SELECT count(*)::int total, count(*) FILTER (WHERE guest_ip_hash = $1)::int mine FROM users WHERE is_guest AND created_at > now() - interval '1 hour'`,
       [ipHash],
@@ -869,10 +871,13 @@ function demoHome(locale: Locale) {
   });
 }
 
-/** The demo user of a sealed cookie value, or null when it no longer exists. Database errors are not "no user": they propagate. */
-async function demoUser(ctx: Ctx, ext: string): Promise<PartnerUser | null> {
+/**
+ * The demo user of a sealed cookie value, or null when it no longer exists. Database errors are not "no user": they propagate.
+ * `want`: rows of that user the request needs anyway, read in the same statement.
+ */
+async function demoUser(ctx: Ctx, ext: string, want: UserExtras = {}): Promise<{ user: PartnerUser; extra: UserExtrasResult } | null> {
   try {
-    return await loadPartnerUser(ctx, P, ext);
+    return await loadPartnerUserWith(ctx, P, ext, want);
   } catch (e) {
     if (isDomainError(e) && e.code === 'NOT_FOUND') return null;
     throw e;
@@ -897,19 +902,25 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     } catch { /* keep English */ }
     return send(reply, { ok: false, error: { code: err.code, message: humanError(l, err), details: err.details } }, err.httpStatus);
   };
-  const current = async (req: FastifyRequest): Promise<PartnerUser> => {
+  /** The sealed cookie is checked before a request body is looked at (as when the user was loaded first). */
+  const needSession = (req: FastifyRequest) => {
+    if (!openExt(ctx, (req.cookies as any)?.[COOKIE])) throw new DomainError('AUTH_REQUIRED', 'Start the demo first.');
+  };
+  const currentWith = async (req: FastifyRequest, want: UserExtras): Promise<{ user: PartnerUser; extra: UserExtrasResult }> => {
     const ext = openExt(ctx, (req.cookies as any)?.[COOKIE]);
     if (!ext) throw new DomainError('AUTH_REQUIRED', 'Start the demo first.');
-    const u = await demoUser(ctx, ext);
-    if (!u) throw new DomainError('AUTH_REQUIRED', 'The demo session ended. Start again.');
+    const got = await demoUser(ctx, ext, want);
+    if (!got) throw new DomainError('AUTH_REQUIRED', 'The demo session ended. Start again.');
+    const u = got.user;
     const l = detectLocale(req);
     if (l !== u.locale) {
       await ctx.db.query('UPDATE users SET locale = $2 WHERE id = $1', [u.user_id, l]);
       u.locale = l;
       if (u.row) u.row.locale = l;
     }
-    return u;
+    return got;
   };
+  const current = async (req: FastifyRequest): Promise<PartnerUser> => (await currentWith(req, {})).user;
   const rl = (max: number) => ({ config: { rateLimit: { max, timeWindow: '1 minute' } } });
 
   app.post('/ari/api/session', rl(60), async (req, reply) => {
@@ -918,15 +929,15 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const l = detectLocale(req);
       let u: PartnerUser | null = null;
       const ext = openExt(ctx, (req.cookies as any)?.[COOKIE]);
-      if (ext) u = await demoUser(ctx, ext);
+      // A returning visitor: the user, the Grab link and the newest event number in one statement.
+      const back = ext ? await demoUser(ctx, ext, { session: true }) : null;
+      if (back) u = back.user;
       if (!u) {
         u = await createDemoUser(ctx, req.ip, l);
         reply.setCookie(COOKIE, sealExt(ctx, u.external_user_id), { httpOnly: true, secure: ctx.cfg.cookieSecure, sameSite: 'lax', path: '/ari', maxAge: 24 * 3600 });
       }
-      // A user created by this request has no Grab link and no events yet; for a returning one both are read together.
-      const [grab, lastEvent] = u.created
-        ? [{ linked: false, linked_at: null, simulated: false }, 0]
-        : await Promise.all([grabLinkStatus(ctx, u), lastPartnerEventSeq(ctx, u.user_id)]);
+      // A user created by this request has no Grab link and no events yet; for a returning one both came with the user.
+      const [grab, lastEvent] = back ? [grabLinkView(back.extra.grab), back.extra.lastEvent ?? 0] : [{ linked: false, linked_at: null, simulated: false }, 0];
       return send(reply, {
         ok: true, user: { id: u.external_user_id }, grab, examples: ariExamples(l), last_event: lastEvent,
         greeting: tr(l, { en: 'Hi, I\'m Ari. Tell me what you need from Grab and I\'ll take care of it. Nothing is ordered until you confirm.', ru: 'Здравствуйте, я Ari. Скажите, что нужно от Grab, и я всё сделаю. Ничего не заказывается без вашего подтверждения.', th: 'สวัสดีค่ะ Ari เองค่ะ บอกได้เลยว่าต้องการอะไรจาก Grab เดี๋ยว Ari จัดการให้ และจะยังไม่สั่งอะไรจนกว่าคุณจะยืนยันค่ะ' }),
@@ -939,7 +950,8 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
   app.post('/ari/api/message', rl(90), async (req, reply) => {
     try {
       guard(req);
-      const u = await current(req);
+      // The saved addresses come with the user: a trip or a food search needs them, and so does every cart.
+      const u = (await currentWith(req, { addresses: true })).user;
       // A message that is not text is an empty message (Ari greets); it is never coerced: String() of a crafted object throws.
       const t0 = (req.body as any)?.text;
       const text = typeof t0 === 'string' ? t0 : '';
@@ -952,7 +964,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
   app.post('/ari/api/action', rl(90), async (req, reply) => {
     try {
       guard(req);
-      const u = await current(req);
+      const u = (await currentWith(req, { addresses: true })).user;
       const b = (req.body && typeof req.body === 'object' ? req.body : {}) as any;
       const name = field(b, 'tool');
       if (!ALLOWED_TOOLS.has(name)) throw new DomainError('VALIDATION_FAILED', 'Unknown action');
@@ -973,14 +985,16 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
   app.post('/ari/api/confirm', rl(60), async (req, reply) => {
     try {
       guard(req);
-      const u = await current(req);
+      needSession(req);
       const b = (req.body && typeof req.body === 'object' ? req.body : {}) as any;
       const id = field(b, 'checkout_id');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Checkout not found');
+      // The user and the checkout (for the unlocked checks before the confirmation) in one statement.
+      const { user: u, extra } = await currentWith(req, { checkoutId: id });
       const trace: TraceEntry[] = [];
       const r = await traced(trace, `POST /partner/v1/users/${u.external_user_id}/checkouts/${id}/confirm`, null, () => confirmCheckout(ctx, P, u, id, {
         confirm_hash: b.confirm_hash, user_verification: 'biometric', confirmed_at: ctx.clock.now().toISOString(), device_id: 'web-demo',
-      }));
+      }, { pre: extra.checkout }));
       // The service for the trace line comes from the order card of the result; only when there is no order yet is it looked up.
       const service = r.order?.card.service
         ?? (await ctx.db.query('SELECT k.service FROM checkouts c JOIN carts k ON k.id = c.cart_id WHERE c.id = $1 AND c.user_id = $2', [id, u.user_id])).rows[0]?.service;
@@ -1002,7 +1016,8 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const u = await current(req);
       const id = field(req.body, 'checkout_id');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Checkout not found');
-      await declineCheckoutPartner(ctx, P, u, id);
+      // The card below is read after the decline and shows its result; no separate status read is needed here.
+      await declineCheckout(ctx, u.user_id, id, `partner:${P.id}`);
       return send(reply, { ok: true, reply: tr(chatLocale(u.locale),{ en: 'No problem, nothing was ordered.', ru: 'Хорошо, ничего не заказано.', th: 'ได้ค่ะ ยังไม่ได้สั่งอะไรนะคะ' }), card: await checkoutCard(ctx, P, u, id) });
     } catch (e) {
       return fail(reply, e, req);
@@ -1012,10 +1027,22 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
   app.get('/ari/api/orders/:id', rl(240), async (req, reply) => {
     try {
       guard(req);
-      const u = await current(req);
+      needSession(req);
       const id = String((req.params as any).id ?? '');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Order not found');
-      return send(reply, { ok: true, card: await orderCard(ctx, P, u, id, { refresh: true }) });
+      // The poll: the user, the order and its simulator row in one statement; nothing else when there is no news.
+      // Optional ?after=<seq>: the same answer also carries the user's events after that number (what
+      // GET /ari/api/events returns), so a page can poll one endpoint instead of two.
+      const afterRaw = (req.query as any)?.after;
+      const after = afterRaw === undefined ? undefined : Math.max(Number(afterRaw) || 0, 0);
+      const { user: u, extra } = await currentWith(req, { orderId: id, eventsAfter: after });
+      if (!extra.order) throw new DomainError('NOT_FOUND', 'Order not found');
+      const card = await orderCard(ctx, P, u, id, { refresh: true, known: extra.order });
+      if (after === undefined) return send(reply, { ok: true, card });
+      // A status this very poll picked up wrote its event after the read above: read the events again in that case only.
+      const moved = card.status?.code !== extra.order.order.fulfillment_status;
+      const events = moved ? await listPartnerEvents(ctx, u.user_id, after) : (extra.events ?? []).map(storedEvent);
+      return send(reply, { ok: true, card, events });
     } catch (e) {
       return fail(reply, e, req);
     }
@@ -1039,10 +1066,12 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
   app.post('/ari/api/cancel', rl(20), async (req, reply) => {
     try {
       guard(req);
-      const u = await current(req);
+      needSession(req);
       const id = field(req.body, 'order_id');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Order not found');
-      const r = await prepareCancelPartner(ctx, P, u, id);
+      // The user, the order and its simulator row in one statement.
+      const { user: u, extra } = await currentWith(req, { orderId: id });
+      const r = await prepareCancelPartner(ctx, P, u, id, extra.order ?? undefined);
       return send(reply, { ok: true, reply: tr(chatLocale(u.locale),{ en: 'Here are the cancellation terms:', ru: 'Условия отмены:', th: 'นี่คือเงื่อนไขการยกเลิกค่ะ' }), card: r.card });
     } catch (e) {
       return fail(reply, e, req);
@@ -1056,7 +1085,8 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const b = (req.body && typeof req.body === 'object' ? req.body : {}) as any;
       const id = field(b, 'cancellation_id');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Cancellation not found');
-      const r = await confirmCancelPartner(ctx, P, u, id, { confirm_hash: b.confirm_hash, user_verification: 'tap', confirmed_at: ctx.clock.now().toISOString() });
+      const full = await confirmCancelWithRows(ctx, P, u, id, { confirm_hash: b.confirm_hash, user_verification: 'tap', confirmed_at: ctx.clock.now().toISOString() });
+      const r = full.out;
       const done = r.cancellation.status === 'executed';
       return send(reply, {
         ok: true,
@@ -1064,7 +1094,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
           ? tr(chatLocale(u.locale),{ en: 'Cancelled.', ru: 'Заказ отменён.', th: 'ยกเลิกแล้วค่ะ' })
           : tr(chatLocale(u.locale),{ en: 'The cancellation did not go through; the order continues.', ru: 'Отменить не получилось, заказ продолжается.', th: 'ยกเลิกไม่สำเร็จค่ะ คำสั่งซื้อยังดำเนินต่อ' }),
         card: r.order.card,
-        cancel_card: await cancellationCard(ctx, P, u, id),
+        cancel_card: await cancellationCard(ctx, P, u, id, full.request, full.order),
       });
     } catch (e) {
       return fail(reply, e, req);

@@ -43,11 +43,18 @@ export function countingDb(db: Db): { db: Db; counter: QueryCounter } {
       note(sql, false);
       return db.query(sql, params);
     },
-    tx: (fn) => {
+    tx: (fn, opts) => {
       counter.transactions++;
       counter.roundTrips += 2;
       counter.log.push('BEGIN..COMMIT');
-      return db.tx((q) => fn({ query: (sql, params) => { note(sql, true); return q.query(sql, params); } } as Queryable));
+      // A lead statement (a row lock) travels with BEGIN when the database supports it: no round trip of its own then.
+      return db.tx((q, lead) => {
+        if (lead && opts?.lead) {
+          counter.statements++;
+          counter.log.push(`  tx (with BEGIN) ${opts.lead.replace(/\s+/g, ' ').trim().slice(0, 96)}`);
+        }
+        return fn({ query: (sql, params) => { note(sql, true); return q.query(sql, params); } } as Queryable, lead);
+      }, opts);
     },
     close: () => db.close(),
     ping: () => db.ping(),

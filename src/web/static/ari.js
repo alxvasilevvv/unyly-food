@@ -110,7 +110,7 @@
           const dot = document.createElementNS(NS, 'circle');
           dot.setAttribute('cx', String((x + c) * 2 + 1));
           dot.setAttribute('cy', String(y * 2 + 1));
-          dot.setAttribute('r', '.8');
+          dot.setAttribute('r', '.9');
           s.appendChild(dot);
         }
       });
@@ -133,7 +133,13 @@
       return `${n} km`;
     }
   };
-  const scroll = () => requestAnimationFrame(() => (chat.scrollTop = chat.scrollHeight));
+  // Stay on the latest message. A card taller than the chat is shown from its title, not from its bottom.
+  const scroll = () => requestAnimationFrame(() => {
+    const last = chat.lastElementChild;
+    if (last && last.classList.contains('ari-card') && last.offsetHeight > chat.clientHeight - 24) {
+      chat.scrollTop += last.getBoundingClientRect().top - chat.getBoundingClientRect().top - 8;
+    } else chat.scrollTop = chat.scrollHeight;
+  });
   const withLang = (u) => `${u}${u.includes('?') ? '&' : '?'}lang=${encodeURIComponent(lang)}`;
   const failure = (code, status, message) => Object.assign(new Error(message || ''), { code, status });
   const request = async (method, url, body) => {
@@ -399,7 +405,7 @@
       if (keep) {
         const b = el('button', 'ac-act secondary', keep.label);
         b.type = 'button';
-        b.addEventListener('click', () => c.querySelectorAll('button').forEach((x) => (x.disabled = true)));
+        b.addEventListener('click', () => { if (!busy) markDone(c, keep.label, true); });
         c.append(b);
       }
       if (card.footnote) c.append(el('div', 'ac-foot', card.footnote));
@@ -417,11 +423,7 @@
     }
     if (!opts.detached) {
       chat.appendChild(c);
-      // A card taller than the chat is shown from its title, not from its bottom.
-      requestAnimationFrame(() => {
-        if (c.offsetHeight > chat.clientHeight - 24) chat.scrollTop += c.getBoundingClientRect().top - chat.getBoundingClientRect().top - 8;
-        else chat.scrollTop = chat.scrollHeight;
-      });
+      scroll();
     }
     return c;
   }
@@ -471,7 +473,11 @@
       const cv = el('span', 'cv');
       cv.appendChild(svg(card.service === 'ride' ? 'car' : 'bike'));
       const info = el('div');
-      info.append(el('b', '', `${card.courier.name} · ★ ${card.courier.rating}`), el('br'), document.createTextNode(card.courier.vehicle));
+      // Name and rating are separate pieces: on a narrow card the rating moves to its own line whole.
+      const who = el('span', 'cr-who');
+      who.append(el('b', '', card.courier.name));
+      if (card.courier.rating) who.append(el('span', 'cr-rate', `★\u00a0${card.courier.rating}`));
+      info.append(who, el('span', 'cr-veh', card.courier.vehicle));
       cr.append(cv, info, el('span', 'plate', card.courier.plate));
       c.append(cr);
     }
@@ -556,7 +562,7 @@
 
   function markDone(node, text, ok) {
     node.querySelectorAll('.ac-btn, .ac-act').forEach((b) => b.remove());
-    const d = el('div', 'ac-done');
+    const d = el('div', ok ? 'ac-done' : 'ac-done off');
     if (ok) d.appendChild(svg('check'));
     d.appendChild(document.createTextNode(text));
     const foot = node.querySelector('.ac-foot');
@@ -677,6 +683,8 @@
   function doCancelConfirm(card, action, node, btn) {
     return cardAction(node, btn, () => api('POST', withLang('/ari/api/cancel/confirm'), { cancellation_id: card.id, confirm_hash: action.endpoint.body.confirm_hash }), (r) => {
       addTrace(r.trace);
+      // The question is answered: its buttons give way to the outcome ("Cancelled").
+      if (r.card && r.card.status && r.card.status.label) markDone(node, r.card.status.label, false);
       say('ari', r.reply);
       if (r.card) {
         const c = orderCards.get(r.card.id);
