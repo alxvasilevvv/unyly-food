@@ -329,7 +329,7 @@ export function registerWebRoutes(app: FastifyInstance, ctx: Ctx) {
 
   app.get('/manifest.webmanifest', async (_req, reply) =>
     reply.type('application/manifest+json').header('cache-control', 'public, max-age=86400').send({
-      name: 'Unyly for Grab', short_name: 'Unyly', start_url: '/', display: 'standalone', background_color: '#0a0a0f', theme_color: '#077a49',
+      name: 'Ari × Grab', short_name: 'Ari × Grab', start_url: '/', display: 'standalone', background_color: '#0a0a0f', theme_color: '#6b4ef6',
       icons: [
         { src: '/static/brand/icon-192.png', sizes: '192x192', type: 'image/png' },
         { src: '/static/brand/icon-512.png', sizes: '512x512', type: 'image/png' },

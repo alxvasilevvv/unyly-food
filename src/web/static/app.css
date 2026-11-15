@@ -1046,6 +1046,9 @@ nav.main details + details { margin-top: 0; }
 .ari-hero h1, .sec h2, .ari-doc h1, .ari-doc h2, .ari-demo-right h1, .step-card h3, .feature h3 { text-wrap: balance; }
 .ari-hero .lead, .sec .lead, .sec p, .ari-doc p, .ari-doc li, .ari-demo-right .lead { text-wrap: pretty; }
 .h1-line { display: block; }
+html[lang="ru"] .ari-hero h1 { font-size: clamp(34px, 4.6vw, 56px); }
+.ari-hero .eyebrow, .sec .eyebrow, .ari-demo-right .eyebrow, .ari-doc .eyebrow { line-height: 1.3; align-items: flex-start; }
+.ari-hero .eyebrow svg, .sec .eyebrow svg, .ari-demo-right .eyebrow svg, .ari-doc .eyebrow svg { flex: none; margin-top: 1px; }
 @media (min-width: 1600px) { body:has(.ari-hero) .wrap, body:has(.ari-demo-page) .wrap { max-width: 1280px; } .ari-hero h1 { font-size: 76px; } .ari-hero .lead { font-size: 21px; max-width: 680px; } }
 
 /* Landing rhythm */
@@ -1198,6 +1201,8 @@ button.ac-btn::after { content: ""; position: absolute; inset: 0; background: li
 .ac-courier { padding: 11px 12px; border-radius: 15px; }
 .ac-courier .cv { width: 40px; height: 40px; background: linear-gradient(135deg, #3a3060, #2c2640); }
 .ac-courier .plate { border: 1px solid #d4d4c8; letter-spacing: .04em; }
+.ac-courier div b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-courier div br { display: none; }
 .ari-chips { padding: 8px 14px 8px; }
 .ari-chips button { min-height: 38px; padding: 9px 14px; position: relative; font-size: 13px; }
 .ari-chips button:active { background: #221d31; }
@@ -1240,7 +1245,7 @@ button.ac-btn::after { content: ""; position: absolute; inset: 0; background: li
 .ari-call.active .call-wave { display: flex; }
 .call-wave i { width: 4px; height: 6px; border-radius: 2px; background: #c4b5fd; transition: height .3s ease; }
 .ari-call.speaking .call-wave i { animation: ariWave .9s ease-in-out infinite; }
-.call-wave i:nth-child(2) { animation-delay: -.75s; } .call-wave i:nth-child(3) { animation-delay: -.3s; } .call-wave i:nth-child(4) { animation-delay: -.55s; } .call-wave i:nth-child(5) { animation-delay: -.15s; } .call-wave i:nth-child(6) { animation-delay: -.65s; } .call-wave i:nth-child(7) { animation-delay: -.4s; }
+.ari-call.speaking .call-wave i:nth-child(2) { animation-delay: -.75s; } .ari-call.speaking .call-wave i:nth-child(3) { animation-delay: -.3s; } .ari-call.speaking .call-wave i:nth-child(4) { animation-delay: -.55s; } .ari-call.speaking .call-wave i:nth-child(5) { animation-delay: -.15s; } .ari-call.speaking .call-wave i:nth-child(6) { animation-delay: -.65s; } .ari-call.speaking .call-wave i:nth-child(7) { animation-delay: -.4s; }
 @keyframes ariWave { 0%, 100% { height: 6px; } 50% { height: 26px; } }
 .call-line { font-size: 16.5px; min-height: 96px; max-width: 300px; text-wrap: balance; animation: ariFade .4s ease both; }
 .call-btns { gap: 64px; }
@@ -1287,9 +1292,11 @@ button.ac-btn::after { content: ""; position: absolute; inset: 0; background: li
   .trace-hint svg { width: 17px; height: 17px; color: var(--ari); }
   .trace-hint svg:last-child { transform: rotate(90deg); animation: ariNudge 1.8s ease-in-out infinite; }
   .ari-demo-left { justify-items: center; }
+  .ari-phone.big .ari-screen { height: min(78vh, calc(100svh - 150px)); }
   .trace-list { max-height: 420px; }
   .ari-demo-right { padding-top: 6px; }
 }
+@media (max-width: 480px) { .ari-phone.big .ari-screen { height: calc(100svh - 222px); min-height: 420px; } .trace-hint { margin-top: 10px; } }
 @keyframes ariNudge { 0%, 100% { translate: 0 -2px; } 50% { translate: 0 3px; } }
 
 /* Proposal and developers pages */
@@ -1299,7 +1306,8 @@ button.ac-btn::after { content: ""; position: absolute; inset: 0; background: li
 .ari-doc .sec-block h2 { font-size: clamp(22px, 2.8vw, 30px); }
 .ari-doc .sec-block h2 svg { flex: none; }
 .ari-doc .cov-legend { margin: 0 0 14px; }
-.cov-table th[scope="row"] { white-space: normal; min-width: 132px; max-width: 190px; text-wrap: balance; }
+.cov-table th[scope="row"] { white-space: normal; min-width: 168px; max-width: 220px; line-height: 1.35; }
+@media (max-width: 900px) { .cov-table th[scope="row"] { min-width: 0; max-width: none; } }
 .cov-table td { font-size: 14px; }
 .cov-table td.mono { font-size: 12.5px; line-height: 1.5; }
 .cov-table tbody tr:hover > * { background: color-mix(in srgb, var(--ari-soft) 45%, transparent); }
@@ -1320,6 +1328,7 @@ button.ac-btn::after { content: ""; position: absolute; inset: 0; background: li
 .ari-doc .pitch-contact { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: center; justify-content: space-between; }
 .ari-doc .pitch-contact > * { margin-top: 0; }
 .ari-doc .grid2 > div { min-width: 0; }
+.ari-doc .sec-block.grid2 { grid-template-columns: minmax(0, 1fr); gap: 36px; }
 .ari-doc .grid2 h2 { margin-top: 0; }
 .code-block { position: relative; border-radius: 16px; background: #0d0b14; }
 .code-block pre.code { margin: 0; padding: 46px 18px 16px; white-space: pre; overflow-x: auto; max-width: 100%; border-radius: 16px; -webkit-overflow-scrolling: touch; tab-size: 2; }
@@ -1361,7 +1370,7 @@ button.ac-btn::after { content: ""; position: absolute; inset: 0; background: li
   .ari-doc h1 { font-size: 24pt; margin: 0 0 8pt; }
   .ari-doc .lead { font-size: 11.5pt; max-width: none; }
   .ari-doc .eyebrow { margin-bottom: 6pt; }
-  .ari-doc .sec-block { margin: 16pt 0; }
+  .ari-doc .sec-block { margin: 13pt 0; }
   .ari-doc .sec-block h2 { font-size: 14pt; margin: 0 0 8pt; break-after: avoid; }
   .ari-doc .sec-block h2 svg { width: 14pt; height: 14pt; }
   .ari-doc .card, .ari-doc .checklist li, .ari-doc .pilot-plan li, .ari-doc .asks li, .ari-doc .notice, .ari-doc .table-wrap, .ari-doc .table-wrap thead th, .ari-doc .cov-legend, .ari-doc .cov-legend li, .ari-doc .st, .ari-doc .pill, .ari-doc .ico, .code-block, .code-block pre.code { background: #fff !important; border-color: #bdbdbd !important; }
@@ -1378,7 +1387,10 @@ button.ac-btn::after { content: ""; position: absolute; inset: 0; background: li
   .ari-doc .cov-legend b { font-size: 12pt; } .ari-doc .cov-legend .st-name { font-size: 9pt; } .ari-doc .cov-legend small { font-size: 7.5pt; }
   .st-dot { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .ari-doc .st { border: .5pt solid #bdbdbd; padding: 1pt 6pt 1pt 5pt; font-size: 8pt; }
-  .ari-doc .table-wrap { overflow: visible; border-radius: 6pt; }
+  .ari-doc .table-wrap { overflow: visible; border: 0 !important; border-radius: 0; }
+  .ari-doc .cov-table th[scope="row"] { min-width: 0; max-width: 78pt; }
+  .ari-doc .cov-table thead th { border-top: .5pt solid #bdbdbd; }
+  .ari-doc .sec-block:has(.pitch-contact) { margin-top: 8pt; break-before: avoid; }
   .ari-doc .cov-table { display: table !important; width: 100%; font-size: 8.5pt; line-height: 1.35; }
   .ari-doc .cov-table thead { display: table-header-group !important; position: static !important; width: auto; height: auto; clip: auto; overflow: visible; }
   .ari-doc .cov-table tbody { display: table-row-group !important; }
