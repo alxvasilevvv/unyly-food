@@ -9,7 +9,7 @@ const CACHE = 'public, max-age=3600';
 
 /** Paths crawlers should skip: signed-in pages, single-use flows and machine endpoints. */
 export function disallowedPaths(mcpPath: string): string[] {
-  return [...new Set(['/app', '/confirm', '/confirm-cancel', '/oauth', '/login/code', mcpPath, '/auth', '/webhooks'])];
+  return [...new Set(['/app', '/confirm', '/confirm-cancel', '/oauth', '/login/code', mcpPath, '/auth', '/webhooks', '/ari/api', '/partner/v1'])];
 }
 
 const xmlEscape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

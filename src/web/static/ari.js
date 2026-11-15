@@ -334,10 +334,12 @@
     } else {
       c.append(el('h4', '', card.title));
       if (card.subtitle) c.append(el('div', 'sub', card.subtitle));
-      (card.actions || []).filter((a) => a.kind === 'open_url' && a.url).forEach((a) => {
+      // Links from a card are opened only when they are plain web links (never javascript:, data: or the like).
+      (card.actions || []).filter((a) => a.kind === 'open_url' && typeof a.url === 'string' && /^https?:\/\//i.test(a.url)).forEach((a) => {
         const link = el('a', 'ac-btn', a.label);
         link.href = a.url;
-        link.rel = 'noopener';
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
         c.append(link);
       });
     }

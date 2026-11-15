@@ -1,5 +1,11 @@
 [
  {
+  "en": "\"{place}\" is outside the demo area: rides and parcels here run within Bangkok only. Try one of these:",
+  "where": [
+   "src/partners/webdemo.ts:785"
+  ]
+ },
+ {
   "en": "\"Dinner for two under 600 baht, no nuts.\" \"A taxi from Siam to the airport.\" \"Red roses by 8 pm.\"",
   "where": [
    "src/web/messages.ts:270"
@@ -60,9 +66,106 @@
   ]
  },
  {
+  "en": "{dish} is on the menu at {store}, but it does not deliver to your address right now.",
+  "where": [
+   "src/partners/webdemo.ts:735"
+  ]
+ },
+ {
+  "en": "{dish} is on the menu at {store}, but it is closed right now.",
+  "where": [
+   "src/partners/webdemo.ts:659"
+  ]
+ },
+ {
+  "en": "{item} at {store} does not fit your restrictions, so I left it out.",
+  "where": [
+   "src/partners/webdemo.ts:662"
+  ]
+ },
+ {
+  "en": "{item} is at another restaurant ({store}): ask for it as a separate order.",
+  "where": [
+   "src/partners/webdemo.ts:665"
+  ]
+ },
+ {
+  "en": "{n} option for {people} under ฿{budget}.",
+  "where": [
+   "src/partners/webdemo.ts:626"
+  ]
+ },
+ {
+  "en": "{n} option for {people}.",
+  "where": [
+   "src/partners/webdemo.ts:630"
+  ]
+ },
+ {
+  "en": "{n} options for {people} under ฿{budget}.",
+  "where": [
+   "src/partners/webdemo.ts:627"
+  ]
+ },
+ {
+  "en": "{n} options for {people}.",
+  "where": [
+   "src/partners/webdemo.ts:631"
+  ]
+ },
+ {
+  "en": "{n} seat",
+  "where": [
+   "src/partners/cards.ts:160"
+  ]
+ },
+ {
+  "en": "{n} seats",
+  "where": [
+   "src/partners/cards.ts:161"
+  ]
+ },
+ {
   "en": "{n} signed endpoints, model-neutral tool definitions and a card schema the app renders natively.",
   "where": [
    "src/web/ari-pages.ts:166"
+  ]
+ },
+ {
+  "en": "{s}, for {n}",
+  "where": [
+   "src/partners/webdemo.ts:761",
+   "src/partners/webdemo.ts:762"
+  ]
+ },
+ {
+  "en": "{store}: {names}.",
+  "where": [
+   "src/partners/webdemo.ts:601"
+  ]
+ },
+ {
+  "en": "{trip} for {n} people",
+  "where": [
+   "src/partners/webdemo.ts:293"
+  ]
+ },
+ {
+  "en": "{what} has been delivered.",
+  "where": [
+   "src/partners/webhooks.ts:60"
+  ]
+ },
+ {
+  "en": "{what}: {status}. Nothing more will happen with this order.",
+  "where": [
+   "src/partners/webhooks.ts:64"
+  ]
+ },
+ {
+  "en": "{what}: the courier is on the way to you.",
+  "where": [
+   "src/partners/webhooks.ts:54"
   ]
  },
  {
@@ -93,6 +196,12 @@
   "en": "8 markets, 10 languages",
   "where": [
    "src/web/ari-pages.ts:92"
+  ]
+ },
+ {
+  "en": "A {kg} kg parcel is too heavy: the largest vehicle here carries up to {max} kg. Try a lighter parcel or split it.",
+  "where": [
+   "src/partners/webdemo.ts:543"
   ]
  },
  {
@@ -128,7 +237,7 @@
  {
   "en": "A chat message can't confirm an order. If the card looks right, tap its Confirm button: that is the only way an order is placed. Nothing has been ordered so far.",
   "where": [
-   "src/partners/webdemo.ts:408"
+   "src/partners/webdemo.ts:447"
   ]
  },
  {
@@ -328,6 +437,12 @@
   ]
  },
  {
+  "en": "Airport pickup fee",
+  "where": [
+   "src/partners/cards.ts:143"
+  ]
+ },
+ {
   "en": "All contacts",
   "where": [
    "src/web/ari-pages.ts:384",
@@ -345,6 +460,12 @@
   "en": "Allergen data comes from restaurants and may be incomplete. Unyly never calls a dish safe. Check with the restaurant.",
   "where": [
    "src/web/showcase.ts:590"
+  ]
+ },
+ {
+  "en": "Allergen data comes from restaurants and may be missing or incomplete. Unyly never marks a dish as safe. Confirm with the restaurant.",
+  "where": [
+   "src/partners/cards.ts:130"
   ]
  },
  {
@@ -732,7 +853,7 @@
  {
   "en": "Bangkok has two airports. Which one?",
   "where": [
-   "src/partners/webdemo.ts:724"
+   "src/partners/webdemo.ts:782"
   ]
  },
  {
@@ -774,7 +895,7 @@
  {
   "en": "boat noodles",
   "where": [
-   "src/partners/webdemo.ts:147"
+   "src/partners/webdemo.ts:159"
   ]
  },
  {
@@ -806,7 +927,7 @@
  {
   "en": "bubble tea",
   "where": [
-   "src/partners/webdemo.ts:165"
+   "src/partners/webdemo.ts:177"
   ]
  },
  {
@@ -848,13 +969,14 @@
  {
   "en": "Bulky parcels up to 100 kg.",
   "where": [
+   "src/partners/cards.ts:139",
    "src/providers/demo/catalog.ts:261"
   ]
  },
  {
   "en": "burger",
   "where": [
-   "src/partners/webdemo.ts:153"
+   "src/partners/webdemo.ts:165"
   ]
  },
  {
@@ -909,7 +1031,7 @@
  {
   "en": "Cancel order",
   "where": [
-   "src/partners/cards.ts:70",
+   "src/partners/cards.ts:71",
    "src/web/ari-pages.ts:209",
    "src/web/messages.ts:385"
   ]
@@ -949,13 +1071,25 @@
  {
   "en": "Cancelled.",
   "where": [
-   "src/partners/webdemo.ts:994"
+   "src/partners/webdemo.ts:1052"
   ]
  },
  {
   "en": "Candles",
   "where": [
    "src/providers/demo/catalog.ts:226"
+  ]
+ },
+ {
+  "en": "Cannot cancel: the parcel has been picked up.",
+  "where": [
+   "src/partners/cards.ts:149"
+  ]
+ },
+ {
+  "en": "Cannot cancel: the trip has started or ended.",
+  "where": [
+   "src/partners/cards.ts:148"
   ]
  },
  {
@@ -968,6 +1102,12 @@
   "en": "Care Pharmacy Asok (Demo)",
   "where": [
    "src/providers/demo/catalog.ts:185"
+  ]
+ },
+ {
+  "en": "Cars that seat {n} are on top.",
+  "where": [
+   "src/partners/webdemo.ts:552"
   ]
  },
  {
@@ -1045,7 +1185,7 @@
  {
   "en": "Choose",
   "where": [
-   "src/partners/cards.ts:69",
+   "src/partners/cards.ts:70",
    "src/web/ari-pages.ts:220",
    "src/web/showcase.ts:526"
   ]
@@ -1093,6 +1233,12 @@
   ]
  },
  {
+  "en": "Closed right now",
+  "where": [
+   "src/partners/cards.ts:190"
+  ]
+ },
+ {
   "en": "Closed today (demo)",
   "where": [
    "src/providers/demo/catalog.ts:108"
@@ -1137,7 +1283,7 @@
  {
   "en": "Confirm cancellation",
   "where": [
-   "src/partners/cards.ts:71",
+   "src/partners/cards.ts:72",
    "src/web/messages.ts:430"
   ]
  },
@@ -1156,13 +1302,13 @@
  {
   "en": "Confirm order",
   "where": [
-   "src/partners/cards.ts:58"
+   "src/partners/cards.ts:59"
   ]
  },
  {
   "en": "Confirm ride",
   "where": [
-   "src/partners/cards.ts:59"
+   "src/partners/cards.ts:60"
   ]
  },
  {
@@ -1476,7 +1622,7 @@
  {
   "en": "curry",
   "where": [
-   "src/partners/webdemo.ts:167"
+   "src/partners/webdemo.ts:179"
   ]
  },
  {
@@ -1585,13 +1731,13 @@
  {
   "en": "Deliveries in this demo go to your saved home address (88 Sukhumvit Soi 24). Addresses are changed in the app settings, not in the chat. For a ride or a parcel just name the places:",
   "where": [
-   "src/partners/webdemo.ts:386"
+   "src/partners/webdemo.ts:425"
   ]
  },
  {
   "en": "Delivery",
   "where": [
-   "src/partners/cards.ts:64",
+   "src/partners/cards.ts:65",
    "src/web/messages.ts:406"
   ]
  },
@@ -1670,6 +1816,36 @@
   ]
  },
  {
+  "en": "Demo terms: free cancellation before the restaurant starts preparing; 50% of the total after that; not possible once picked up.",
+  "where": [
+   "src/partners/cards.ts:126"
+  ]
+ },
+ {
+  "en": "Demo terms: free cancellation before the store starts picking; 50% of the total after that; not possible once picked up.",
+  "where": [
+   "src/partners/cards.ts:127"
+  ]
+ },
+ {
+  "en": "Demo terms: free cancellation right after a courier is assigned; 20 THB once the courier is on the way; not possible after pickup.",
+  "where": [
+   "src/partners/cards.ts:129"
+  ]
+ },
+ {
+  "en": "Demo terms: free cancellation right after a driver is assigned; 30 THB once the driver is on the way; not possible after pickup.",
+  "where": [
+   "src/partners/cards.ts:128"
+  ]
+ },
+ {
+  "en": "Demo wallet (no real charge)",
+  "where": [
+   "src/partners/cards.ts:125"
+  ]
+ },
+ {
   "en": "Demo: not charged",
   "where": [
    "src/web/messages.ts:395"
@@ -1678,7 +1854,7 @@
  {
   "en": "Demo: nothing is delivered or charged",
   "where": [
-   "src/partners/cards.ts:57"
+   "src/partners/cards.ts:58"
   ]
  },
  {
@@ -1758,7 +1934,7 @@
  {
   "en": "Dinner for two under 300 baht",
   "where": [
-   "src/partners/webdemo.ts:442"
+   "src/partners/webdemo.ts:481"
   ]
  },
  {
@@ -1770,7 +1946,7 @@
  {
   "en": "Discount",
   "where": [
-   "src/partners/cards.ts:67",
+   "src/partners/cards.ts:68",
    "src/web/messages.ts:409"
   ]
  },
@@ -1797,6 +1973,7 @@
  {
   "en": "Documents and parcels up to 20 kg.",
   "where": [
+   "src/partners/cards.ts:138",
    "src/providers/demo/catalog.ts:260"
   ]
  },
@@ -1804,6 +1981,12 @@
   "en": "does not deliver to you",
   "where": [
    "src/web/showcase.ts:584"
+  ]
+ },
+ {
+  "en": "Does not deliver to your default address",
+  "where": [
+   "src/partners/cards.ts:145"
   ]
  },
  {
@@ -1815,7 +1998,7 @@
  {
   "en": "Doing well, thank you! What can I get you from Grab?",
   "where": [
-   "src/partners/webdemo.ts:401"
+   "src/partners/webdemo.ts:440"
   ]
  },
  {
@@ -1827,7 +2010,7 @@
  {
   "en": "Done! I'll keep you posted and call you when it matters.",
   "where": [
-   "src/partners/webdemo.ts:921"
+   "src/partners/webdemo.ts:979"
   ]
  },
  {
@@ -1903,7 +2086,7 @@
  {
   "en": "dumplings",
   "where": [
-   "src/partners/webdemo.ts:161"
+   "src/partners/webdemo.ts:173"
   ]
  },
  {
@@ -2050,7 +2233,7 @@
   "en": "Excluded allergens not declared",
   "where": [
    "src/partners/core.ts:56",
-   "src/partners/webdemo.ts:572"
+   "src/partners/webdemo.ts:619"
   ]
  },
  {
@@ -2074,7 +2257,7 @@
  {
   "en": "Face ID required for this amount",
   "where": [
-   "src/partners/cards.ts:73"
+   "src/partners/cards.ts:74"
   ]
  },
  {
@@ -2240,9 +2423,21 @@
   ]
  },
  {
+  "en": "Found it: {items} at {store}, {price} with delivery.",
+  "where": [
+   "src/partners/webdemo.ts:728"
+  ]
+ },
+ {
   "en": "Fragile",
   "where": [
-   "src/partners/webdemo.ts:489"
+   "src/partners/webdemo.ts:528"
+  ]
+ },
+ {
+  "en": "Free cancellation (demo).",
+  "where": [
+   "src/partners/cards.ts:194"
   ]
  },
  {
@@ -2272,19 +2467,25 @@
  {
   "en": "fried chicken",
   "where": [
-   "src/partners/webdemo.ts:164"
+   "src/partners/webdemo.ts:176"
   ]
  },
  {
   "en": "fried rice",
   "where": [
-   "src/partners/webdemo.ts:148"
+   "src/partners/webdemo.ts:160"
   ]
  },
  {
   "en": "from",
   "where": [
    "src/web/showcase.ts:387"
+  ]
+ },
+ {
+  "en": "From {from} to {to}, about {min} min.",
+  "where": [
+   "src/partners/webdemo.ts:556"
   ]
  },
  {
@@ -2322,6 +2523,7 @@
  {
   "en": "Furniture and moves up to 300 kg.",
   "where": [
+   "src/partners/cards.ts:141",
    "src/providers/demo/catalog.ts:263"
   ]
  },
@@ -2394,7 +2596,7 @@
  {
   "en": "Goodbye! I'm here whenever you need something from Grab.",
   "where": [
-   "src/partners/webdemo.ts:404"
+   "src/partners/webdemo.ts:443"
   ]
  },
  {
@@ -2664,7 +2866,7 @@
  {
   "en": "green curry",
   "where": [
-   "src/partners/webdemo.ts:143"
+   "src/partners/webdemo.ts:155"
   ]
  },
  {
@@ -2689,7 +2891,7 @@
  {
   "en": "grilled chicken",
   "where": [
-   "src/partners/webdemo.ts:152"
+   "src/partners/webdemo.ts:164"
   ]
  },
  {
@@ -2738,7 +2940,7 @@
  {
   "en": "halal",
   "where": [
-   "src/partners/webdemo.ts:566",
+   "src/partners/webdemo.ts:613",
    "src/web/copy.ts:50"
   ]
  },
@@ -2818,13 +3020,13 @@
  {
   "en": "Here are the cancellation terms:",
   "where": [
-   "src/partners/webdemo.ts:976"
+   "src/partners/webdemo.ts:1034"
   ]
  },
  {
   "en": "Here are the cancellation terms. The order is cancelled only when you confirm on the card:",
   "where": [
-   "src/partners/webdemo.ts:233"
+   "src/partners/webdemo.ts:245"
   ]
  },
  {
@@ -2836,7 +3038,13 @@
  {
   "en": "Here is everything with the final price. Tap Confirm when you are ready.",
   "where": [
-   "src/partners/webdemo.ts:895"
+   "src/partners/webdemo.ts:953"
+  ]
+ },
+ {
+  "en": "Here is the total with every fee. Confirm when ready.",
+  "where": [
+   "src/partners/webdemo.ts:603"
   ]
  },
  {
@@ -2848,7 +3056,7 @@
  {
   "en": "Hi, I'm Ari. Tell me what you need from Grab and I'll take care of it. Nothing is ordered until you confirm.",
   "where": [
-   "src/partners/webdemo.ts:864"
+   "src/partners/webdemo.ts:922"
   ]
  },
  {
@@ -2860,7 +3068,7 @@
  {
   "en": "Hi! In this demo I can order from Grab for you: a ride, food, groceries, flowers, pharmacy items, a cake or a parcel. What do you need?",
   "where": [
-   "src/partners/webdemo.ts:308"
+   "src/partners/webdemo.ts:347"
   ]
  },
  {
@@ -2872,21 +3080,21 @@
  {
   "en": "home",
   "where": [
-   "src/partners/webdemo.ts:477"
+   "src/partners/webdemo.ts:516"
   ]
  },
  {
   "en": "Home",
   "where": [
-   "src/partners/webdemo.ts:800",
-   "src/web/messages.ts:339",
-   "src/web/routes.ts:1243"
+   "src/partners/webdemo.ts:516",
+   "src/partners/webdemo.ts:858",
+   "src/web/messages.ts:339"
   ]
  },
  {
   "en": "Honda Wave 125, red",
   "where": [
-   "src/partners/cards.ts:109"
+   "src/partners/cards.ts:110"
   ]
  },
  {
@@ -3005,73 +3213,79 @@
  {
   "en": "I assumed 2 kg; tell me the weight if it is heavier.",
   "where": [
-   "src/partners/webdemo.ts:509"
+   "src/partners/webdemo.ts:548"
   ]
  },
  {
   "en": "I can only order for right now: scheduling a time is not part of this demo.",
   "where": [
-   "src/partners/webdemo.ts:350"
+   "src/partners/webdemo.ts:389"
   ]
  },
  {
   "en": "I can't book a table, but I can have food delivered to you. For example:",
   "where": [
-   "src/partners/webdemo.ts:365"
+   "src/partners/webdemo.ts:404"
   ]
  },
  {
   "en": "I can't book flights, but I can get you a ride to the airport:",
   "where": [
-   "src/partners/webdemo.ts:372"
+   "src/partners/webdemo.ts:411"
   ]
  },
  {
   "en": "I can't call a doctor or an ambulance. In an emergency in Thailand call 1669. If it helps, I can order household remedies from a pharmacy or book a ride.",
   "where": [
-   "src/partners/webdemo.ts:341"
+   "src/partners/webdemo.ts:380"
   ]
  },
  {
   "en": "I can't do that. My rules stay as they are, and I never confirm an order myself: an order is placed only when you tap Confirm on its card. What would you like from Grab?",
   "where": [
-   "src/partners/webdemo.ts:326"
+   "src/partners/webdemo.ts:365"
   ]
  },
  {
   "en": "I can't find that order or card any more. Please ask me again.",
   "where": [
-   "src/partners/webdemo.ts:749"
+   "src/partners/webdemo.ts:807"
   ]
  },
  {
   "en": "I can't order prescription medicines such as antibiotics: they need a doctor or a pharmacist. Here I can order household remedies only, for example paracetamol, plasters or throat lozenges.",
   "where": [
-   "src/partners/webdemo.ts:319"
+   "src/partners/webdemo.ts:358"
   ]
  },
  {
   "en": "I can't skip the confirmation: nothing is ordered until you tap Confirm on the card.",
   "where": [
-   "src/partners/webdemo.ts:353"
+   "src/partners/webdemo.ts:392"
+  ]
+ },
+ {
+  "en": "I could not find \"{place}\" on the Bangkok demo map. Try one of these:",
+  "where": [
+   "src/partners/webdemo.ts:787"
   ]
  },
  {
   "en": "I could not find that place on the Bangkok demo map. Try one of these:",
   "where": [
-   "src/partners/webdemo.ts:730"
+   "src/partners/webdemo.ts:788"
   ]
  },
  {
   "en": "I could not repeat that order exactly as it was:",
   "where": [
-   "src/partners/webdemo.ts:250"
+   "src/partners/webdemo.ts:262"
   ]
  },
  {
   "en": "I did not catch which Grab service you need. I can book a ride, order food, groceries, flowers or pharmacy items, or send a parcel. Try one of these:",
   "where": [
-   "src/partners/webdemo.ts:123"
+   "src/partners/webdemo.ts:135"
   ]
  },
  {
@@ -3083,19 +3297,19 @@
  {
   "en": "I marked it as fragile for the courier.",
   "where": [
-   "src/partners/webdemo.ts:511"
+   "src/partners/webdemo.ts:550"
   ]
  },
  {
   "en": "I picked the chocolate cake; there is also a birthday cake, a pandan chiffon and a mango cheesecake.",
   "where": [
-   "src/partners/webdemo.ts:544"
+   "src/partners/webdemo.ts:589"
   ]
  },
  {
   "en": "I picked the seasonal bouquet; say roses, lilies or orchids if you prefer.",
   "where": [
-   "src/partners/webdemo.ts:543"
+   "src/partners/webdemo.ts:588"
   ]
  },
  {
@@ -3107,13 +3321,13 @@
  {
   "en": "I'm Ari, an AI assistant, not a human. In this demo I order Grab services for you through Unyly: you say what you need, I show a card with the price, and nothing is ordered until you confirm it.",
   "where": [
-   "src/partners/webdemo.ts:395"
+   "src/partners/webdemo.ts:434"
   ]
  },
  {
   "en": "ice cream",
   "where": [
-   "src/partners/webdemo.ts:166"
+   "src/partners/webdemo.ts:178"
   ]
  },
  {
@@ -3155,7 +3369,7 @@
  {
   "en": "In this demo I show how I would order from Grab for you: food, groceries, flowers, pharmacy items, cakes, rides and parcels. Say it in your own words, pick an option, then confirm on the card. Nothing is ordered until you confirm.",
   "where": [
-   "src/partners/webdemo.ts:118"
+   "src/partners/webdemo.ts:130"
   ]
  },
  {
@@ -3221,7 +3435,7 @@
  {
   "en": "It depends on the store and the distance. Before you confirm, the card lists the delivery fee, the service fee and the total, so there are no surprises. Try a request:",
   "where": [
-   "src/partners/webdemo.ts:425"
+   "src/partners/webdemo.ts:464"
   ]
  },
  {
@@ -3231,9 +3445,15 @@
   ]
  },
  {
+  "en": "It will be delivered to your saved address ({home}): sending to someone else's address is not part of this chat demo.",
+  "where": [
+   "src/partners/webdemo.ts:597"
+  ]
+ },
+ {
   "en": "Items",
   "where": [
-   "src/partners/cards.ts:63",
+   "src/partners/cards.ts:64",
    "src/web/messages.ts:379",
    "src/web/routes.ts:939"
   ]
@@ -3241,7 +3461,7 @@
  {
   "en": "Items come in store packs, one of each: check the sizes on the card.",
   "where": [
-   "src/partners/webdemo.ts:549"
+   "src/partners/webdemo.ts:594"
   ]
  },
  {
@@ -3289,13 +3509,13 @@
  {
   "en": "kebab",
   "where": [
-   "src/partners/webdemo.ts:159"
+   "src/partners/webdemo.ts:171"
   ]
  },
  {
   "en": "Keep order",
   "where": [
-   "src/partners/cards.ts:72"
+   "src/partners/cards.ts:73"
   ]
  },
  {
@@ -3325,7 +3545,7 @@
  {
   "en": "khao soi",
   "where": [
-   "src/partners/webdemo.ts:146"
+   "src/partners/webdemo.ts:158"
   ]
  },
  {
@@ -3367,6 +3587,7 @@
  {
   "en": "Large items up to 200 kg.",
   "where": [
+   "src/partners/cards.ts:140",
    "src/providers/demo/catalog.ts:262"
   ]
  },
@@ -3385,6 +3606,7 @@
  {
   "en": "Licensed metered taxi, up to 4 passengers.",
   "where": [
+   "src/partners/cards.ts:134",
    "src/providers/demo/catalog.ts:249"
   ]
  },
@@ -3476,7 +3698,7 @@
  {
   "en": "Lunch for one under 150 baht",
   "where": [
-   "src/partners/webdemo.ts:442"
+   "src/partners/webdemo.ts:481"
   ]
  },
  {
@@ -3526,7 +3748,7 @@
  {
   "en": "mango sticky rice",
   "where": [
-   "src/partners/webdemo.ts:149"
+   "src/partners/webdemo.ts:161"
   ]
  },
  {
@@ -3633,6 +3855,12 @@
   ]
  },
  {
+  "en": "Metered: the final fare may differ from the estimate.",
+  "where": [
+   "src/partners/cards.ts:142"
+  ]
+ },
+ {
   "en": "Method",
   "where": [
    "src/web/ari-pages.ts:445"
@@ -3659,13 +3887,13 @@
  {
   "en": "Milk and bananas",
   "where": [
-   "src/partners/webdemo.ts:535"
+   "src/partners/webdemo.ts:580"
   ]
  },
  {
   "en": "min",
   "where": [
-   "src/partners/cards.ts:68",
+   "src/partners/cards.ts:69",
    "src/web/ari-pages.ts:51",
    "src/web/ari-pages.ts:63"
   ]
@@ -3691,6 +3919,7 @@
  {
   "en": "Motorbike taxi, 1 passenger, helmet provided.",
   "where": [
+   "src/partners/cards.ts:132",
    "src/providers/demo/catalog.ts:247"
   ]
  },
@@ -3734,6 +3963,7 @@
  {
   "en": "Nearest available car or taxi, up to 4 passengers.",
   "where": [
+   "src/partners/cards.ts:133",
    "src/providers/demo/catalog.ts:248"
   ]
  },
@@ -3806,6 +4036,7 @@
  {
   "en": "Newer, larger cars with top-rated drivers.",
   "where": [
+   "src/partners/cards.ts:135",
    "src/providers/demo/catalog.ts:250"
   ]
  },
@@ -3849,6 +4080,12 @@
   "en": "No connection to the server. Check the network and try again.",
   "where": [
    "src/web/ari-pages.ts:224"
+  ]
+ },
+ {
+  "en": "No delivery address set: availability and fees unknown",
+  "where": [
+   "src/partners/cards.ts:146"
   ]
  },
  {
@@ -3914,13 +4151,13 @@
  {
   "en": "No problem, nothing was ordered.",
   "where": [
-   "src/partners/webdemo.ts:936"
+   "src/partners/webdemo.ts:994"
   ]
  },
  {
   "en": "No problem, nothing was ordered. Anything else from Grab?",
   "where": [
-   "src/partners/webdemo.ts:414"
+   "src/partners/webdemo.ts:453"
   ]
  },
  {
@@ -3933,6 +4170,12 @@
   "en": "No sections match. Try another word.",
   "where": [
    "src/web/docs-routes.ts:65"
+  ]
+ },
+ {
+  "en": "No vehicle here takes {n} passengers: the largest seats {max}. Try a smaller group or two cars.",
+  "where": [
+   "src/partners/webdemo.ts:544"
   ]
  },
  {
@@ -3989,7 +4232,7 @@
  {
   "en": "Not now",
   "where": [
-   "src/partners/cards.ts:61"
+   "src/partners/cards.ts:62"
   ]
  },
  {
@@ -4011,6 +4254,12 @@
   ]
  },
  {
+  "en": "Nothing fits ฿{budget} for {people}. These are the closest options:",
+  "where": [
+   "src/partners/webdemo.ts:745"
+  ]
+ },
+ {
   "en": "Nothing fits these filters. Try a higher budget or fewer restrictions.",
   "where": [
    "src/web/showcase.ts:594"
@@ -4019,7 +4268,13 @@
  {
   "en": "Nothing matches right now. Try a bigger budget or fewer restrictions.",
   "where": [
-   "src/partners/webdemo.ts:693"
+   "src/partners/webdemo.ts:750"
+  ]
+ },
+ {
+  "en": "Nothing matches: no restaurant in the demo catalog declares its dishes as {diet}, and I never guess about that. Try the request without it.",
+  "where": [
+   "src/partners/webdemo.ts:749"
   ]
  },
  {
@@ -4055,7 +4310,7 @@
  {
   "en": "On a ride or parcel card the cheapest option is listed first. For food, tell me your budget and I will stay within it:",
   "where": [
-   "src/partners/webdemo.ts:439"
+   "src/partners/webdemo.ts:478"
   ]
  },
  {
@@ -4190,7 +4445,7 @@
  {
   "en": "Open in Grab",
   "where": [
-   "src/partners/cards.ts:75"
+   "src/partners/cards.ts:76"
   ]
  },
  {
@@ -4312,7 +4567,7 @@
  {
   "en": "pad kra pao",
   "where": [
-   "src/partners/webdemo.ts:144"
+   "src/partners/webdemo.ts:156"
   ]
  },
  {
@@ -4324,7 +4579,7 @@
  {
   "en": "pad thai",
   "where": [
-   "src/partners/webdemo.ts:141"
+   "src/partners/webdemo.ts:153"
   ]
  },
  {
@@ -4367,7 +4622,7 @@
  {
   "en": "Paracetamol and plasters",
   "where": [
-   "src/partners/webdemo.ts:128"
+   "src/partners/webdemo.ts:140"
   ]
  },
  {
@@ -4382,6 +4637,12 @@
    "src/domain/labels.ts:54",
    "src/web/ari-pages.ts:232",
    "src/web/routes.ts:948"
+  ]
+ },
+ {
+  "en": "Parcel {kg} kg from {from} to {to}.",
+  "where": [
+   "src/partners/webdemo.ts:560"
   ]
  },
  {
@@ -4548,7 +4809,7 @@
  {
   "en": "pasta",
   "where": [
-   "src/partners/webdemo.ts:157"
+   "src/partners/webdemo.ts:169"
   ]
  },
  {
@@ -4733,7 +4994,19 @@
  {
   "en": "pho",
   "where": [
-   "src/partners/webdemo.ts:162"
+   "src/partners/webdemo.ts:174"
+  ]
+ },
+ {
+  "en": "Pick a courier:",
+  "where": [
+   "src/partners/webdemo.ts:562"
+  ]
+ },
+ {
+  "en": "Pick a ride:",
+  "where": [
+   "src/partners/webdemo.ts:558"
   ]
  },
  {
@@ -4761,6 +5034,12 @@
   ]
  },
  {
+  "en": "Pickup and drop-off are the same place",
+  "where": [
+   "src/partners/cards.ts:147"
+  ]
+ },
+ {
   "en": "Pickup truck",
   "where": [
    "src/providers/demo/catalog.ts:263"
@@ -4781,7 +5060,7 @@
  {
   "en": "pizza",
   "where": [
-   "src/partners/webdemo.ts:154"
+   "src/partners/webdemo.ts:166"
   ]
  },
  {
@@ -4823,7 +5102,7 @@
  {
   "en": "pork-free",
   "where": [
-   "src/partners/webdemo.ts:567"
+   "src/partners/webdemo.ts:614"
   ]
  },
  {
@@ -4991,7 +5270,7 @@
  {
   "en": "ramen",
   "where": [
-   "src/partners/webdemo.ts:156"
+   "src/partners/webdemo.ts:168"
   ]
  },
  {
@@ -5059,7 +5338,7 @@
  {
   "en": "Refunds, lost items and complaints are handled by Grab support, not by me: open the Help Centre in the Grab app. Here I can show your latest order or place a new one.",
   "where": [
-   "src/partners/webdemo.ts:418"
+   "src/partners/webdemo.ts:457"
   ]
  },
  {
@@ -5120,7 +5399,7 @@
  {
   "en": "Restaurants did not declare the allergens you excluded, but I never mark a dish as safe.",
   "where": [
-   "src/partners/webdemo.ts:621"
+   "src/partners/webdemo.ts:680"
   ]
  },
  {
@@ -5260,6 +5539,12 @@
   ]
  },
  {
+  "en": "Same as your last order ({title}), at today's price. Nothing is ordered until you confirm on the card.",
+  "where": [
+   "src/partners/webdemo.ts:265"
+  ]
+ },
+ {
   "en": "Same scope as GrabFood: the order would be placed and tracked inside Ari.",
   "where": [
    "src/partners/catalog.ts:47"
@@ -5274,7 +5559,7 @@
  {
   "en": "sandwiches",
   "where": [
-   "src/partners/webdemo.ts:160"
+   "src/partners/webdemo.ts:172"
   ]
  },
  {
@@ -5351,6 +5636,18 @@
   ]
  },
  {
+  "en": "Seats {seats} only",
+  "where": [
+   "src/partners/core.ts:115"
+  ]
+ },
+ {
+  "en": "Seats {seats}, passengers {passengers}",
+  "where": [
+   "src/partners/cards.ts:192"
+  ]
+ },
+ {
   "en": "Secure confirmation",
   "where": [
    "src/web/routes.ts:926"
@@ -5387,9 +5684,33 @@
   ]
  },
  {
+  "en": "Send a {kg} kg parcel from {from} to {to}",
+  "where": [
+   "src/partners/webdemo.ts:281"
+  ]
+ },
+ {
+  "en": "Send a {kg} kg parcel to {to}",
+  "where": [
+   "src/partners/webdemo.ts:285"
+  ]
+ },
+ {
+  "en": "Send a parcel from {from} to {to}",
+  "where": [
+   "src/partners/webdemo.ts:282"
+  ]
+ },
+ {
   "en": "Send a parcel from Siam Paragon to home",
   "where": [
-   "src/partners/webdemo.ts:466"
+   "src/partners/webdemo.ts:505"
+  ]
+ },
+ {
+  "en": "Send a parcel to {to}",
+  "where": [
+   "src/partners/webdemo.ts:286"
   ]
  },
  {
@@ -5413,7 +5734,7 @@
  {
   "en": "Send parcel",
   "where": [
-   "src/partners/cards.ts:60"
+   "src/partners/cards.ts:61"
   ]
  },
  {
@@ -5444,7 +5765,7 @@
  {
   "en": "Service fee",
   "where": [
-   "src/partners/cards.ts:65",
+   "src/partners/cards.ts:66",
    "src/web/messages.ts:407"
   ]
  },
@@ -5634,7 +5955,7 @@
  {
   "en": "Small order fee",
   "where": [
-   "src/partners/cards.ts:66",
+   "src/partners/cards.ts:67",
    "src/web/messages.ts:408"
   ]
  },
@@ -5647,7 +5968,7 @@
  {
   "en": "som tam",
   "where": [
-   "src/partners/webdemo.ts:145"
+   "src/partners/webdemo.ts:157"
   ]
  },
  {
@@ -5665,20 +5986,20 @@
  {
   "en": "Something went wrong. Please try again.",
   "where": [
-   "src/partners/webdemo.ts:738",
+   "src/partners/webdemo.ts:796",
    "src/web/ari-pages.ts:211"
   ]
  },
  {
   "en": "Sorry I let you down. Tell me what you need from Grab and I will do my best:",
   "where": [
-   "src/partners/webdemo.ts:432"
+   "src/partners/webdemo.ts:471"
   ]
  },
  {
   "en": "Sorry, I can't order that: alcohol, tobacco and other restricted goods are off limits for me. I can order food, groceries, flowers, a cake or pharmacy items, book a ride or send a parcel.",
   "where": [
-   "src/partners/webdemo.ts:333"
+   "src/partners/webdemo.ts:372"
   ]
  },
  {
@@ -5715,7 +6036,7 @@
  {
   "en": "spring rolls",
   "where": [
-   "src/partners/webdemo.ts:150"
+   "src/partners/webdemo.ts:162"
   ]
  },
  {
@@ -5763,7 +6084,7 @@
  {
   "en": "steak",
   "where": [
-   "src/partners/webdemo.ts:158"
+   "src/partners/webdemo.ts:170"
   ]
  },
  {
@@ -5823,7 +6144,7 @@
  {
   "en": "Sunscreen and mosquito repellent",
   "where": [
-   "src/partners/webdemo.ts:130"
+   "src/partners/webdemo.ts:142"
   ]
  },
  {
@@ -5853,7 +6174,7 @@
  {
   "en": "sushi",
   "where": [
-   "src/partners/webdemo.ts:155"
+   "src/partners/webdemo.ts:167"
   ]
  },
  {
@@ -5889,7 +6210,19 @@
  {
   "en": "tacos",
   "where": [
-   "src/partners/webdemo.ts:163"
+   "src/partners/webdemo.ts:175"
+  ]
+ },
+ {
+  "en": "Tap Choose to see every fee:",
+  "where": [
+   "src/partners/webdemo.ts:730"
+  ]
+ },
+ {
+  "en": "Tap one:",
+  "where": [
+   "src/partners/webdemo.ts:747"
   ]
  },
  {
@@ -5905,33 +6238,45 @@
   ]
  },
  {
+  "en": "Taxi from {from} to {to}",
+  "where": [
+   "src/partners/webdemo.ts:289"
+  ]
+ },
+ {
   "en": "Taxi from Siam Paragon to home",
   "where": [
-   "src/partners/webdemo.ts:467"
+   "src/partners/webdemo.ts:506"
   ]
  },
  {
   "en": "Taxi from Suvarnabhumi airport to home",
   "where": [
-   "src/partners/webdemo.ts:467"
+   "src/partners/webdemo.ts:506"
+  ]
+ },
+ {
+  "en": "Taxi to {to}",
+  "where": [
+   "src/partners/webdemo.ts:290"
   ]
  },
  {
   "en": "Taxi to Don Mueang Airport (DMK)",
   "where": [
-   "src/partners/webdemo.ts:375"
+   "src/partners/webdemo.ts:414"
   ]
  },
  {
   "en": "Taxi to Siam Paragon",
   "where": [
-   "src/partners/webdemo.ts:473"
+   "src/partners/webdemo.ts:512"
   ]
  },
  {
   "en": "Taxi to Suvarnabhumi Airport (BKK)",
   "where": [
-   "src/partners/webdemo.ts:375"
+   "src/partners/webdemo.ts:414"
   ]
  },
  {
@@ -5985,13 +6330,19 @@
  {
   "en": "That did not go through and nothing was ordered. Please try again.",
   "where": [
-   "src/partners/webdemo.ts:753"
+   "src/partners/webdemo.ts:811"
+  ]
+ },
+ {
+  "en": "That is above your ฿{budget} budget.",
+  "where": [
+   "src/partners/webdemo.ts:725"
   ]
  },
  {
   "en": "That is outside what I can do here. I work with Grab services only: rides, food, groceries, flowers, pharmacy items, cakes and parcels. For example:",
   "where": [
-   "src/partners/webdemo.ts:379"
+   "src/partners/webdemo.ts:418"
   ]
  },
  {
@@ -6003,7 +6354,7 @@
  {
   "en": "That sounds like more than one request. I take them one at a time, so each gets its own card and its own confirmation. Which one first?",
   "where": [
-   "src/partners/webdemo.ts:449"
+   "src/partners/webdemo.ts:488"
   ]
  },
  {
@@ -6063,7 +6414,7 @@
  {
   "en": "The cancellation did not go through; the order continues.",
   "where": [
-   "src/partners/webdemo.ts:995"
+   "src/partners/webdemo.ts:1053"
   ]
  },
  {
@@ -6109,6 +6460,12 @@
   ]
  },
  {
+  "en": "The courier is on the way: {fee} THB cancellation fee (demo, not charged).",
+  "where": [
+   "src/partners/cards.ts:199"
+  ]
+ },
+ {
   "en": "the customer taps once to confirm",
   "where": [
    "src/web/showcase.ts:241"
@@ -6123,7 +6480,7 @@
  {
   "en": "The demo is busy right now. Please try again in a few minutes.",
   "where": [
-   "src/partners/webdemo.ts:751"
+   "src/partners/webdemo.ts:809"
   ]
  },
  {
@@ -6141,13 +6498,19 @@
  {
   "en": "The demo session ended. Start again.",
   "where": [
-   "src/partners/webdemo.ts:750"
+   "src/partners/webdemo.ts:808"
   ]
  },
  {
   "en": "The documentation is available in English, Russian and Thai. The English version is shown below.",
   "where": [
    "src/web/docs-routes.ts:40"
+  ]
+ },
+ {
+  "en": "The driver is on the way: {fee} THB cancellation fee (demo, not charged).",
+  "where": [
+   "src/partners/cards.ts:198"
   ]
  },
  {
@@ -6159,7 +6522,7 @@
  {
   "en": "The florist sells set bouquets, so I could not change the number of stems: check it on the card.",
   "where": [
-   "src/partners/webdemo.ts:548"
+   "src/partners/webdemo.ts:593"
   ]
  },
  {
@@ -6187,6 +6550,12 @@
   ]
  },
  {
+  "en": "The largest vehicle here seats {seats}, so your group needs two cars. I can book one car at a time:",
+  "where": [
+   "src/partners/webdemo.ts:522"
+  ]
+ },
+ {
   "en": "The live demo needs JavaScript.",
   "where": [
    "src/web/ari-pages.ts:263"
@@ -6208,6 +6577,12 @@
   "en": "The operation was cancelled or timed out.",
   "where": [
    "src/web/messages.ts:295"
+  ]
+ },
+ {
+  "en": "The order is being prepared: 50% cancellation fee (demo, not charged).",
+  "where": [
+   "src/partners/cards.ts:201"
   ]
  },
  {
@@ -6249,7 +6624,7 @@
  {
   "en": "The pharmacy in this demo carries household remedies only: paracetamol, plasters, throat lozenges, rehydration salts, antiseptic, a thermometer, face masks, mosquito repellent and sunscreen. Which one do you need?",
   "where": [
-   "src/partners/webdemo.ts:133"
+   "src/partners/webdemo.ts:145"
   ]
  },
  {
@@ -6295,6 +6670,12 @@
   ]
  },
  {
+  "en": "The store sells at most {max} of {name} per order, so I set {max} instead of {asked}.",
+  "where": [
+   "src/partners/webdemo.ts:591"
+  ]
+ },
+ {
   "en": "The Unyly community.",
   "where": [
    "src/web/routes.ts:322"
@@ -6337,15 +6718,21 @@
   ]
  },
  {
+  "en": "There is no {dish} in the demo catalog.",
+  "where": [
+   "src/partners/webdemo.ts:656"
+  ]
+ },
+ {
   "en": "There is no earlier order to repeat yet. What would you like from Grab?",
   "where": [
-   "src/partners/webdemo.ts:242"
+   "src/partners/webdemo.ts:254"
   ]
  },
  {
   "en": "There is nothing to cancel: you have no orders yet. A card you have not confirmed orders nothing.",
   "where": [
-   "src/partners/webdemo.ts:219"
+   "src/partners/webdemo.ts:231"
   ]
  },
  {
@@ -6363,13 +6750,13 @@
  {
   "en": "This card has expired and nothing was ordered. Ask me again for a fresh price.",
   "where": [
-   "src/partners/webdemo.ts:747"
+   "src/partners/webdemo.ts:805"
   ]
  },
  {
   "en": "This card is out of date: the order changed after it was shown, so nothing was ordered. Please use the newest card.",
   "where": [
-   "src/partners/webdemo.ts:746"
+   "src/partners/webdemo.ts:804"
   ]
  },
  {
@@ -6421,9 +6808,16 @@
   ]
  },
  {
+  "en": "This order can no longer be cancelled ({status}).",
+  "where": [
+   "src/partners/webdemo.ts:242"
+  ]
+ },
+ {
   "en": "This order can no longer be cancelled.",
   "where": [
-   "src/partners/webdemo.ts:748"
+   "src/partners/cards.ts:189",
+   "src/partners/webdemo.ts:806"
   ]
  },
  {
@@ -6441,13 +6835,13 @@
  {
   "en": "This total needs Face ID or the device passcode before I can place the order.",
   "where": [
-   "src/partners/webdemo.ts:752"
+   "src/partners/webdemo.ts:810"
   ]
  },
  {
   "en": "Throat lozenges",
   "where": [
-   "src/partners/webdemo.ts:129"
+   "src/partners/webdemo.ts:141"
   ]
  },
  {
@@ -6459,7 +6853,7 @@
  {
   "en": "Times and fares are estimates",
   "where": [
-   "src/partners/cards.ts:74"
+   "src/partners/cards.ts:75"
   ]
  },
  {
@@ -6513,7 +6907,7 @@
  {
   "en": "tom yum",
   "where": [
-   "src/partners/webdemo.ts:142"
+   "src/partners/webdemo.ts:154"
   ]
  },
  {
@@ -6531,7 +6925,7 @@
  {
   "en": "Total",
   "where": [
-   "src/partners/cards.ts:62",
+   "src/partners/cards.ts:63",
    "src/web/messages.ts:374",
    "src/web/showcase.ts:77"
   ]
@@ -6546,7 +6940,7 @@
  {
   "en": "Toyota Corolla Altis, silver",
   "where": [
-   "src/partners/cards.ts:110"
+   "src/partners/cards.ts:111"
   ]
  },
  {
@@ -6755,8 +7149,15 @@
   ]
  },
  {
+  "en": "Up to {kg} kg only",
+  "where": [
+   "src/partners/core.ts:111"
+  ]
+ },
+ {
   "en": "Up to 6 passengers or extra luggage.",
   "where": [
+   "src/partners/cards.ts:136",
    "src/providers/demo/catalog.ts:251"
   ]
  },
@@ -6805,6 +7206,7 @@
  {
   "en": "Van for groups of up to 10.",
   "where": [
+   "src/partners/cards.ts:137",
    "src/providers/demo/catalog.ts:252"
   ]
  },
@@ -6817,7 +7219,7 @@
  {
   "en": "Vegan lunch for 3",
   "where": [
-   "src/partners/webdemo.ts:368"
+   "src/partners/webdemo.ts:407"
   ]
  },
  {
@@ -7035,7 +7437,7 @@
  {
   "en": "What should I put in the basket? The demo supermarket has rice, eggs, milk, water, bananas, mango, chicken, instant noodles, coffee and vegetables.",
   "where": [
-   "src/partners/webdemo.ts:532"
+   "src/partners/webdemo.ts:577"
   ]
  },
  {
@@ -7095,37 +7497,37 @@
  {
   "en": "Where is my order",
   "where": [
-   "src/partners/webdemo.ts:421"
+   "src/partners/webdemo.ts:460"
   ]
  },
  {
   "en": "Where should I pick you up? For example \"from Siam Paragon\".",
   "where": [
-   "src/partners/webdemo.ts:467"
+   "src/partners/webdemo.ts:506"
   ]
  },
  {
   "en": "Where should the courier pick the parcel up? For example \"from Siam Paragon\".",
   "where": [
-   "src/partners/webdemo.ts:466"
+   "src/partners/webdemo.ts:505"
   ]
  },
  {
   "en": "Where should the parcel go? For example \"to ICONSIAM\".",
   "where": [
-   "src/partners/webdemo.ts:471"
+   "src/partners/webdemo.ts:510"
   ]
  },
  {
   "en": "Where to? For example \"to Suvarnabhumi airport\".",
   "where": [
-   "src/partners/webdemo.ts:473"
+   "src/partners/webdemo.ts:512"
   ]
  },
  {
   "en": "Which one do you mean?",
   "where": [
-   "src/partners/webdemo.ts:725",
+   "src/partners/webdemo.ts:783",
    "src/web/showcase.ts:395"
   ]
  },
@@ -7183,13 +7585,13 @@
   "en": "Within budget",
   "where": [
    "src/partners/core.ts:53",
-   "src/partners/webdemo.ts:571"
+   "src/partners/webdemo.ts:618"
   ]
  },
  {
   "en": "wonton soup",
   "where": [
-   "src/partners/webdemo.ts:151"
+   "src/partners/webdemo.ts:163"
   ]
  },
  {
@@ -7261,7 +7663,7 @@
  {
   "en": "You declined this order earlier, so nothing was ordered. Ask me again and I will prepare a fresh card.",
   "where": [
-   "src/partners/webdemo.ts:745"
+   "src/partners/webdemo.ts:803"
   ]
  },
  {
@@ -7279,7 +7681,7 @@
  {
   "en": "You have no orders yet. What would you like from Grab?",
   "where": [
-   "src/partners/webdemo.ts:220"
+   "src/partners/webdemo.ts:232"
   ]
  },
  {
@@ -7310,7 +7712,7 @@
  {
   "en": "You're welcome! Anything else from Grab?",
   "where": [
-   "src/partners/webdemo.ts:313"
+   "src/partners/webdemo.ts:352"
   ]
  },
  {
@@ -7365,6 +7767,12 @@
   "en": "Your email is used to contact you and recover access. You will sign in with the passkey.",
   "where": [
    "src/web/messages.ts:286"
+  ]
+ },
+ {
+  "en": "Your latest order: {status}.",
+  "where": [
+   "src/partners/webdemo.ts:238"
   ]
  },
  {

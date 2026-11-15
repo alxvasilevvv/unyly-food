@@ -19,12 +19,14 @@ import {
 } from '../services/orders.js';
 import type { AddressRow } from '../services/users.js';
 import { tr } from '../web/messages.js';
-import { Card, CardAction, CardOption, cardLocale, demoCourier, localText, minutes, seatsBadge, statusBlock, T } from './cards.js';
+import { Card, CardAction, CardOption, cardLocale, chatLocale, dataText, demoCourier, localText, minutes, seatsBadge, statusBlock, T, trf } from './cards.js';
 import type { PartnerConfig } from './config.js';
 import { adaptForPartner, callPartnerTool, ToolEnvelope } from './tools.js';
 import { partnerActor, PartnerUser } from './users.js';
 import { enqueuePartnerEvent } from './webhooks.js';
 
+/** The language of this user's cards: the website demo speaks every interface language, signed partners get English, Russian or Thai. */
+const langOf = (p: PartnerConfig, u: PartnerUser): Locale => (p.internal ? chatLocale(u.locale) : cardLocale(u.locale));
 const base = (u: PartnerUser) => `/partner/v1/users/${encodeURIComponent(u.external_user_id)}`;
 
 /** Binds a confirmation to exactly what the card showed: cart version, quote, total, address, payment method. */
@@ -59,7 +61,7 @@ function optionsFromStores(env: ToolEnvelope, args: Record<string, unknown>, l: 
       options.push({
         id: st.store_id,
         title: st.name,
-        subtitle: sug ? sug.items.map((i: any) => `${i.quantity}× ${i.name}`).join(', ') : (st.cuisines ?? []).join(', '),
+        subtitle: sug ? sug.items.map((i: any) => `${i.quantity}× ${dataText(i.name, l)}`).join(', ') : (st.cuisines ?? []).join(', '),
         price: sug?.estimated_total ? money(Number(sug.estimated_total.amount_minor), sug.estimated_total.currency, l).formatted : undefined,
         eta: st.eta_estimate_minutes ? minutes(l, st.eta_estimate_minutes.min, st.eta_estimate_minutes.max) : undefined,
         badges,
@@ -78,7 +80,7 @@ function optionsFromStores(env: ToolEnvelope, args: Record<string, unknown>, l: 
       options.push({
         id: st.store_id,
         title: st.name,
-        subtitle: item ? item.name : undefined,
+        subtitle: item ? dataText(item.name, l) : undefined,
         price: item?.price ? money(Number(item.price.amount_minor), item.price.currency, l).formatted : undefined,
         eta: st.eta_estimate_minutes ? minutes(l, st.eta_estimate_minutes.min, st.eta_estimate_minutes.max) : undefined,
         disabled_reason: blocked ? (localText(notes[0], l) ?? tr(l, { en: 'Not available right now', ru: 'Сейчас недоступно', th: 'ไม่พร้อมให้บริการขณะนี้' })) : undefined,
@@ -108,11 +110,11 @@ function optionsFromStores(env: ToolEnvelope, args: Record<string, unknown>, l: 
 function tripMisfit(o: any, args: Record<string, unknown>, l: Locale): string {
   const w = Number(args.parcel_weight_kg);
   if (o.max_weight_kg !== undefined && Number.isFinite(w) && w > Number(o.max_weight_kg)) {
-    return tr(l, { en: `Up to ${o.max_weight_kg} kg only`, ru: `Только до ${o.max_weight_kg} кг`, th: `รับได้ไม่เกิน ${o.max_weight_kg} กก.` });
+    return trf(l, { en: 'Up to {kg} kg only', ru: 'Только до {kg} кг', th: 'รับได้ไม่เกิน {kg} กก.' }, { kg: o.max_weight_kg });
   }
   const p = Number(args.passengers);
   if (o.seats !== undefined && Number.isFinite(p) && p > Number(o.seats)) {
-    return tr(l, { en: `Seats ${o.seats} only`, ru: `Мест всего ${o.seats}`, th: `นั่งได้ ${o.seats} คนเท่านั้น` });
+    return trf(l, { en: 'Seats {seats} only', ru: 'Мест всего {seats}', th: 'นั่งได้ {seats} คนเท่านั้น' }, { seats: o.seats });
   }
   const first = Array.isArray(o.issues) ? o.issues[0] : undefined;
   const text = typeof first === 'string' ? first : first?.message;
@@ -129,7 +131,7 @@ function optionsFromTrip(env: ToolEnvelope, args: Record<string, unknown>, l: Lo
     route: { from: r.trip.pickup?.name, to: r.trip.dropoff?.name, distance_km: r.trip.distance_km_estimate, minutes: r.trip.drive_minutes_estimate },
     demo: env.mode === 'demo',
     options: r.options.map((o: any): CardOption => ({
-      id: o.item_id, title: o.name, subtitle: localText(o.description, l), price: o.estimated_total ? money(Number(o.estimated_total.amount_minor), o.estimated_total.currency, l).formatted : undefined,
+      id: o.item_id, title: dataText(o.name, l), subtitle: localText(o.description, l), price: o.estimated_total ? money(Number(o.estimated_total.amount_minor), o.estimated_total.currency, l).formatted : undefined,
       eta: o.eta_estimate_minutes ? minutes(l, o.eta_estimate_minutes.min, o.eta_estimate_minutes.max) : undefined,
       badges: o.seats ? [seatsBadge(l, Number(o.seats))] : undefined,
       disabled_reason: o.fits === false ? tripMisfit(o, args, l) : undefined,
@@ -159,7 +161,7 @@ function issuesCard(env: ToolEnvelope, l: Locale): Card | null {
   return {
     schema: 'unyly.card.v1', type: 'message', id: `cart:${r.cart_id}`, service: r.service,
     title: tr(l, { en: 'Needs a change before ordering', ru: 'Нужно поправить заказ', th: 'ต้องแก้ไขก่อนสั่งซื้อ' }),
-    subtitle: [blocked, ...issues.map((i) => i.message)].filter(Boolean).join(' '),
+    subtitle: [blocked, ...issues.map((i) => i.message)].filter(Boolean).map((x) => localText(x, l)).join(' '),
     demo: env.mode === 'demo', actions: [],
   };
 }
@@ -167,7 +169,7 @@ function issuesCard(env: ToolEnvelope, l: Locale): Card | null {
 /** Builds the card for a tool result. Checkout and order cards are read from the database (single source of truth). */
 export async function cardForTool(ctx: Ctx, p: PartnerConfig, u: PartnerUser, tool: string, args: Record<string, unknown>, env: ToolEnvelope): Promise<Card | null> {
   if (!env.ok) return null;
-  const l = cardLocale(u.locale);
+  const l = langOf(p, u);
   const r = env.result ?? {};
   if (tool === 'search_stores') return optionsFromStores(env, args, l);
   if (tool === 'estimate_trip') return optionsFromTrip(env, args, l);
@@ -202,7 +204,7 @@ export async function runTool(ctx: Ctx, p: PartnerConfig, u: PartnerUser, tool: 
 // ---------------------------------------------------------------- checkout
 
 export async function checkoutCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, checkoutId: string): Promise<Card> {
-  const l = cardLocale(u.locale);
+  const l = langOf(p, u);
   const v = await checkoutView(ctx, u.user_id, checkoutId, l);
   const c = v.checkout;
   const service = v.service as Service;
@@ -237,7 +239,7 @@ export async function checkoutCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, c
     : undefined;
   return {
     schema: 'unyly.card.v1', type: 'checkout', id: c.id, service,
-    title: trip ? (v.lines[0]?.name ?? '') : (v.restaurant_name ?? ''),
+    title: trip ? dataText(v.lines[0]?.name, l) : (v.restaurant_name ?? ''),
     subtitle: trip ? undefined : v.address ? `${v.address.label}` : undefined,
     demo: c.mode === 'demo',
     badges: [
@@ -246,7 +248,7 @@ export async function checkoutCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, c
       ...(pay ? ['GrabPay'] : []),
     ],
     route: trip && v.trip ? { from: (v.trip as any).pickup?.name, to: (v.trip as any).dropoff?.name, distance_km: (v.trip as any).distance_km_estimate, minutes: (v.trip as any).drive_minutes_estimate } : undefined,
-    lines: (v.lines as any[]).map((x) => ({ title: x.name, quantity: x.quantity, detail: (x.modifiers_desc ?? []).join?.(', ') || parcelDetail, value: money(Number(x.line_total_minor), c.currency, l).formatted })),
+    lines: (v.lines as any[]).map((x) => ({ title: dataText(x.name, l), quantity: x.quantity, detail: (x.modifiers_desc ?? []).map?.((d: string) => dataText(d, l)).join(', ') || parcelDetail, value: money(Number(x.line_total_minor), c.currency, l).formatted })),
     breakdown,
     total: { label: tr(l, T.total), value: bd.total.formatted, amount_minor: Number(c.total_minor), currency: c.currency },
     actions,
@@ -399,7 +401,7 @@ export async function declineCheckoutPartner(ctx: Ctx, p: PartnerConfig, u: Part
 // ---------------------------------------------------------------- orders
 
 export async function orderCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, orderId: string, opts: { refresh?: boolean } = {}): Promise<Card> {
-  const l = cardLocale(u.locale);
+  const l = langOf(p, u);
   // With refresh the provider is asked first; the row it leaves behind is the one shown (no second read).
   const fresh = opts.refresh ? await refreshOrder(ctx, partnerActor(p, u.user_id), orderId).catch(() => undefined) : undefined;
   const o: OrderRow = fresh?.row ?? (await loadOrder(ctx.db, u.user_id, orderId));
@@ -411,11 +413,11 @@ export async function orderCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, orde
   const canCancel = o.mode !== 'handoff' && ['submitted', 'accepted', 'preparing'].includes(o.fulfillment_status);
   return {
     schema: 'unyly.card.v1', type: 'order', id: o.id, service: o.service,
-    title: trip ? `${o.items[0]?.name ?? ''}` : o.restaurant_name,
+    title: trip ? dataText(o.items[0]?.name, l) : o.restaurant_name,
     subtitle: o.address_label,
     demo: o.mode === 'demo',
     badges: o.mode === 'demo' ? [tr(l, T.demo)] : [],
-    lines: trip ? undefined : o.items.map((i: any) => ({ title: i.name, quantity: i.quantity, value: i.line_total_minor !== undefined ? money(Number(i.line_total_minor), o.currency, l).formatted : '' })),
+    lines: trip ? undefined : o.items.map((i: any) => ({ title: dataText(i.name, l), quantity: i.quantity, value: i.line_total_minor !== undefined ? money(Number(i.line_total_minor), o.currency, l).formatted : '' })),
     total: { label: tr(l, T.total), value: money(Number(o.total_minor), o.currency, l).formatted, amount_minor: Number(o.total_minor), currency: o.currency },
     status: statusBlock(o.service, o.fulfillment_status as FulfillmentStatus, isFinal, eta, l),
     courier: showCourier ? demoCourier(o.provider_order_ref, o.service, l, o.items[0]?.item_id) : undefined,
@@ -439,14 +441,14 @@ export async function prepareCancelPartner(ctx: Ctx, p: PartnerConfig, u: Partne
     c = await prepareCancellation(ctx, partnerActor(p, u.user_id), orderId);
   } catch (e) {
     // The provider's refusal ("the trip has started") in the card language.
-    if (isDomainError(e) && e.code === 'CANCELLATION_NOT_ALLOWED') throw new DomainError(e.code, localText(e.message, cardLocale(u.locale)) ?? e.message, e.details, e.userAction);
+    if (isDomainError(e) && e.code === 'CANCELLATION_NOT_ALLOWED') throw new DomainError(e.code, localText(e.message, langOf(p, u)) ?? e.message, e.details, e.userAction);
     throw e;
   }
   return { cancellation: adaptForPartner(describeCancellation(c)), card: await cancellationCard(ctx, p, u, c.id, c) };
 }
 
 export async function cancellationCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, cancellationId: string, known?: CancellationRow): Promise<Card> {
-  const l = cardLocale(u.locale);
+  const l = langOf(p, u);
   // `known`: the request this call just created for this user (no need to read it back).
   const c = known && known.id === cancellationId && known.user_id === u.user_id ? known : await loadCancellation(ctx.db, u.user_id, cancellationId);
   const o = await loadOrder(ctx.db, u.user_id, c.order_id);
@@ -455,7 +457,7 @@ export async function cancellationCard(ctx: Ctx, p: PartnerConfig, u: PartnerUse
   return {
     schema: 'unyly.card.v1', type: 'cancellation', id: c.id, service: o.service,
     title: tr(l, { en: 'Cancel this order?', ru: 'Отменить заказ?', th: 'ยกเลิกคำสั่งซื้อนี้ใช่ไหม' }),
-    subtitle: `${isTripService(o.service) ? o.items[0]?.name ?? '' : o.restaurant_name} · ${tr(l, { en: 'Cancellation fee', ru: 'Плата за отмену', th: 'ค่าธรรมเนียมการยกเลิก' })}: ${fee}`,
+    subtitle: `${isTripService(o.service) ? dataText(o.items[0]?.name, l) : o.restaurant_name} · ${tr(l, { en: 'Cancellation fee', ru: 'Плата за отмену', th: 'ค่าธรรมเนียมการยกเลิก' })}: ${fee}`,
     demo: o.mode === 'demo',
     actions: open
       ? [

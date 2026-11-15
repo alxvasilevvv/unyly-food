@@ -3,14 +3,14 @@
 // localized `notify` hint so the app can show a push, update a Live Activity or have Ari call the user.
 import type { Ctx } from '../context.js';
 import type { Queryable } from '../db/db.js';
-import type { Locale } from '../domain/locales.js';
+import { LOCALE_CODES, type Locale } from '../domain/locales.js';
 import { statusLabel } from '../domain/labels.js';
 import type { Service } from '../domain/regions.js';
 import type { FulfillmentStatus } from '../providers/types.js';
 import { tr } from '../web/messages.js';
 import { signedHeaders } from './auth.js';
-import { cardLocale } from './cards.js';
-import { findPartner } from './config.js';
+import { dataText, trf } from './cards.js';
+import { findPartner, WEB_DEMO_PARTNER } from './config.js';
 
 export type PartnerEventType = 'order.created' | 'order.status_changed' | 'checkout.confirmed' | 'cancellation.confirmed' | 'grab.linked' | 'grab.unlinked';
 
@@ -38,7 +38,7 @@ const PROGRESS: Record<FulfillmentStatus, number> = { submitted: 0.1, accepted: 
 export function orderNotify(o: OrderLike, status: FulfillmentStatus, l: Locale): Notify {
   const label = statusLabel(o.service, status, l);
   const trip = o.service === 'ride' || o.service === 'express';
-  const what = trip ? `${o.items[0]?.name ?? ''}`.trim() : o.restaurant_name;
+  const what = trip ? dataText(`${o.items[0]?.name ?? ''}`.trim(), l) : o.restaurant_name;
   const eta = o.eta_at ? new Date(o.eta_at).toISOString() : null;
   let body = what;
   let level: Notify['level'] = 'info';
@@ -51,17 +51,17 @@ export function orderNotify(o: OrderLike, status: FulfillmentStatus, l: Locale):
   }
   if (status === 'picked_up' && !trip) {
     level = 'important';
-    body = tr(l, { en: `${what}: the courier is on the way to you.`, ru: `${what}: курьер едет к вам.`, th: `${what}: ไรเดอร์กำลังนำส่งถึงคุณ` });
+    body = trf(l, { en: '{what}: the courier is on the way to you.', ru: '{what}: курьер едет к вам.', th: '{what}: ไรเดอร์กำลังนำส่งถึงคุณ' }, { what });
   }
   if (status === 'delivered') {
     level = 'important';
     body = o.service === 'ride'
       ? tr(l, { en: 'You have arrived. Thank you for riding.', ru: 'Вы на месте. Хорошего дня!', th: 'ถึงที่หมายแล้ว ขอบคุณที่ใช้บริการ' })
-      : tr(l, { en: `${what} has been delivered.`, ru: `${what}: доставлено.`, th: `${what}: ส่งถึงแล้ว` });
+      : trf(l, { en: '{what} has been delivered.', ru: '{what}: доставлено.', th: '{what}: ส่งถึงแล้ว' }, { what });
   }
   if (status === 'cancelled' || status === 'failed') {
     level = 'important';
-    body = tr(l, { en: `${what}: ${label.toLowerCase()}. Nothing more will happen with this order.`, ru: `${what}: ${label.toLowerCase()}.`, th: `${what}: ${label}` });
+    body = trf(l, { en: '{what}: {status}. Nothing more will happen with this order.', ru: '{what}: {status}.', th: '{what}: {status}' }, { what, status: label.toLowerCase() });
   }
   return { title: label, body, level, suggest_call: suggestCall || undefined, live_activity: { state: status, progress: PROGRESS[status], eta_at: eta } };
 }
@@ -69,9 +69,11 @@ export function orderNotify(o: OrderLike, status: FulfillmentStatus, l: Locale):
 export async function enqueuePartnerEvent(
   q: Queryable, userId: string, type: PartnerEventType, data: Record<string, unknown>, opts: { dedupeKey?: string; notify?: (l: Locale) => Notify } = {},
 ): Promise<boolean> {
-  // One statement: look the partner user up and store the event. The notify hint is prepared for each card
-  // language and the row picks the user's (cardLocale: ru and th, otherwise en). Regular users match no row.
-  const notify = opts.notify ? JSON.stringify({ en: opts.notify('en'), ru: opts.notify('ru'), th: opts.notify('th') }) : null;
+  // One statement: look the partner user up and store the event. The notify hint is prepared for every interface
+  // language and the row picks the user's: any of them for the website demo, English, Russian or Thai for signed
+  // partners (other locales get English, as documented). Regular users match no row.
+  const make = opts.notify;
+  const notify = make ? JSON.stringify(Object.fromEntries(LOCALE_CODES.map((l) => [l, make(l)]))) : null;
   const r = await q.query<{ n: number }>(
     `WITH pu AS (SELECT pu.partner_id, pu.external_user_id, u.locale FROM partner_users pu JOIN users u ON u.id = pu.user_id WHERE pu.user_id = $1),
           ins AS (
@@ -79,11 +81,11 @@ export async function enqueuePartnerEvent(
             SELECT pu.partner_id, $1, $2, $3,
                    jsonb_build_object('type', $2::text, 'partner_id', pu.partner_id, 'user_id', pu.external_user_id, 'created_at', $4::text, 'data', $5::jsonb)
                    || CASE WHEN $6::jsonb IS NULL THEN '{}'::jsonb
-                           ELSE jsonb_build_object('notify', $6::jsonb -> (CASE WHEN pu.locale IN ('ru','th') THEN pu.locale ELSE 'en' END)) END
+                           ELSE jsonb_build_object('notify', COALESCE($6::jsonb -> (CASE WHEN pu.locale IN ('ru','th') OR pu.partner_id = $7 THEN pu.locale::text ELSE 'en' END), $6::jsonb -> 'en')) END
               FROM pu
             ON CONFLICT DO NOTHING)
      SELECT count(*)::int AS n FROM pu`,
-    [userId, type, opts.dedupeKey ?? null, new Date().toISOString(), JSON.stringify(data), notify],
+    [userId, type, opts.dedupeKey ?? null, new Date().toISOString(), JSON.stringify(data), notify, WEB_DEMO_PARTNER.id],
   );
   return (r.rows[0]?.n ?? 0) > 0;
 }

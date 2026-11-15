@@ -1,5 +1,4 @@
-import { netProbe, startNetProbe } from './net-probe.js';
-import { memoryLimitMb } from './demo-ctx.js';
+import { demoDbWord } from './demo-ctx.js';
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
 import compress from '@fastify/compress';
@@ -102,6 +101,31 @@ function setRawHeader(raw: IncomingMessage, name: string, value: string) {
 
 type McpRequest = FastifyRequest & { mcpAuth?: TokenInfo | null; mcpTokenKey?: string };
 
+/** The JSON APIs whose errors are an envelope ({ ok: false, error: { code, message } }): the Partner API and the web demo API. */
+const isEnvelopePath = (url: string) => url.startsWith('/partner/v1') || url.startsWith('/ari/api/');
+
+/**
+ * An HTTP-level error (rate limit, body too large, malformed request) raised outside the route handlers, in the
+ * shape the path's own errors use. Never carries the framework's message, a stack or anything from the request.
+ */
+function sendHttpError(req: { url: string }, reply: FastifyReply, status: number, code: string, message: string) {
+  reply.code(status).header('cache-control', 'no-store');
+  return isEnvelopePath(req.url) ? reply.send({ ok: false, error: { code, message } }) : reply.send({ error: code, message });
+}
+
+/** Fixed texts for HTTP-level client errors, by status. The framework's own message is not sent. */
+const HTTP_ERRORS: Record<number, [code: string, message: string]> = {
+  400: ['VALIDATION_FAILED', 'Bad request: the body or a parameter is not valid.'],
+  404: ['NOT_FOUND', 'Not found'],
+  405: ['VALIDATION_FAILED', 'Method not allowed'],
+  408: ['VALIDATION_FAILED', 'The request took too long to arrive.'],
+  413: ['PAYLOAD_TOO_LARGE', 'Request body is too large.'],
+  414: ['VALIDATION_FAILED', 'The URL is too long.'],
+  415: ['VALIDATION_FAILED', 'Unsupported Content-Type.'],
+  429: ['RATE_LIMITED', 'Too many requests'],
+  431: ['VALIDATION_FAILED', 'Request headers are too large.'],
+};
+
 export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   const app = Fastify({
     logger: ctx.cfg.env === 'test' ? false : { level: 'info', redact: ['req.headers.authorization', 'req.headers.cookie'] },
@@ -109,6 +133,12 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     trustProxy: fastifyTrustProxy(ctx.cfg.trustProxy) as any,
     bodyLimit: 256 * 1024,
     requestTimeout: 30_000,
+    // A URL the router cannot decode ("/x/%zz") never reaches a route or the error handler below: answer it in
+    // the same JSON shapes as every other error, not with the framework's own body.
+    frameworkErrors: (err, req, reply) => {
+      const status = err.statusCode && err.statusCode >= 400 && err.statusCode < 500 ? err.statusCode : 400;
+      return sendHttpError(req, reply, status, 'VALIDATION_FAILED', 'Bad request: the URL is not valid.');
+    },
   });
 
   await app.register(cookie);
@@ -123,6 +153,8 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
         styleSrc: ["'self'"],
         styleSrcAttr: ["'unsafe-inline'"],
         imgSrc: ["'self'", 'data:'],
+        // Fonts are served from /static/fonts; helmet's default (any https: origin and data:) is wider than needed.
+        fontSrc: ["'self'"],
         connectSrc: ["'self'"],
         frameAncestors: ["'none'"],
         // Chrome applies form-action to the redirects that follow a form post: "Pay with GrabPay" posts to
@@ -134,6 +166,8 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
       },
     },
     crossOriginEmbedderPolicy: false,
+    // Same answer as frame-ancestors 'none' for browsers that only read the old header (helmet's default is SAMEORIGIN).
+    frameguard: { action: 'deny' },
     // 'no-referrer' makes browsers send `Origin: null` on same-site form posts, which our CSRF origin check rejects.
     referrerPolicy: { policy: 'same-origin' },
   });
@@ -220,10 +254,19 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
       }
       return reply.code(err.httpStatus).send({ error: err.code, message: err.message });
     }
-    if (err.statusCode === 429) return reply.code(429).send({ error: 'RATE_LIMITED', message: 'Too many requests' });
-    if (err.validation || err.statusCode === 400) return reply.code(400).send({ error: 'VALIDATION_FAILED', message: err.message });
+    if (err.statusCode === 429) return sendHttpError(req, reply, 429, ...HTTP_ERRORS[429]);
+    // Malformed JSON keeps the parser's explanation (it names no internals); schema validation too.
+    if (err.validation || err.code === 'FST_ERR_CTP_INVALID_JSON_BODY' || err.code === 'FST_ERR_CTP_EMPTY_JSON_BODY') {
+      return sendHttpError(req, reply, 400, 'VALIDATION_FAILED', err.validation ? String(err.message).slice(0, 300) : 'Body is not valid JSON');
+    }
+    // Other client errors raised by the framework (body too large, unsupported media type, bad header): their
+    // own status with a fixed text. Before this, a body above the limit was answered with 500.
+    if (Number.isInteger(err.statusCode) && err.statusCode >= 400 && err.statusCode < 500) {
+      const [code, message] = HTTP_ERRORS[err.statusCode] ?? HTTP_ERRORS[400];
+      return sendHttpError(req, reply, err.statusCode, code, message);
+    }
     req.log.error(err);
-    return reply.code(500).send({ error: 'INTERNAL', message: 'Internal error' });
+    return sendHttpError(req, reply, 500, 'INTERNAL', 'Internal error');
   });
 
   // ---------------- Static ----------------
@@ -243,17 +286,17 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
   });
 
   // ---------------- Health ----------------
-  startNetProbe();
   app.get('/healthz', async () => ({ status: 'ok' }));
   app.get('/readyz', async (_req, reply) => {
     const db = await ctx.db.ping();
     const mig = db ? (await ctx.db.query('SELECT count(*)::int n FROM schema_migrations').catch(() => ({ rows: [{ n: 0 }] }))).rows[0].n : 0;
     const ok = db && mig > 0;
-    return reply.code(ok ? 200 : 503).send({
+    // Public and unauthenticated: readiness only. Process memory, container limits and anything about the
+    // network around the host stay in the logs ([demo-db] lines), not here. demo_db is one word for operations:
+    // where the web demo keeps its data right now (shared, memory or separate).
+    return reply.code(ok ? 200 : 503).header('cache-control', 'no-store').send({
       status: ok ? 'ready' : 'not_ready', db, migrations: mig,
-      demo_db: ctx.demoCtx ? (ctx.cfg.demoDb === 'memory' ? 'memory' : 'separate') : 'shared',
-      ...(netProbe() ? { net: netProbe() } : {}),
-      memory: { rss_mb: Math.round(process.memoryUsage().rss / (1024 * 1024)), limit_mb: memoryLimitMb() },
+      demo_db: demoDbWord(ctx),
     });
   });
 

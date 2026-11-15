@@ -34,7 +34,7 @@ const ID_RE = /^[a-z][a-z0-9-]{1,31}$/;
  * an example, or hardly any variety (one character repeated, "abcabcabc"). Real ones come from `openssl rand -hex 32`.
  */
 export function isWeakSecret(s: string): boolean {
-  return s.length < 32 || /change[_-]?me|dev-only|example|placeholder|your[_-]?secret|secret[_-]?here|<[^>]*>/i.test(s) || new Set(s).size < 8;
+  return s.length < 32 || /change[_-]?me|dev-only|example|placeholder|your[_-]?secret|secret[_-]?here|<[^>]*>/i.test(s) || new Set(s).size < 8 || /^(.{1,16})\1+$/.test(s);
 }
 
 export function loadPartners(env: NodeJS.ProcessEnv, appEnv: string): PartnerConfig[] {

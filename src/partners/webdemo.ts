@@ -15,7 +15,9 @@ import { callProvider } from '../services/common.js';
 import { DemoService, detectService, fixTypos, hasFoodCue, parseIntent, serviceCues } from '../web/intent.js';
 import { SHOP_STORE, shopPicks, shopPlan } from '../web/try-services.js';
 import { tr } from '../web/messages.js';
-import { Card, CardOption, cardLocale, localText } from './cards.js';
+import { pack } from '../i18n/index.js';
+import { CATALOGS } from '../i18n/generated.js';
+import { Card, CardOption, chatLocale, dataText, localText, trf } from './cards.js';
 import { WEB_DEMO_PARTNER } from './config.js';
 import {
   cancellationCard, checkoutCard, confirmCancelPartner, confirmCheckout, declineCheckoutPartner, grabLinkStatus, orderCard, prepareCancelPartner, runTool, startGrabLink,
@@ -32,6 +34,9 @@ export interface AriTurn { reply: string; card?: Card | null; chips?: string[]; 
 
 type Tri = { en: string; ru: string; th: string };
 const t = (l: Locale, x: Tri) => tr(l, x);
+const tf = trf;
+/** Sentences of one reply, in order. Chinese sets no space between sentences. */
+const glue = (l: Locale, ...parts: (string | undefined | null | false)[]) => parts.filter(Boolean).join(l === 'zh' ? '' : ' ');
 
 /** The Grab API a live deployment would call for the same step. */
 function grabFor(tool: string, args: Record<string, unknown>): string | null {
@@ -60,13 +65,20 @@ const EXAMPLES: Record<'en' | 'ru' | 'th', string[]> = {
   ru: ['Такси от Сиам Парагона до аэропорта Суварнабхуми', 'Ужин на двоих до 600 бат, без орехов', 'Отправить посылку 3 кг в Айконсиам', 'Букет роз в подарочной коробке', 'Парацетамол и пластыри', 'Продукты: рис, яйца и вода', 'Шоколадный торт на день рождения'],
   th: ['เรียกแท็กซี่จากสยามพารากอนไปสนามบินสุวรรณภูมิ', 'มื้อเย็นสำหรับ 2 คน ไม่เกิน 600 บาท ไม่ใส่ถั่ว', 'ส่งพัสดุ 3 กก. ไปไอคอนสยาม', 'ช่อดอกกุหลาบพร้อมกล่องของขวัญ', 'พาราเซตามอลกับพลาสเตอร์', 'ของชำ ข้าวสาร ไข่ไก่ น้ำดื่ม', 'เค้กช็อกโกแลตวันเกิด'],
 };
-export const ariExamples = (l: Locale) => (EXAMPLES as Record<string, string[]>)[l] ?? EXAMPLES.en;
+/** The same seven requests in the language packs, which list them in another order (dinner, taxi, groceries, flowers, pharmacy, cake, parcel). */
+const PACK_ORDER = [1, 0, 6, 3, 4, 2, 5];
+export const ariExamples = (l: Locale): string[] => {
+  const own = (EXAMPLES as Record<string, string[]>)[l];
+  if (own) return own;
+  const p = pack(l)?.examples;
+  return p?.length === 7 ? PACK_ORDER.map((i) => p[i]) : EXAMPLES.en;
+};
 
-const GREET = /^(hi|hello|hey|good (?:morning|afternoon|evening)|привет|здравств|добр|สวัสดี|อรุณสวัสดิ์|หวัดดี|ดีครับ|ดีค่ะ|👋)(?![a-z])/iu;
-const THANKS = /^(?:ok(?:ay)?[,! ]*)?(?:thanks?|thank you|thx|cheers|great|perfect|awesome|спасибо|благодар|отлично|супер|ขอบคุณ|ขอบใจ|🙏|❤️)(?![a-zа-яё])/iu;
+const GREET = /^(hi|hello|hey|good (?:morning|afternoon|evening)|привет|здравств|добр|สวัสดี|อรุณสวัสดิ์|หวัดดี|ดีครับ|ดีค่ะ|👋|xin chào|chào(?: bạn| ari)?|halo|hallo|helo|selamat (?:pagi|siang|sore|malam|petang|tengah hari)|apa khabar|kumusta|kamusta|magandang (?:umaga|hapon|gabi|araw)|សួស្តី|ជំរាបសួរ|မင်္ဂလာပါ|你好|您好|哈喽|嗨)(?![a-z])/iu;
+const THANKS = /^(?:ok(?:ay)?[,! ]*)?(?:thanks?|thank you|thx|cheers|great|perfect|awesome|спасибо|благодар|отлично|супер|ขอบคุณ|ขอบใจ|🙏|❤️|cảm ơn|cám ơn|terima kasih|makasih|maraming salamat|salamat|អរគុណ|ကျေးဇူး|谢谢|多谢)(?![a-zа-яё])/iu;
 const HELP = /what can you (?:do|order)|what do you do|^help\b|how does (?:this|it) work|what services|что (?:ты )?(?:умеешь|можешь)|что вы (?:умеете|можете)|^помо(?:щь|ги)|как это работает|ทำอะไรได้|ช่วยอะไร|ใช้งานยังไง/iu;
-const CANCEL = /\bcancel\b|отмен|ยกเลิก/iu;
-const TRACK = /where(?: i|')s (?:my|the)|\b(?:order|delivery|ride) status\b|\bstatus of my\b|\btrack(?:ing)?\b|how long (?:until|till)|отслед|ติดตาม|где (?:мой|моя|мое|моё|мои|сейчас|курьер|водитель|заказ)|что с (?:моим )?заказ|статус заказа|когда (?:приедет|привезут|доставят)|(?:ออเดอร์|คำสั่งซื้อ|รถ|ไรเดอร์|พัสดุ)(?:ของฉัน)?(?:อยู่|ถึง)(?:ที่)?ไหน|สถานะ(?:ออเดอร์|คำสั่งซื้อ)|ถึงไหนแล้ว/iu;
+const CANCEL = /\bcancel\b|отмен|ยกเลิก|(?<!\p{L})(?:hủy|huỷ|batal\S*|kanselahin|ikansela)(?!\p{L})|បោះបង់|ပယ်ဖျက်|取消/iu;
+const TRACK = /where(?: i|')s (?:my|the)|\b(?:order|delivery|ride) status\b|\bstatus of my\b|\btrack(?:ing)?\b|how long (?:until|till)|отслед|ติดตาม|где (?:мой|моя|мое|моё|мои|сейчас|курьер|водитель|заказ)|что с (?:моим )?заказ|статус заказа|когда (?:приедет|привезут|доставят)|(?:ออเดอร์|คำสั่งซื้อ|รถ|ไรเดอร์|พัสดุ)(?:ของฉัน)?(?:อยู่|ถึง)(?:ที่)?ไหน|สถานะ(?:ออเดอร์|คำสั่งซื้อ)|ถึงไหนแล้ว|đơn(?: hàng)?(?: của tôi)? (?:đang )?(?:ở đâu|đâu rồi|đến đâu)|(?:di ?mana|mana) pesanan|pesanan saya (?:di ?mana|sampai mana|sudah sampai)|nasaan (?:na )?ang (?:order|rider|driver)|订单(?:现在)?(?:在哪|到哪|状态)|到哪了|到哪儿了|ការកម្មង់របស់ខ្ញុំនៅឯណា|အော်ဒါ ?ဘယ်ရောက်/iu;
 
 // ---- Requests Ari answers in words, without a tool call ----
 /** Prescription-only and controlled medicines: never ordered, whatever the wording. */
@@ -223,11 +235,11 @@ async function latestOrderTurn(ctx: Ctx, u: PartnerUser, l: Locale, cancel: bool
   }
   const card = await traced(trace, `GET ${base}/orders/${o.id}`, 'GrabExpress · GET /v1/deliveries/{id}', () => orderCard(ctx, P, u, o.id, { refresh: true }));
   if (!cancel) {
-    return { reply: t(l, { en: `Your latest order: ${card.status?.label ?? ''}.`, ru: `Ваш последний заказ: ${card.status?.label ?? ''}.`, th: `คำสั่งซื้อล่าสุด: ${card.status?.label ?? ''}ค่ะ` }), card, order_id: o.id, trace };
+    return { reply: tf(l, { en: 'Your latest order: {status}.', ru: 'Ваш последний заказ: {status}.', th: 'คำสั่งซื้อล่าสุด: {status}ค่ะ' }, { status: card.status?.label ?? '' }), card, order_id: o.id, trace };
   }
   if (!card.actions.some((a) => a.kind === 'prepare_cancel')) {
     const st = card.status?.label ?? '';
-    return { reply: t(l, { en: `This order can no longer be cancelled (${st}).`, ru: `Этот заказ уже нельзя отменить (${st}).`, th: `คำสั่งซื้อนี้ยกเลิกไม่ได้แล้วค่ะ (${st})` }), card, order_id: o.id, trace };
+    return { reply: tf(l, { en: 'This order can no longer be cancelled ({status}).', ru: 'Этот заказ уже нельзя отменить ({status}).', th: 'คำสั่งซื้อนี้ยกเลิกไม่ได้แล้วค่ะ ({status})' }, { status: st }), card, order_id: o.id, trace };
   }
   const r = await traced(trace, `POST ${base}/orders/${o.id}/cancel`, null, () => prepareCancelPartner(ctx, P, u, o.id));
   return { reply: t(l, { en: 'Here are the cancellation terms. The order is cancelled only when you confirm on the card:', ru: 'Условия отмены. Заказ отменится только после подтверждения на карточке:', th: 'นี่คือเงื่อนไขการยกเลิกค่ะ คำสั่งซื้อจะถูกยกเลิกเมื่อคุณกดยืนยันบนการ์ดเท่านั้น' }), card: r.card, trace };
@@ -250,7 +262,7 @@ async function reorderTurn(ctx: Ctx, u: PartnerUser, l: Locale, trace: TraceEntr
     return { reply: t(l, { en: 'I could not repeat that order exactly as it was:', ru: 'Повторить заказ один в один не получилось:', th: 'Ari สั่งซ้ำแบบเดิมทุกอย่างไม่ได้ค่ะ' }), card: r.card, chips: ariExamples(l).slice(0, 3), trace };
   }
   return {
-    reply: t(l, { en: `Same as your last order (${r.card.title}), at today's price. Nothing is ordered until you confirm on the card.`, ru: `То же, что в прошлом заказе (${r.card.title}), по сегодняшней цене. Без подтверждения на карточке ничего не заказывается.`, th: `เหมือนคำสั่งซื้อล่าสุด (${r.card.title}) ในราคาวันนี้ค่ะ Ari จะยังไม่สั่งจนกว่าคุณจะกดยืนยันบนการ์ดนะคะ` }),
+    reply: tf(l, { en: 'Same as your last order ({title}), at today\'s price. Nothing is ordered until you confirm on the card.', ru: 'То же, что в прошлом заказе ({title}), по сегодняшней цене. Без подтверждения на карточке ничего не заказывается.', th: 'เหมือนคำสั่งซื้อล่าสุด ({title}) ในราคาวันนี้ค่ะ Ari จะยังไม่สั่งจนกว่าคุณจะกดยืนยันบนการ์ดนะคะ' }, { title: r.card.title }),
     card: r.card, trace,
   };
 }
@@ -263,16 +275,22 @@ function placeChip(l: Locale, ask: TripAsk | undefined, field: string | undefine
   const to = field === 'pickup' ? ask?.dropoff ?? '' : place;
   const kg = ask?.weight_kg;
   if (ask?.service === 'express') {
-    return from
-      ? t(l, { en: `Send a ${kg ? `${kg} kg ` : ''}parcel from ${from} to ${to}`, ru: `Отправить посылку${kg ? ` ${kg} кг` : ''} от ${from} до ${to}`, th: `ส่งพัสดุ${kg ? ` ${kg} กก.` : ''} จาก ${from} ไป ${to}` })
-      : t(l, { en: `Send a ${kg ? `${kg} kg ` : ''}parcel to ${to}`, ru: `Отправить посылку${kg ? ` ${kg} кг` : ''} в ${to}`, th: `ส่งพัสดุ${kg ? ` ${kg} กก.` : ''} ไป ${to}` });
+    const v = { kg: kg ?? '', from: from ?? '', to };
+    if (from) {
+      return kg
+        ? tf(l, { en: 'Send a {kg} kg parcel from {from} to {to}', ru: 'Отправить посылку {kg} кг от {from} до {to}', th: 'ส่งพัสดุ {kg} กก. จาก {from} ไป {to}' }, v)
+        : tf(l, { en: 'Send a parcel from {from} to {to}', ru: 'Отправить посылку от {from} до {to}', th: 'ส่งพัสดุ จาก {from} ไป {to}' }, v);
+    }
+    return kg
+      ? tf(l, { en: 'Send a {kg} kg parcel to {to}', ru: 'Отправить посылку {kg} кг в {to}', th: 'ส่งพัสดุ {kg} กก. ไป {to}' }, v)
+      : tf(l, { en: 'Send a parcel to {to}', ru: 'Отправить посылку в {to}', th: 'ส่งพัสดุ ไป {to}' }, v);
   }
+  const trip = from
+    ? tf(l, { en: 'Taxi from {from} to {to}', ru: 'Такси от {from} до {to}', th: 'แท็กซี่จาก {from} ไป {to}' }, { from, to })
+    : tf(l, { en: 'Taxi to {to}', ru: 'Такси до {to}', th: 'แท็กซี่ไป {to}' }, { to });
   // The party size goes last, where the place parser stops reading.
   const n = ask?.passengers;
-  const group = n && n > 1 ? t(l, { en: ` for ${n} people`, ru: ` на ${n} человек`, th: ` สำหรับ ${n} คน` }) : '';
-  return (from
-    ? t(l, { en: `Taxi from ${from} to ${to}`, ru: `Такси от ${from} до ${to}`, th: `แท็กซี่จาก ${from} ไป ${to}` })
-    : t(l, { en: `Taxi to ${to}`, ru: `Такси до ${to}`, th: `แท็กซี่ไป ${to}` })) + group;
+  return n && n > 1 ? tf(l, { en: '{trip} for {n} people', ru: '{trip} на {n} человек', th: '{trip} สำหรับ {n} คน' }, { trip, n }) : trip;
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -294,14 +312,35 @@ function twoRequests(q: string): string[] | null {
 
 const say = (l: Locale, x: Tri, chips: string[], trace: TraceEntry[]): AriTurn => ({ reply: t(l, x), chips, trace });
 
+const REVERSE = new Map<string, Map<string, string>>();
+const norm = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
+/**
+ * A sentence that is word for word one of our own lines in a catalog language (an example chip, a button
+ * label) is read as its English original, so every chip Ari offers works when tapped, whatever the parser knows.
+ */
+function ownLine(l: Locale, typed: string): string {
+  const cat = CATALOGS[l];
+  if (!cat) return typed;
+  // The seven examples of a language pack mean exactly what the English examples say.
+  const ex = pack(l)?.examples.findIndex((e) => norm(e) === norm(typed)) ?? -1;
+  if (ex >= 0 && PACK_ORDER.includes(ex)) return EXAMPLES.en[PACK_ORDER.indexOf(ex)];
+  let rev = REVERSE.get(l);
+  if (!rev) {
+    rev = new Map();
+    for (const [en, own] of Object.entries(cat)) if (own.length <= 120 && !rev.has(norm(own))) rev.set(norm(own), en);
+    REVERSE.set(l, rev);
+  }
+  return rev.get(norm(typed)) ?? typed;
+}
+
 /** One user message: decide what Ari would do and run it through the Partner API path. */
 export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promise<AriTurn> {
-  const l = cardLocale(u.locale);
+  const l = chatLocale(u.locale);
   const trace: TraceEntry[] = [];
   const base = `/partner/v1/users/${u.external_user_id}`;
   const typed = text.replace(/\s+/g, ' ').trim().slice(0, 300);
   // What the rules read: the sentence with emoji spelled out and common typos fixed.
-  const q = fixTypos(`${typed} ${EMOJI.filter(([re]) => re.test(typed)).map(([, w]) => w).join(' ')}`.trim());
+  const q = fixTypos(`${ownLine(l, typed)} ${EMOJI.filter(([re]) => re.test(typed)).map(([, w]) => w).join(' ')}`.trim());
   const ex = ariExamples(l);
   if (!q || (GREET.test(q) && q.split(' ').length <= 3)) {
     return {
@@ -347,12 +386,12 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
   const timed = q.replace(TIME, ' ').replace(/\s+/g, ' ').trim();
   const scheduled = timed !== q;
   const timeNote = scheduled
-    ? t(l, { en: 'I can only order for right now: scheduling a time is not part of this demo. ', ru: 'Заказать могу только на сейчас: выбор времени в это демо не входит. ', th: 'Ari สั่งได้เฉพาะแบบทันทีค่ะ การนัดเวลาล่วงหน้ายังไม่มีในเดโมนี้ ' })
+    ? t(l, { en: 'I can only order for right now: scheduling a time is not part of this demo.', ru: 'Заказать могу только на сейчас: выбор времени в это демо не входит.', th: 'Ari สั่งได้เฉพาะแบบทันทีค่ะ การนัดเวลาล่วงหน้ายังไม่มีในเดโมนี้' })
     : '';
   const noConfirmNote = NO_CONFIRM.test(q)
-    ? t(l, { en: 'I can\'t skip the confirmation: nothing is ordered until you tap Confirm on the card. ', ru: 'Без подтверждения не получится: ничего не заказывается, пока вы не нажмёте «Подтвердить» на карточке. ', th: 'Ari ข้ามขั้นตอนยืนยันไม่ได้ค่ะ จะยังไม่มีการสั่งซื้อจนกว่าคุณจะแตะยืนยันบนการ์ด ' })
+    ? t(l, { en: 'I can\'t skip the confirmation: nothing is ordered until you tap Confirm on the card.', ru: 'Без подтверждения не получится: ничего не заказывается, пока вы не нажмёте «Подтвердить» на карточке.', th: 'Ari ข้ามขั้นตอนยืนยันไม่ได้ค่ะ จะยังไม่มีการสั่งซื้อจนกว่าคุณจะแตะยืนยันบนการ์ด' })
     : '';
-  const lead = noConfirmNote + timeNote;
+  const lead = glue(l, noConfirmNote, timeNote);
   const si = detectService(timed);
   // A named dish is a food order even when it shares a word with the supermarket ("fried rice", "mango sticky rice").
   const dishNamed = DISHES.some((d) => d.re.test(q));
@@ -474,13 +513,13 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
       }
       const args: Record<string, unknown> = { service: si.service, pickup, dropoff: si.dropoff };
       // What the user said, for "did you mean" chips: home stays the word "home" in the chat language.
-      const homeWord = t(l, { en: 'home', ru: 'дома', th: 'บ้าน' });
+      const homeWord = l === 'en' || l === 'ru' || l === 'th' ? t(l, { en: 'home', ru: 'дома', th: 'บ้าน' }) : addr?.label ?? t(l, { en: 'Home', ru: 'Дом', th: 'บ้าน' });
       const ask: TripAsk = { service: si.service, pickup: si.pickup_home ? homeWord : si.pickup, dropoff: si.dropoff_home ? homeWord : si.dropoff, weight_kg: si.weight_kg, passengers: si.passengers };
       if (si.service === 'ride' && si.passengers && si.passengers > MAX_SEATS) {
         // More people than the largest vehicle seats: say so instead of quietly offering a van that is too small.
         const half = Math.ceil(si.passengers / 2);
         return {
-          reply: t(l, { en: `The largest vehicle here seats ${MAX_SEATS}, so your group needs two cars. I can book one car at a time:`, ru: `В самой большой машине ${MAX_SEATS} мест, поэтому вашей компании нужны две машины. Я заказываю по одной:`, th: `รถคันใหญ่ที่สุดนั่งได้ ${MAX_SEATS} คนค่ะ กลุ่มของคุณจึงต้องใช้สองคัน Ari จองได้ทีละคันค่ะ` }),
+          reply: tf(l, { en: 'The largest vehicle here seats {seats}, so your group needs two cars. I can book one car at a time:', ru: 'В самой большой машине {seats} мест, поэтому вашей компании нужны две машины. Я заказываю по одной:', th: 'รถคันใหญ่ที่สุดนั่งได้ {seats} คนค่ะ กลุ่มของคุณจึงต้องใช้สองคัน Ari จองได้ทีละคันค่ะ' }, { seats: MAX_SEATS }),
           chips: [placeChip(l, { ...ask, passengers: half }, 'dropoff', ask.dropoff ?? '')], trace,
         };
       }
@@ -491,7 +530,7 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
       const r = await traced(trace, `POST ${base}/tools/estimate_trip`, grabFor('estimate_trip', args), () => runTool(ctx, P, u, 'estimate_trip', args, { addresses: places }));
       if (!r.ok) {
         const e = errorTurn(l, r.error, trace, ask);
-        return { ...e, reply: lead + e.reply };
+        return { ...e, reply: glue(l, lead, e.reply) };
       }
       const res = r.result;
       const from = res.trip?.pickup?.name;
@@ -501,21 +540,27 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
         const maxKg = Math.max(0, ...(res.options ?? []).map((o: any) => Number(o.max_weight_kg) || 0));
         const maxSeats = Math.max(0, ...(res.options ?? []).map((o: any) => Number(o.seats) || 0));
         const why = si.service === 'express'
-          ? t(l, { en: `A ${args.parcel_weight_kg} kg parcel is too heavy: the largest vehicle here carries up to ${maxKg} kg. Try a lighter parcel or split it.`, ru: `Посылка ${args.parcel_weight_kg} кг слишком тяжёлая: самая большая машина берёт до ${maxKg} кг. Уменьшите вес или разделите посылку.`, th: `พัสดุ ${args.parcel_weight_kg} กก. หนักเกินไปค่ะ รถคันใหญ่ที่สุดรับได้ไม่เกิน ${maxKg} กก. ลองลดน้ำหนักหรือแบ่งส่งนะคะ` })
-          : t(l, { en: `No vehicle here takes ${si.passengers ?? ''} passengers: the largest seats ${maxSeats}. Try a smaller group or two cars.`, ru: `Машины на ${si.passengers ?? ''} пассажиров нет: в самой большой мест ${maxSeats}. Попробуйте меньшую компанию или две машины.`, th: `ไม่มีรถที่รับผู้โดยสาร ${si.passengers ?? ''} คนได้ค่ะ คันใหญ่ที่สุดนั่งได้ ${maxSeats} คน ลองแบ่งเป็นสองคันนะคะ` });
+          ? tf(l, { en: 'A {kg} kg parcel is too heavy: the largest vehicle here carries up to {max} kg. Try a lighter parcel or split it.', ru: 'Посылка {kg} кг слишком тяжёлая: самая большая машина берёт до {max} кг. Уменьшите вес или разделите посылку.', th: 'พัสดุ {kg} กก. หนักเกินไปค่ะ รถคันใหญ่ที่สุดรับได้ไม่เกิน {max} กก. ลองลดน้ำหนักหรือแบ่งส่งนะคะ' }, { kg: String(args.parcel_weight_kg), max: maxKg })
+          : tf(l, { en: 'No vehicle here takes {n} passengers: the largest seats {max}. Try a smaller group or two cars.', ru: 'Машины на {n} пассажиров нет: в самой большой мест {max}. Попробуйте меньшую компанию или две машины.', th: 'ไม่มีรถที่รับผู้โดยสาร {n} คนได้ค่ะ คันใหญ่ที่สุดนั่งได้ {max} คน ลองแบ่งเป็นสองคันนะคะ' }, { n: si.passengers ?? '', max: maxSeats });
         return { reply: why, card: r.card, trace };
       }
       const weightGuess = si.service === 'express' && !si.weight_kg
-        ? t(l, { en: ' I assumed 2 kg; tell me the weight if it is heavier.', ru: ' Вес я приняла за 2 кг; если посылка тяжелее, назовите вес.', th: ' Ari ประมาณน้ำหนักไว้ที่ 2 กก. ถ้าหนักกว่านี้บอกน้ำหนักได้เลยค่ะ' })
+        ? t(l, { en: 'I assumed 2 kg; tell me the weight if it is heavier.', ru: 'Вес я приняла за 2 кг; если посылка тяжелее, назовите вес.', th: 'Ari ประมาณน้ำหนักไว้ที่ 2 กก. ถ้าหนักกว่านี้บอกน้ำหนักได้เลยค่ะ' })
         : '';
-      const fragileNote = fragile ? t(l, { en: ' I marked it as fragile for the courier.', ru: ' Пометила для курьера, что посылка хрупкая.', th: ' Ari แจ้งไรเดอร์ไว้แล้วว่าเป็นของแตกง่ายค่ะ' }) : '';
+      const fragileNote = fragile ? t(l, { en: 'I marked it as fragile for the courier.', ru: 'Пометила для курьера, что посылка хрупкая.', th: 'Ari แจ้งไรเดอร์ไว้แล้วว่าเป็นของแตกง่ายค่ะ' }) : '';
       const group = si.service === 'ride' && si.passengers && si.passengers > 1
-        ? t(l, { en: ` Cars that seat ${si.passengers} are on top.`, ru: ` Машины на ${si.passengers} пассажиров идут первыми.`, th: ` รถที่นั่งได้ ${si.passengers} คนอยู่ด้านบนค่ะ` })
+        ? tf(l, { en: 'Cars that seat {n} are on top.', ru: 'Машины на {n} пассажиров идут первыми.', th: 'รถที่นั่งได้ {n} คนอยู่ด้านบนค่ะ' }, { n: si.passengers })
         : '';
       const reply = si.service === 'ride'
-        ? t(l, { en: `From ${from} to ${to}, about ${res.trip?.drive_minutes_estimate} min.${group} Pick a ride:`, ru: `Маршрут: ${from} → ${to}, примерно ${res.trip?.drive_minutes_estimate} мин в пути.${group} Выберите машину:`, th: `จาก ${from} ไป ${to} ประมาณ ${res.trip?.drive_minutes_estimate} นาที${group} เลือกประเภทรถได้เลยค่ะ` })
-        : t(l, { en: `Parcel ${args.parcel_weight_kg} kg from ${from} to ${to}.${weightGuess}${fragileNote} Pick a courier:`, ru: `Посылка ${args.parcel_weight_kg} кг: ${from} → ${to}.${weightGuess}${fragileNote} Выберите курьера:`, th: `พัสดุ ${args.parcel_weight_kg} กก. จาก ${from} ไป ${to}${weightGuess}${fragileNote} เลือกประเภทการส่งได้เลยค่ะ` });
-      return { reply: lead + reply, card: r.card, trace };
+        ? glue(l,
+          tf(l, { en: 'From {from} to {to}, about {min} min.', ru: 'Маршрут: {from} → {to}, примерно {min} мин в пути.', th: 'จาก {from} ไป {to} ประมาณ {min} นาที' }, { from, to, min: res.trip?.drive_minutes_estimate ?? '' }),
+          group,
+          t(l, { en: 'Pick a ride:', ru: 'Выберите машину:', th: 'เลือกประเภทรถได้เลยค่ะ' }))
+        : glue(l,
+          tf(l, { en: 'Parcel {kg} kg from {from} to {to}.', ru: 'Посылка {kg} кг: {from} → {to}.', th: 'พัสดุ {kg} กก. จาก {from} ไป {to}' }, { kg: String(args.parcel_weight_kg), from, to }),
+          weightGuess, fragileNote,
+          t(l, { en: 'Pick a courier:', ru: 'Выберите курьера:', th: 'เลือกประเภทการส่งได้เลยค่ะ' }));
+      return { reply: glue(l, lead, reply), card: r.card, trace };
     }
     if (si.service === 'food') {
       // Nothing in the sentence names a service or a meal: say what Ari can do instead of guessing restaurants.
@@ -538,22 +583,24 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
     const args = { store_id: plan.store_id, items: plan.lines.map((x) => ({ item_id: x.item_id, quantity: x.quantity, ...(x.modifiers.length ? { modifiers: x.modifiers } : {}) })) };
     const r = await traced(trace, `POST ${base}/tools/create_cart`, grabFor('create_cart', args), () => runTool(ctx, P, u, 'create_cart', args));
     if (!r.ok) return errorTurn(l, r.error, trace);
-    const names = plan.lines.map((x) => `${x.quantity > 1 ? `${x.quantity}× ` : ''}${x.name}`).join(', ');
+    const names = plan.lines.map((x) => `${x.quantity > 1 ? `${x.quantity}× ` : ''}${dataText(x.name, l)}`).join(l === 'zh' ? '、' : ', ');
     const notes: string[] = [];
     if (!picks.matched && service === 'flowers') notes.push(t(l, { en: 'I picked the seasonal bouquet; say roses, lilies or orchids if you prefer.', ru: 'Я выбрала сезонный букет; если хотите розы, лилии или орхидею, скажите.', th: 'Ari เลือกช่อดอกไม้ตามฤดูกาลให้ค่ะ ถ้าอยากได้กุหลาบ ลิลลี่ หรือกล้วยไม้ บอกได้เลยนะคะ' }));
     if (!picks.matched && service === 'cakes') notes.push(t(l, { en: 'I picked the chocolate cake; there is also a birthday cake, a pandan chiffon and a mango cheesecake.', ru: 'Я выбрала шоколадный торт; ещё есть торт на день рождения, пандановый шифон и манговый чизкейк.', th: 'Ari เลือกเค้กช็อกโกแลตให้ค่ะ นอกจากนี้ยังมีเค้กวันเกิด ชิฟฟ่อนใบเตย และชีสเค้กมะม่วง' }));
     for (const x of plan.lines) {
-      if (x.limited_from) notes.push(t(l, { en: `The store sells at most ${x.quantity} of ${x.name} per order, so I set ${x.quantity} instead of ${x.limited_from}.`, ru: `Магазин продаёт не больше ${x.quantity} шт. «${x.name}» в одном заказе, поэтому вместо ${x.limited_from} я поставила ${x.quantity}.`, th: `ร้านขาย ${x.name} ได้ไม่เกิน ${x.quantity} ชิ้นต่อคำสั่งซื้อ Ari จึงใส่ ${x.quantity} แทน ${x.limited_from} ค่ะ` }));
+      if (x.limited_from) notes.push(tf(l, { en: 'The store sells at most {max} of {name} per order, so I set {max} instead of {asked}.', ru: 'Магазин продаёт не больше {max} шт. «{name}» в одном заказе, поэтому вместо {asked} я поставила {max}.', th: 'ร้านขาย {name} ได้ไม่เกิน {max} ชิ้นต่อคำสั่งซื้อ Ari จึงใส่ {max} แทน {asked} ค่ะ' }, { max: x.quantity, name: dataText(x.name, l), asked: x.limited_from }));
     }
     if (service === 'flowers' && /\d/.test(typed) && !/(?<!\d)12(?!\d)/.test(typed)) notes.push(t(l, { en: 'The florist sells set bouquets, so I could not change the number of stems: check it on the card.', ru: 'Флорист продаёт готовые букеты, поэтому число цветов я изменить не могу: проверьте его на карточке.', th: 'ร้านขายเป็นช่อสำเร็จ Ari จึงเปลี่ยนจำนวนดอกไม่ได้ ตรวจจำนวนบนการ์ดได้เลยค่ะ' }));
     if (service === 'groceries' && /\d/.test(typed)) notes.push(t(l, { en: 'Items come in store packs, one of each: check the sizes on the card.', ru: 'Товары идут упаковками магазина, по одной каждого: проверьте объёмы на карточке.', th: 'สินค้าเป็นแพ็กตามที่ร้านขาย อย่างละ 1 รายการ ตรวจขนาดบนการ์ดได้เลยค่ะ' }));
     if (GIFT.test(q)) {
       const home = r.card?.subtitle ?? '';
-      notes.push(t(l, { en: `It will be delivered to your saved address (${home}): sending to someone else's address is not part of this chat demo.`, ru: `Доставка будет на ваш сохранённый адрес (${home}): отправка на чужой адрес в это демо не входит.`, th: `รายการนี้จะจัดส่งไปยังที่อยู่ที่คุณบันทึกไว้ (${home}) ค่ะ การส่งไปยังที่อยู่ของผู้อื่นยังไม่มีในเดโมแชตนี้` }));
+      notes.push(tf(l, { en: 'It will be delivered to your saved address ({home}): sending to someone else\'s address is not part of this chat demo.', ru: 'Доставка будет на ваш сохранённый адрес ({home}): отправка на чужой адрес в это демо не входит.', th: 'รายการนี้จะจัดส่งไปยังที่อยู่ที่คุณบันทึกไว้ ({home}) ค่ะ การส่งไปยังที่อยู่ของผู้อื่นยังไม่มีในเดโมแชตนี้' }, { home }));
     }
-    const extra = notes.length ? ` ${notes.join(' ')}` : '';
     return {
-      reply: lead + t(l, { en: `${plan.store_name}: ${names}.${extra} Here is the total with every fee. Confirm when ready.`, ru: `${plan.store_name}: ${names}.${extra} Вот итог со всеми сборами. Подтвердите, когда будете готовы.`, th: `${plan.store_name}: ${names}${extra} นี่คือยอดรวมที่รวมค่าธรรมเนียมทุกรายการแล้ว แตะยืนยันเมื่อพร้อมนะคะ` }),
+      reply: glue(l, lead,
+        tf(l, { en: '{store}: {names}.', ru: '{store}: {names}.', th: '{store}: {names}' }, { store: plan.store_name, names }),
+        ...notes,
+        t(l, { en: 'Here is the total with every fee. Confirm when ready.', ru: 'Вот итог со всеми сборами. Подтвердите, когда будете готовы.', th: 'นี่คือยอดรวมที่รวมค่าธรรมเนียมทุกรายการแล้ว แตะยืนยันเมื่อพร้อมนะคะ' })),
       card: r.card, trace,
     };
   } catch (e) {
@@ -570,6 +617,19 @@ const DIET_NAME: Record<string, Tri> = {
 const MAX_SEATS = 10;
 const BADGE_BUDGET: Tri = { en: 'Within budget', ru: 'В бюджете', th: 'อยู่ในงบ' };
 const BADGE_ALLERGEN: Tri = { en: 'Excluded allergens not declared', ru: 'Исключённые аллергены не заявлены', th: 'ร้านไม่ได้ระบุสารก่อภูมิแพ้ที่ยกเว้น' };
+
+/** "3 options for 2 under ฿600." */
+function optionCount(l: Locale, n: number, people: number, budget: string): string {
+  const v = { n, people, budget };
+  if (budget) {
+    return n === 1
+      ? tf(l, { en: '{n} option for {people} under ฿{budget}.', ru: 'Вариантов: {n} (на {people} чел. до {budget} бат).', th: '{n} ตัวเลือกสำหรับ {people} คน ไม่เกิน {budget} บาท' }, v)
+      : tf(l, { en: '{n} options for {people} under ฿{budget}.', ru: 'Вариантов: {n} (на {people} чел. до {budget} бат).', th: '{n} ตัวเลือกสำหรับ {people} คน ไม่เกิน {budget} บาท' }, v);
+  }
+  return n === 1
+    ? tf(l, { en: '{n} option for {people}.', ru: 'Вариантов: {n} (на {people} чел.).', th: '{n} ตัวเลือกสำหรับ {people} คน' }, v)
+    : tf(l, { en: '{n} options for {people}.', ru: 'Вариантов: {n} (на {people} чел.).', th: '{n} ตัวเลือกสำหรับ {people} คน' }, v);
+}
 
 /** A food request: restaurants for the party and budget, or the named dishes when the demo menus have them. */
 async function foodTurn(ctx: Ctx, u: PartnerUser, l: Locale, q: string, typed: string, lead: string, trace: TraceEntry[]): Promise<AriTurn> {
@@ -593,16 +653,16 @@ async function foodTurn(ctx: Ctx, u: PartnerUser, l: Locale, q: string, typed: s
   for (const f of found) {
     const dishName = t(l, f.dish.name);
     if (!f.all.length) {
-      notes.push(t(l, { en: `There is no ${dishName} in the demo catalog.`, ru: `В демо-каталоге нет позиции «${dishName}».`, th: `ในแคตตาล็อกเดโมยังไม่มี${dishName}ค่ะ` }));
+      notes.push(tf(l, { en: 'There is no {dish} in the demo catalog.', ru: 'В демо-каталоге нет позиции «{dish}».', th: 'ในแคตตาล็อกเดโมยังไม่มี{dish}ค่ะ' }, { dish: dishName }));
     } else if (!f.open.length) {
       const st = f.all[0].store;
-      notes.push(t(l, { en: `${cap(dishName)} is on the menu at ${st.name}, but it is closed right now.`, ru: `${cap(dishName)} есть в ${st.name}, но сейчас там закрыто.`, th: `${st.name} มี${dishName} แต่ตอนนี้ร้านปิดอยู่ค่ะ` }));
+      notes.push(tf(l, { en: '{dish} is on the menu at {store}, but it is closed right now.', ru: '{dish} есть в {store}, но сейчас там закрыто.', th: '{store} มี{dish} แต่ตอนนี้ร้านปิดอยู่ค่ะ' }, { dish: l === 'th' ? dishName : cap(dishName), store: st.name }));
     } else if (!f.fits.length) {
       const h = f.open[0];
-      notes.push(t(l, { en: `${h.item.name} at ${h.store.name} does not fit your restrictions, so I left it out.`, ru: `${h.item.name} из ${h.store.name} не подходит под ваши ограничения, поэтому я это блюдо не предлагаю.`, th: `${h.item.name} ของร้าน ${h.store.name} ไม่ตรงกับเงื่อนไขของคุณ Ari จึงไม่ได้เสนอเมนูนี้ค่ะ` }));
+      notes.push(tf(l, { en: '{item} at {store} does not fit your restrictions, so I left it out.', ru: '{item} из {store} не подходит под ваши ограничения, поэтому я это блюдо не предлагаю.', th: '{item} ของร้าน {store} ไม่ตรงกับเงื่อนไขของคุณ Ari จึงไม่ได้เสนอเมนูนี้ค่ะ' }, { item: dataText(h.item.name, l), store: h.store.name }));
     } else if (elsewhere.includes(f)) {
       const h = f.fits[0];
-      notes.push(t(l, { en: `${h.item.name} is at another restaurant (${h.store.name}): ask for it as a separate order.`, ru: `${h.item.name} готовят в другом ресторане (${h.store.name}): закажите это блюдо отдельно.`, th: `${h.item.name} อยู่อีกร้านหนึ่ง (${h.store.name}) สั่งแยกเป็นอีกรายการได้เลยค่ะ` }));
+      notes.push(tf(l, { en: '{item} is at another restaurant ({store}): ask for it as a separate order.', ru: '{item} готовят в другом ресторане ({store}): закажите это блюдо отдельно.', th: '{item} อยู่อีกร้านหนึ่ง ({store}) สั่งแยกเป็นอีกรายการได้เลยค่ะ' }, { item: dataText(h.item.name, l), store: h.store.name }));
     }
   }
   const closedOnly = found.length > 0 && found.every((f) => f.all.length > 0 && !f.open.length);
@@ -616,9 +676,8 @@ async function foodTurn(ctx: Ctx, u: PartnerUser, l: Locale, q: string, typed: s
   };
   const r = await traced(trace, `POST ${base}/tools/search_stores`, grabFor('search_stores', args), () => runTool(ctx, P, u, 'search_stores', args));
   if (!r.ok) return errorTurn(l, r.error, trace);
-  const budget = args.budget_total_major ? ` ${t(l, { en: `under ฿${args.budget_total_major}`, ru: `до ${args.budget_total_major} бат`, th: `ไม่เกิน ${args.budget_total_major} บาท` })}` : '';
   const allergy = intent.exclude_allergens.length
-    ? t(l, { en: ' Restaurants did not declare the allergens you excluded, but I never mark a dish as safe.', ru: ' Рестораны не заявили исключённые аллергены, но я никогда не называю блюдо безопасным.', th: ' ร้านไม่ได้ระบุว่ามีสารก่อภูมิแพ้ที่คุณยกเว้น แต่ Ari ไม่รับรองว่าเมนูใดปลอดภัยนะคะ' })
+    ? t(l, { en: 'Restaurants did not declare the allergens you excluded, but I never mark a dish as safe.', ru: 'Рестораны не заявили исключённые аллергены, но я никогда не называю блюдо безопасным.', th: 'ร้านไม่ได้ระบุว่ามีสารก่อภูมิแพ้ที่คุณยกเว้น แต่ Ari ไม่รับรองว่าเมนูใดปลอดภัยนะคะ' })
     : '';
   const partyGuess = intent.party_size || counted ? undefined : partyChips(l, typed, people);
   if (dishFits && r.card?.options) {
@@ -654,7 +713,7 @@ async function foodTurn(ctx: Ctx, u: PartnerUser, l: Locale, q: string, typed: s
       const declared = lines.every((x) => x.item.allergen_info?.status === 'declared_by_restaurant');
       options.push({
         ...opt,
-        subtitle: lines.map((x) => `${x.quantity}× ${x.item.name}`).join(', '),
+        subtitle: lines.map((x) => `${x.quantity}× ${dataText(x.item.name, l)}`).join(', '),
         price: money(quote.total_minor, quote.currency, l).formatted,
         badges: [...(within ? [t(l, BADGE_BUDGET)] : []), ...(intent.exclude_allergens.length && declared ? [t(l, BADGE_ALLERGEN)] : [])],
         action: { ...opt.action, tool: { name: 'create_cart', arguments: { store_id: store.id, items: lines.map((x) => ({ item_id: x.item.id, quantity: x.quantity, ...(x.modifiers.length ? { modifiers: x.modifiers } : {}) })) } } },
@@ -663,19 +722,17 @@ async function foodTurn(ctx: Ctx, u: PartnerUser, l: Locale, q: string, typed: s
     if (options.length) {
       const first = options[0];
       const over = args.budget_total_major && !options.some((o) => o.badges?.includes(t(l, BADGE_BUDGET)))
-        ? t(l, { en: ` That is above your ฿${args.budget_total_major} budget.`, ru: ` Это выше вашего бюджета ${args.budget_total_major} бат.`, th: ` ราคานี้เกินงบ ${args.budget_total_major} บาทของคุณค่ะ` })
+        ? tf(l, { en: 'That is above your ฿{budget} budget.', ru: 'Это выше вашего бюджета {budget} бат.', th: 'ราคานี้เกินงบ {budget} บาทของคุณค่ะ' }, { budget: String(args.budget_total_major) })
         : '';
-      const note = notes.length ? ` ${notes.join(' ')}` : '';
-      const reply = t(l, {
-        en: `Found it: ${first.subtitle} at ${first.title}, ${first.price} with delivery.${over}${allergy}${note} Tap Choose to see every fee:`,
-        ru: `Нашла: ${first.subtitle} в ${first.title}, ${first.price} с доставкой.${over}${allergy}${note} Нажмите «Выбрать», чтобы увидеть все сборы:`,
-        th: `เจอแล้วค่ะ ${first.subtitle} จากร้าน ${first.title} ราคา ${first.price} รวมค่าส่ง${over}${allergy}${note} แตะเลือกเพื่อดูค่าธรรมเนียมทั้งหมดได้เลยค่ะ`,
-      });
-      return { reply: lead + reply, card: { ...r.card, options }, chips: partyGuess, trace };
+      const reply = glue(l,
+        tf(l, { en: 'Found it: {items} at {store}, {price} with delivery.', ru: 'Нашла: {items} в {store}, {price} с доставкой.', th: 'เจอแล้วค่ะ {items} จากร้าน {store} ราคา {price} รวมค่าส่ง' }, { items: first.subtitle ?? '', store: first.title, price: first.price ?? '' }),
+        over, allergy, ...notes,
+        t(l, { en: 'Tap Choose to see every fee:', ru: 'Нажмите «Выбрать», чтобы увидеть все сборы:', th: 'แตะเลือกเพื่อดูค่าธรรมเนียมทั้งหมดได้เลยค่ะ' }));
+      return { reply: glue(l, lead, reply), card: { ...r.card, options }, chips: partyGuess, trace };
     }
     if (undeliverable) {
       const dishName = t(l, offered[0].dish.name);
-      notes.push(t(l, { en: `${cap(dishName)} is on the menu at ${undeliverable.name}, but it does not deliver to your address right now.`, ru: `${cap(dishName)} есть в ${undeliverable.name}, но сейчас оттуда нет доставки на ваш адрес.`, th: `${undeliverable.name} มี${dishName} แต่ตอนนี้ยังไม่จัดส่งมายังที่อยู่ของคุณค่ะ` }));
+      notes.push(tf(l, { en: '{dish} is on the menu at {store}, but it does not deliver to your address right now.', ru: '{dish} есть в {store}, но сейчас оттуда нет доставки на ваш адрес.', th: '{store} มี{dish} แต่ตอนนี้ยังไม่จัดส่งมายังที่อยู่ของคุณค่ะ' }, { dish: l === 'th' ? dishName : cap(dishName), store: undeliverable.name }));
     }
   }
   // The general list: at most three restaurants, like any other food request.
@@ -685,23 +742,24 @@ async function foodTurn(ctx: Ctx, u: PartnerUser, l: Locale, q: string, typed: s
   // A diet nobody in the catalog declares (halal, pork-free): say that, not "try a bigger budget".
   const unmet = intent.dietary.filter((d) => d === 'halal' || d === 'no_pork').map((d) => t(l, DIET_NAME[d])).join(', ');
   const tail = n && args.budget_total_major && !fits
-    ? t(l, { en: `Nothing fits ฿${args.budget_total_major} for ${people}. These are the closest options:`, ru: `В ${args.budget_total_major} бат на ${people} чел. уложиться не получится. Вот самые близкие варианты:`, th: `ยังไม่มีร้านที่อยู่ในงบ ${args.budget_total_major} บาทสำหรับ ${people} คนค่ะ นี่คือตัวเลือกที่ใกล้เคียงที่สุดค่ะ` })
+    ? tf(l, { en: 'Nothing fits ฿{budget} for {people}. These are the closest options:', ru: 'В {budget} бат на {people} чел. уложиться не получится. Вот самые близкие варианты:', th: 'ยังไม่มีร้านที่อยู่ในงบ {budget} บาทสำหรับ {people} คนค่ะ นี่คือตัวเลือกที่ใกล้เคียงที่สุดค่ะ' }, { budget: String(args.budget_total_major), people })
     : n
-    ? t(l, { en: `${n} ${n === 1 ? 'option' : 'options'} for ${people}${budget}.${allergy} Tap one:`, ru: `Вариантов: ${n} (на ${people} чел.${budget}).${allergy} Выберите:`, th: `${n} ตัวเลือกสำหรับ ${people} คน${budget}${allergy} เลือกได้เลยค่ะ` })
+    ? glue(l, optionCount(l, n, people, args.budget_total_major ? String(args.budget_total_major) : ''), allergy, t(l, { en: 'Tap one:', ru: 'Выберите:', th: 'เลือกได้เลยค่ะ' }))
     : unmet
-    ? t(l, { en: `Nothing matches: no restaurant in the demo catalog declares its dishes as ${unmet}, and I never guess about that. Try the request without it.`, ru: `Ничего не подходит: ни один ресторан в демо-каталоге не заявляет блюда как «${unmet}», а гадать я не буду. Попробуйте без этого условия.`, th: `ยังไม่มีร้านที่ตรงเงื่อนไขค่ะ ในแคตตาล็อกเดโมไม่มีร้านไหนระบุว่าเมนูเป็น${unmet} และ Ari จะไม่เดาเรื่องนี้ ลองสั่งโดยไม่ใส่เงื่อนไขนี้ดูนะคะ` })
+    ? tf(l, { en: 'Nothing matches: no restaurant in the demo catalog declares its dishes as {diet}, and I never guess about that. Try the request without it.', ru: 'Ничего не подходит: ни один ресторан в демо-каталоге не заявляет блюда как «{diet}», а гадать я не буду. Попробуйте без этого условия.', th: 'ยังไม่มีร้านที่ตรงเงื่อนไขค่ะ ในแคตตาล็อกเดโมไม่มีร้านไหนระบุว่าเมนูเป็น{diet} และ Ari จะไม่เดาเรื่องนี้ ลองสั่งโดยไม่ใส่เงื่อนไขนี้ดูนะคะ' }, { diet: unmet })
     : t(l, { en: 'Nothing matches right now. Try a bigger budget or fewer restrictions.', ru: 'Сейчас ничего не подходит. Попробуйте увеличить бюджет или убрать ограничения.', th: 'ตอนนี้ยังไม่มีร้านที่ตรงกับเงื่อนไขค่ะ ลองเพิ่มงบหรือลดเงื่อนไขดูนะคะ' });
   // No selectable restaurant: a card of greyed-out rows would only confuse.
   const chips = !n ? ariExamples(l).slice(1, 2) : partyGuess;
-  const dishNote = n && notes.length ? `${notes.join(' ')} ` : '';
-  return { reply: lead + dishNote + tail, card: n ? card : null, chips, trace };
+  return { reply: glue(l, lead, ...(n ? notes : []), tail), card: n ? card : null, chips, trace };
 }
 
 /** The party size was a guess: one tap repeats the request for one or for four. */
 function partyChips(l: Locale, typed: string, now: number): string[] | undefined {
   const s = typed.replace(/[.!?。]+$/u, '').trim();
   if (!s || s.length > 60) return undefined;
-  const one = (n: number) => t(l, { en: `${s}, for ${n}`, ru: `${s}, на ${n} ${n === 1 ? 'человека' : 'человек'}`, th: `${s} สำหรับ ${n} คน` });
+  const one = (n: number) => (n === 1
+    ? tf(l, { en: '{s}, for {n}', ru: '{s}, на {n} человека', th: '{s} สำหรับ {n} คน' }, { s, n })
+    : tf(l, { en: '{s}, for {n}', ru: '{s}, на {n} человек', th: '{s} สำหรับ {n} คน' }, { s, n }));
   return [now === 1 ? 2 : 1, 4].map(one);
 }
 
@@ -709,7 +767,8 @@ function errorTurn(l: Locale, err: any, trace: TraceEntry[], ask?: TripAsk): Ari
   const code = err?.code;
   if (code === 'PLACE_NOT_FOUND' || code === 'PLACE_AMBIGUOUS') {
     const field: string | undefined = err.details?.field;
-    const said = (field === 'pickup' ? ask?.pickup : ask?.dropoff) ?? '';
+    // The place is shown in quotes: quotes the user typed around it are dropped first.
+    const said = ((field === 'pickup' ? ask?.pickup : ask?.dropoff) ?? '').replace(/^[\s"'«»“”„‘’「」『』]+|[\s"'«»“”„‘’「」『』]+$/gu, '');
     // A suggestion that is the other end of the trip would be a trip from a place to itself.
     const otherSaid = field === 'pickup' ? ask?.dropoff : ask?.pickup;
     const other = otherSaid ? resolvePlace(otherSaid) : null;
@@ -724,15 +783,16 @@ function errorTurn(l: Locale, err: any, trace: TraceEntry[], ask?: TripAsk): Ari
         ? t(l, { en: 'Bangkok has two airports. Which one?', ru: 'В Бангкоке два аэропорта. Какой нужен?', th: 'กรุงเทพฯ มีสนามบินสองแห่งค่ะ หมายถึงที่ไหนคะ' })
         : t(l, { en: 'Which one do you mean?', ru: 'Какое место вы имеете в виду?', th: 'หมายถึงที่ไหนคะ' })
       : OUTSIDE.test(said)
-      ? t(l, { en: `"${shown}" is outside the demo area: rides and parcels here run within Bangkok only. Try one of these:`, ru: `«${shown}» за пределами демо-зоны: поездки и посылки здесь только по Бангкоку. Например:`, th: `"${shown}" อยู่นอกพื้นที่เดโมค่ะ ที่นี่เรียกรถและส่งพัสดุได้เฉพาะในกรุงเทพฯ ลองเลือกจากรายการนี้นะคะ` })
+      ? tf(l, { en: '"{place}" is outside the demo area: rides and parcels here run within Bangkok only. Try one of these:', ru: '«{place}» за пределами демо-зоны: поездки и посылки здесь только по Бангкоку. Например:', th: '"{place}" อยู่นอกพื้นที่เดโมค่ะ ที่นี่เรียกรถและส่งพัสดุได้เฉพาะในกรุงเทพฯ ลองเลือกจากรายการนี้นะคะ' }, { place: shown })
       : shown
-      ? t(l, { en: `I could not find "${shown}" on the Bangkok demo map. Try one of these:`, ru: `Не нашла «${shown}» на демо-карте Бангкока. Например:`, th: `Ari หา "${shown}" บนแผนที่เดโมของกรุงเทพฯ ไม่พบค่ะ ลองเลือกจากรายการนี้นะคะ` })
+      ? tf(l, { en: 'I could not find "{place}" on the Bangkok demo map. Try one of these:', ru: 'Не нашла «{place}» на демо-карте Бангкока. Например:', th: 'Ari หา "{place}" บนแผนที่เดโมของกรุงเทพฯ ไม่พบค่ะ ลองเลือกจากรายการนี้นะคะ' }, { place: shown })
       : t(l, { en: 'I could not find that place on the Bangkok demo map. Try one of these:', ru: 'Не нашла это место на демо-карте Бангкока. Например:', th: 'Ari หาสถานที่นี้บนแผนที่เดโมของกรุงเทพฯ ไม่พบค่ะ ลองเลือกจากรายการนี้นะคะ' });
     return { reply, chips: sug.map((s) => placeChip(l, ask, field, s)), trace };
   }
   // Protocol-level text (argument validation) is for developers, not for the chat.
   const msg = String(err?.message ?? '');
-  const known = /^MCP error/.test(msg) ? undefined : localText(msg, l);
+  // So are refusals of a hand-made call ("store_id is required", "Order not found"): the chat gets the general sentence.
+  const known = /^MCP error/.test(msg) || code === 'VALIDATION_FAILED' || code === 'NOT_FOUND' ? undefined : localText(msg, l);
   // English provider text has no place in a Russian or Thai chat: fall back to the general sentence.
   const fits = known && (l === 'en' || known !== msg);
   return { reply: (fits ? known : undefined) ?? t(l, { en: 'Something went wrong. Please try again.', ru: 'Что-то пошло не так. Попробуйте ещё раз.', th: 'เกิดข้อผิดพลาด กรุณาลองอีกครั้งค่ะ' }), chips: ariExamples(l).slice(0, 3), trace };
@@ -764,6 +824,14 @@ function humanError(l: Locale, err: DomainError): string {
 }
 
 // ---------------------------------------------------------------- HTTP
+
+/** A text field of a request body. Missing is empty; any other type is refused (never coerced: String() of a crafted object throws). */
+function field(body: unknown, key: string): string {
+  const v = body && typeof body === 'object' ? (body as Record<string, unknown>)[key] : undefined;
+  if (v === undefined || v === null) return '';
+  if (typeof v !== 'string') throw new DomainError('VALIDATION_FAILED', `${key} must be a string`);
+  return v;
+}
 
 const sealExt = (ctx: Ctx, ext: string) => `${ext}.${hmac(`${ctx.cfg.demoWebhookSecret}:ari-demo`, ext).slice(0, 32)}`;
 function openExt(ctx: Ctx, v: string | undefined): string | null {
@@ -825,7 +893,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     // The page shows this text to the person in the chat: plain words in their language, never tool instructions.
     let l: Locale = 'en';
     try {
-      if (req) l = cardLocale(detectLocale(req));
+      if (req) l = chatLocale(detectLocale(req));
     } catch { /* keep English */ }
     return send(reply, { ok: false, error: { code: err.code, message: humanError(l, err), details: err.details } }, err.httpStatus);
   };
@@ -872,7 +940,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     try {
       guard(req);
       const u = await current(req);
-      const text = String((req.body as any)?.text ?? '');
+      const text = field(req.body, 'text');
       return send(reply, { ok: true, ...(await ariRespond(ctx, u, text)) });
     } catch (e) {
       return fail(reply, e, req);
@@ -883,14 +951,14 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     try {
       guard(req);
       const u = await current(req);
-      const b = (req.body ?? {}) as any;
-      const name = String(b.tool ?? '');
+      const b = (req.body && typeof req.body === 'object' ? req.body : {}) as any;
+      const name = field(b, 'tool');
       if (!ALLOWED_TOOLS.has(name)) throw new DomainError('VALIDATION_FAILED', 'Unknown action');
-      const args = b.arguments && typeof b.arguments === 'object' ? b.arguments : {};
+      const args = b.arguments && typeof b.arguments === 'object' && !Array.isArray(b.arguments) ? b.arguments : {};
       const trace: TraceEntry[] = [];
       const r = await traced(trace, `POST /partner/v1/users/${u.external_user_id}/tools/${name}`, grabFor(name, args), () => runTool(ctx, P, u, name, args));
-      if (!r.ok) return send(reply, { ok: true, ...errorTurn(cardLocale(u.locale), r.error, trace) });
-      const l = cardLocale(u.locale);
+      if (!r.ok) return send(reply, { ok: true, ...errorTurn(chatLocale(u.locale), r.error, trace) });
+      const l = chatLocale(u.locale);
       const reply2 = r.card?.type === 'checkout'
         ? tr(l, { en: 'Here is everything with the final price. Tap Confirm when you are ready.', ru: 'Вот всё с итоговой ценой. Нажмите «Подтвердить», когда будете готовы.', th: 'นี่คือรายละเอียดทั้งหมดพร้อมราคาสุทธิ แตะยืนยันเมื่อพร้อมนะคะ' })
         : '';
@@ -904,8 +972,8 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     try {
       guard(req);
       const u = await current(req);
-      const b = (req.body ?? {}) as any;
-      const id = String(b.checkout_id ?? '');
+      const b = (req.body && typeof req.body === 'object' ? req.body : {}) as any;
+      const id = field(b, 'checkout_id');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Checkout not found');
       const trace: TraceEntry[] = [];
       const r = await traced(trace, `POST /partner/v1/users/${u.external_user_id}/checkouts/${id}/confirm`, null, () => confirmCheckout(ctx, P, u, id, {
@@ -915,7 +983,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const service = r.order?.card.service
         ?? (await ctx.db.query('SELECT k.service FROM checkouts c JOIN carts k ON k.id = c.cart_id WHERE c.id = $1 AND c.user_id = $2', [id, u.user_id])).rows[0]?.service;
       trace[0].grab = service === 'express' ? 'GrabPay · charge/init + GrabExpress · POST /v1/deliveries' : service === 'ride' ? 'Ride booking scope (requested) · today: Grab deep link' : 'GrabFood / GrabMart order scope (requested)';
-      const l = cardLocale(u.locale);
+      const l = chatLocale(u.locale);
       return send(reply, {
         ok: true,
         reply: tr(l, { en: 'Done! I\'ll keep you posted and call you when it matters.', ru: 'Готово! Буду сообщать о статусе и позвоню, когда будет важно.', th: 'เรียบร้อยค่ะ Ari จะคอยแจ้งสถานะ และโทรหาเมื่อถึงจังหวะสำคัญนะคะ' }),
@@ -930,10 +998,10 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     try {
       guard(req);
       const u = await current(req);
-      const id = String((req.body as any)?.checkout_id ?? '');
+      const id = field(req.body, 'checkout_id');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Checkout not found');
       await declineCheckoutPartner(ctx, P, u, id);
-      return send(reply, { ok: true, reply: tr(cardLocale(u.locale),{ en: 'No problem, nothing was ordered.', ru: 'Хорошо, ничего не заказано.', th: 'ได้ค่ะ ยังไม่ได้สั่งอะไรนะคะ' }), card: await checkoutCard(ctx, P, u, id) });
+      return send(reply, { ok: true, reply: tr(chatLocale(u.locale),{ en: 'No problem, nothing was ordered.', ru: 'Хорошо, ничего не заказано.', th: 'ได้ค่ะ ยังไม่ได้สั่งอะไรนะคะ' }), card: await checkoutCard(ctx, P, u, id) });
     } catch (e) {
       return fail(reply, e, req);
     }
@@ -970,10 +1038,10 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     try {
       guard(req);
       const u = await current(req);
-      const id = String((req.body as any)?.order_id ?? '');
+      const id = field(req.body, 'order_id');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Order not found');
       const r = await prepareCancelPartner(ctx, P, u, id);
-      return send(reply, { ok: true, reply: tr(cardLocale(u.locale),{ en: 'Here are the cancellation terms:', ru: 'Условия отмены:', th: 'นี่คือเงื่อนไขการยกเลิกค่ะ' }), card: r.card });
+      return send(reply, { ok: true, reply: tr(chatLocale(u.locale),{ en: 'Here are the cancellation terms:', ru: 'Условия отмены:', th: 'นี่คือเงื่อนไขการยกเลิกค่ะ' }), card: r.card });
     } catch (e) {
       return fail(reply, e, req);
     }
@@ -983,16 +1051,16 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     try {
       guard(req);
       const u = await current(req);
-      const b = (req.body ?? {}) as any;
-      const id = String(b.cancellation_id ?? '');
+      const b = (req.body && typeof req.body === 'object' ? req.body : {}) as any;
+      const id = field(b, 'cancellation_id');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Cancellation not found');
       const r = await confirmCancelPartner(ctx, P, u, id, { confirm_hash: b.confirm_hash, user_verification: 'tap', confirmed_at: ctx.clock.now().toISOString() });
       const done = r.cancellation.status === 'executed';
       return send(reply, {
         ok: true,
         reply: done
-          ? tr(cardLocale(u.locale),{ en: 'Cancelled.', ru: 'Заказ отменён.', th: 'ยกเลิกแล้วค่ะ' })
-          : tr(cardLocale(u.locale),{ en: 'The cancellation did not go through; the order continues.', ru: 'Отменить не получилось, заказ продолжается.', th: 'ยกเลิกไม่สำเร็จค่ะ คำสั่งซื้อยังดำเนินต่อ' }),
+          ? tr(chatLocale(u.locale),{ en: 'Cancelled.', ru: 'Заказ отменён.', th: 'ยกเลิกแล้วค่ะ' })
+          : tr(chatLocale(u.locale),{ en: 'The cancellation did not go through; the order continues.', ru: 'Отменить не получилось, заказ продолжается.', th: 'ยกเลิกไม่สำเร็จค่ะ คำสั่งซื้อยังดำเนินต่อ' }),
         card: r.order.card,
         cancel_card: await cancellationCard(ctx, P, u, id),
       });
