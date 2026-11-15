@@ -24,7 +24,7 @@ const COOKIE = 'ari_demo';
 const ALLOWED_TOOLS = new Set(['create_cart', 'update_cart', 'search_stores', 'get_store', 'estimate_trip', 'get_order_status']);
 
 export interface TraceEntry { call: string; grab: string | null; ms: number; ok: boolean }
-export interface AriTurn { reply: string; card?: Card | null; chips?: string[]; trace: TraceEntry[] }
+export interface AriTurn { reply: string; card?: Card | null; chips?: string[]; order_id?: string; trace: TraceEntry[] }
 
 type Tri = { en: string; ru: string; th: string };
 const t = (l: Locale, x: Tri) => tr(l, x);
@@ -58,7 +58,60 @@ const EXAMPLES: Record<'en' | 'ru' | 'th', string[]> = {
 };
 export const ariExamples = (l: Locale) => (EXAMPLES as Record<string, string[]>)[l] ?? EXAMPLES.en;
 
-const GREET = /^(hi|hello|hey|привет|здравств|добр|สวัสดี|หวัดดี)/iu;
+const GREET = /^(hi|hello|hey|привет|здравств|добр|สวัสดี|หวัดดี)(?![a-z])/iu;
+const THANKS = /^(?:ok(?:ay)?[,! ]*)?(?:thanks?|thank you|thx|cheers|great|perfect|спасибо|благодар|отлично|супер|хорошо|ок|ขอบคุณ|ขอบใจ|โอเค)(?![a-zа-яё])/iu;
+const HELP = /what can you (?:do|order)|what do you do|^help\b|how does (?:this|it) work|что (?:ты )?(?:умеешь|можешь)|что вы (?:умеете|можете)|^помо(?:щь|ги)|как это работает|ทำอะไรได้|ช่วยอะไร|ใช้งานยังไง/iu;
+const CANCEL = /\bcancel\b|отмен|ยกเลิก/iu;
+const TRACK = /where(?: i|')s my|\b(?:order|delivery|ride) status\b|\btrack\b|how long (?:until|till)|где (?:мой|моя|мое|моё|мои|сейчас)|статус заказа|когда (?:приедет|привезут|доставят)|(?:ออเดอร์|คำสั่งซื้อ|รถ|ไรเดอร์|พัสดุ)(?:ของฉัน)?(?:อยู่|ถึง)(?:ที่)?ไหน|สถานะ(?:ออเดอร์|คำสั่งซื้อ)|ถึงไหนแล้ว/iu;
+
+const HELP_TEXT: Tri = {
+  en: 'I can order any Grab service for you: a ride, food, groceries, flowers, pharmacy items, a cake or a parcel. Say it in your own words, pick an option, then confirm on the card. Nothing is ordered until you confirm.',
+  ru: 'Я закажу любой сервис Grab: поездку, еду, продукты, цветы, товары из аптеки, торт или посылку. Скажите своими словами, выберите вариант и подтвердите на карточке. Без подтверждения ничего не заказывается.',
+  th: 'Ari สั่งบริการ Grab ได้ทุกอย่างค่ะ ทั้งเรียกรถ อาหาร ของชำ ดอกไม้ ร้านยา เค้ก หรือส่งพัสดุ พิมพ์บอกได้เลย เลือกตัวเลือก แล้วกดยืนยันบนการ์ด ไม่มีการสั่งจนกว่าคุณจะยืนยันค่ะ',
+};
+
+/** "Where is my order" and "cancel my order" act on the latest order, like the buttons on its card. */
+async function latestOrderTurn(ctx: Ctx, u: PartnerUser, l: Locale, cancel: boolean, trace: TraceEntry[]): Promise<AriTurn> {
+  const base = `/partner/v1/users/${u.external_user_id}`;
+  const o = (await ctx.db.query(
+    `SELECT id FROM orders WHERE user_id = $1 ORDER BY (fulfillment_status IN ('submitted','accepted','preparing','picked_up')) DESC, created_at DESC LIMIT 1`,
+    [u.user_id],
+  )).rows[0];
+  if (!o) {
+    return {
+      reply: cancel
+        ? t(l, { en: 'There is nothing to cancel: you have no orders yet.', ru: 'Отменять нечего: заказов пока нет.', th: 'ยังไม่มีคำสั่งซื้อให้ยกเลิกค่ะ' })
+        : t(l, { en: 'You have no orders yet. What would you like from Grab?', ru: 'Заказов пока нет. Что заказать в Grab?', th: 'ยังไม่มีคำสั่งซื้อค่ะ ต้องการอะไรจาก Grab ดีคะ' }),
+      chips: ariExamples(l).slice(0, 3), trace,
+    };
+  }
+  const card = await traced(trace, `GET ${base}/orders/${o.id}`, 'GrabExpress · GET /v1/deliveries/{id}', () => orderCard(ctx, P, u, o.id, { refresh: true }));
+  if (!cancel) {
+    return { reply: t(l, { en: `Your latest order: ${card.status?.label ?? ''}.`, ru: `Ваш последний заказ: ${card.status?.label ?? ''}.`, th: `คำสั่งซื้อล่าสุด: ${card.status?.label ?? ''}` }), card, order_id: o.id, trace };
+  }
+  if (!card.actions.some((a) => a.kind === 'prepare_cancel')) {
+    return { reply: t(l, { en: 'This order can no longer be cancelled.', ru: 'Этот заказ уже нельзя отменить.', th: 'คำสั่งซื้อนี้ยกเลิกไม่ได้แล้วค่ะ' }), card, order_id: o.id, trace };
+  }
+  const r = await traced(trace, `POST ${base}/orders/${o.id}/cancel`, null, () => prepareCancelPartner(ctx, P, u, o.id));
+  return { reply: t(l, { en: 'Here are the cancellation terms:', ru: 'Условия отмены:', th: 'เงื่อนไขการยกเลิก:' }), card: r.card, trace };
+}
+
+interface TripAsk { service: string; pickup?: string; dropoff?: string; weight_kg?: number }
+
+/** Example chips after an unknown or ambiguous place: the same request with the suggested place in the slot that failed. */
+function placeChip(l: Locale, ask: TripAsk | undefined, field: string | undefined, place: string): string {
+  const from = field === 'pickup' ? place : ask?.pickup;
+  const to = field === 'pickup' ? ask?.dropoff ?? '' : place;
+  const kg = ask?.weight_kg;
+  if (ask?.service === 'express') {
+    return from
+      ? t(l, { en: `Send a ${kg ? `${kg} kg ` : ''}parcel from ${from} to ${to}`, ru: `Отправить посылку${kg ? ` ${kg} кг` : ''} от ${from} до ${to}`, th: `ส่งพัสดุ${kg ? ` ${kg} กก` : ''} จาก ${from} ไป ${to}` })
+      : t(l, { en: `Send a ${kg ? `${kg} kg ` : ''}parcel to ${to}`, ru: `Отправить посылку${kg ? ` ${kg} кг` : ''} в ${to}`, th: `ส่งพัสดุ${kg ? ` ${kg} กก` : ''} ไป ${to}` });
+  }
+  return from
+    ? t(l, { en: `Taxi from ${from} to ${to}`, ru: `Такси от ${from} до ${to}`, th: `แท็กซี่จาก ${from} ไป ${to}` })
+    : t(l, { en: `Taxi to ${to}`, ru: `Такси до ${to}`, th: `แท็กซี่ไป ${to}` });
+}
 
 /** One user message: decide what Ari would do and run it through the Partner API path. */
 export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promise<AriTurn> {
@@ -66,17 +119,30 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
   const trace: TraceEntry[] = [];
   const base = `/partner/v1/users/${u.external_user_id}`;
   const q = text.replace(/\s+/g, ' ').trim().slice(0, 300);
-  if (!q || GREET.test(q)) {
+  if (!q || (GREET.test(q) && q.split(' ').length <= 3)) {
     return {
       reply: t(l, { en: 'Hi! I can order any Grab service for you: a ride, food, groceries, flowers, pharmacy or a parcel. What do you need?', ru: 'Здравствуйте! Я закажу любой сервис Grab: поездку, еду, продукты, цветы, аптеку или посылку. Что нужно?', th: 'สวัสดีค่ะ Ari สั่งบริการ Grab ได้ทุกอย่าง ทั้งเรียกรถ อาหาร ของชำ ดอกไม้ ร้านยา หรือส่งพัสดุ ให้ Ari ช่วยอะไรดีคะ' }),
       chips: ariExamples(l).slice(0, 4), trace,
     };
   }
+  if (THANKS.test(q) && q.length < 40) {
+    return { reply: t(l, { en: 'You are welcome! Anything else from Grab?', ru: 'Пожалуйста! Что-нибудь ещё из Grab?', th: 'ยินดีค่ะ ต้องการอะไรจาก Grab อีกไหมคะ' }), chips: ariExamples(l).slice(0, 3), trace };
+  }
+  if (HELP.test(q)) return { reply: t(l, HELP_TEXT), chips: ariExamples(l).slice(0, 4), trace };
   const si = detectService(q);
   try {
+    if (TRACK.test(q) || (CANCEL.test(q) && q.length < 60)) return await latestOrderTurn(ctx, u, l, !TRACK.test(q), trace);
     if (si.service === 'ride' || si.service === 'express') {
       const addr = (await ctx.db.query(`SELECT label FROM addresses WHERE user_id = $1 AND is_default`, [u.user_id])).rows[0];
-      const pickup = si.pickup || addr?.label || '';
+      // "Home" in any language is the saved default place, whatever language its label was saved in.
+      const pickup = (si.pickup_home ? addr?.label : si.pickup) || addr?.label || '';
+      if (si.dropoff_home && addr) si.dropoff = addr.label;
+      if (si.dropoff_home && addr && pickup === addr.label) {
+        // Home to home: the pickup is missing, not the destination.
+        return si.service === 'express'
+          ? { reply: t(l, { en: 'Where should the courier pick the parcel up? For example "from Siam Paragon".', ru: 'Откуда забрать посылку? Например, «от Сиам Парагона».', th: 'ให้ไปรับพัสดุที่ไหนคะ เช่น "จากสยามพารากอน"' }), chips: [t(l, { en: 'Send a parcel from Siam Paragon to home', ru: 'Отправить посылку от Сиам Парагона до дома', th: 'ส่งพัสดุจากสยามพารากอนไปบ้าน' })], trace }
+          : { reply: t(l, { en: 'Where should I pick you up? For example "from Siam Paragon".', ru: 'Откуда вас забрать? Например, «от Сиам Парагона».', th: 'ให้ไปรับที่ไหนคะ เช่น "จากสยามพารากอน"' }), chips: [t(l, { en: 'Taxi from Siam Paragon to home', ru: 'Такси от Сиам Парагона до дома', th: 'แท็กซี่จากสยามพารากอนไปบ้าน' }), t(l, { en: 'Taxi from Suvarnabhumi airport to home', ru: 'Такси от аэропорта Суварнабхуми до дома', th: 'แท็กซี่จากสนามบินสุวรรณภูมิไปบ้าน' })], trace };
+      }
       if (!si.dropoff) {
         if (si.service === 'express') {
           return { reply: t(l, { en: 'Where should the parcel go? For example "to ICONSIAM".', ru: 'Куда доставить посылку? Например, «в Айконсиам».', th: 'ส่งพัสดุไปที่ไหนคะ เช่น "ไปไอคอนสยาม"' }), chips: [ariExamples(l)[2]], trace };
@@ -84,10 +150,13 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
         return { reply: t(l, { en: 'Where to? For example "to Suvarnabhumi airport".', ru: 'Куда едем? Например, «до аэропорта Суварнабхуми».', th: 'ไปที่ไหนคะ เช่น "ไปสนามบินสุวรรณภูมิ"' }), chips: [ariExamples(l)[0]], trace };
       }
       const args: Record<string, unknown> = { service: si.service, pickup, dropoff: si.dropoff };
+      // What the user said, for "did you mean" chips: home stays the word "home" in the chat language.
+      const homeWord = t(l, { en: 'home', ru: 'дома', th: 'บ้าน' });
+      const ask: TripAsk = { service: si.service, pickup: si.pickup_home ? homeWord : si.pickup, dropoff: si.dropoff_home ? homeWord : si.dropoff, weight_kg: si.weight_kg };
       if (si.service === 'express') args.parcel_weight_kg = si.weight_kg ?? 2;
       if (si.passengers) args.passengers = Math.min(si.passengers, 10);
       const r = await traced(trace, `POST ${base}/tools/estimate_trip`, grabFor('estimate_trip', args), () => runTool(ctx, P, u, 'estimate_trip', args));
-      if (!r.ok) return errorTurn(l, r.error, trace);
+      if (!r.ok) return errorTurn(l, r.error, trace, ask);
       const res = r.result;
       const from = res.trip?.pickup?.name;
       const to = res.trip?.dropoff?.name;
@@ -101,8 +170,8 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
         return { reply: why, card: r.card, trace };
       }
       const reply = si.service === 'ride'
-        ? t(l, { en: `From ${from} to ${to}, about ${res.trip?.drive_minutes_estimate} min. Pick a ride:`, ru: `От ${from} до ${to}, примерно ${res.trip?.drive_minutes_estimate} мин в пути. Выберите машину:`, th: `จาก ${from} ไป ${to} ประมาณ ${res.trip?.drive_minutes_estimate} นาที เลือกประเภทรถได้เลยค่ะ` })
-        : t(l, { en: `Parcel ${args.parcel_weight_kg} kg from ${from} to ${to}. Pick a courier:`, ru: `Посылка ${args.parcel_weight_kg} кг от ${from} до ${to}. Выберите курьера:`, th: `พัสดุ ${args.parcel_weight_kg} กก. จาก ${from} ไป ${to} เลือกประเภทการส่งได้เลยค่ะ` });
+        ? t(l, { en: `From ${from} to ${to}, about ${res.trip?.drive_minutes_estimate} min. Pick a ride:`, ru: `Маршрут: ${from} → ${to}, примерно ${res.trip?.drive_minutes_estimate} мин в пути. Выберите машину:`, th: `จาก ${from} ไป ${to} ประมาณ ${res.trip?.drive_minutes_estimate} นาที เลือกประเภทรถได้เลยค่ะ` })
+        : t(l, { en: `Parcel ${args.parcel_weight_kg} kg from ${from} to ${to}. Pick a courier:`, ru: `Посылка ${args.parcel_weight_kg} кг: ${from} → ${to}. Выберите курьера:`, th: `พัสดุ ${args.parcel_weight_kg} กก. จาก ${from} ไป ${to} เลือกประเภทการส่งได้เลยค่ะ` });
       return { reply, card: r.card, trace };
     }
     if (si.service === 'food') {
@@ -123,7 +192,7 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
       };
       const r = await traced(trace, `POST ${base}/tools/search_stores`, grabFor('search_stores', args), () => runTool(ctx, P, u, 'search_stores', args));
       if (!r.ok) return errorTurn(l, r.error, trace);
-      const n = r.card?.options?.length ?? 0;
+      const n = (r.card?.options ?? []).filter((o) => o.action).length;
       const people = Number(args.party_size);
       const budget = args.budget_total_major ? ` ${t(l, { en: `under ฿${args.budget_total_major}`, ru: `до ${args.budget_total_major} бат`, th: `ไม่เกิน ${args.budget_total_major} บาท` })}` : '';
       const allergy = intent.exclude_allergens.length
@@ -133,9 +202,10 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
       const reply = n && args.budget_total_major && !fits
         ? t(l, { en: `Nothing fits ฿${args.budget_total_major} for ${people}. These are the closest options:`, ru: `В ${args.budget_total_major} бат на ${people} чел. уложиться не получится. Вот самые близкие варианты:`, th: `ยังไม่มีร้านที่อยู่ในงบ ${args.budget_total_major} บาทสำหรับ ${people} คนค่ะ นี่คือตัวเลือกที่ใกล้เคียงที่สุด` })
         : n
-        ? t(l, { en: `${n} options for ${people}${budget}.${allergy} Tap one:`, ru: `Вариантов: ${n} (на ${people} чел.${budget}).${allergy} Выберите:`, th: `${n} ตัวเลือกสำหรับ ${people} คน${budget}${allergy} เลือกได้เลยค่ะ` })
+        ? t(l, { en: `${n} ${n === 1 ? 'option' : 'options'} for ${people}${budget}.${allergy} Tap one:`, ru: `Вариантов: ${n} (на ${people} чел.${budget}).${allergy} Выберите:`, th: `${n} ตัวเลือกสำหรับ ${people} คน${budget}${allergy} เลือกได้เลยค่ะ` })
         : t(l, { en: 'Nothing matches right now. Try a bigger budget or fewer restrictions.', ru: 'Сейчас ничего не подходит. Попробуйте увеличить бюджет или убрать ограничения.', th: 'ยังไม่มีร้านที่ตรง ลองเพิ่มงบหรือลดเงื่อนไขค่ะ' });
-      return { reply, card: r.card, trace };
+      // No selectable restaurant: a card of greyed-out rows would only confuse.
+      return { reply, card: n ? r.card : null, chips: n ? undefined : ariExamples(l).slice(1, 2), trace };
     }
     // Shops: pick the items from the sentence, then build the cart (one step, like an assistant would).
     const service = si.service as keyof typeof SHOP_STORE;
@@ -150,11 +220,11 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
     };
   } catch (e) {
     if (!isDomainError(e)) throw e;
-    return errorTurn(l, { code: e.code, message: e.message, details: e.details }, trace);
+    return errorTurn(l, { code: e.code, message: e.message, details: e.details }, trace, { service: si.service });
   }
 }
 
-function errorTurn(l: Locale, err: any, trace: TraceEntry[]): AriTurn {
+function errorTurn(l: Locale, err: any, trace: TraceEntry[], ask?: TripAsk): AriTurn {
   const code = err?.code;
   if (code === 'PLACE_NOT_FOUND' || code === 'PLACE_AMBIGUOUS') {
     const sug: string[] = (err.details?.suggestions ?? []).slice(0, 4);
@@ -162,7 +232,7 @@ function errorTurn(l: Locale, err: any, trace: TraceEntry[]): AriTurn {
       reply: code === 'PLACE_AMBIGUOUS'
         ? t(l, { en: 'Which one do you mean?', ru: 'Какое место вы имеете в виду?', th: 'หมายถึงที่ไหนคะ' })
         : t(l, { en: 'I could not find that place on the Bangkok demo map. Try one of these:', ru: 'Не нашла это место на демо-карте Бангкока. Например:', th: 'ไม่พบสถานที่นี้บนแผนที่เดโมกรุงเทพฯ ลองเลือกจากนี้ค่ะ' }),
-      chips: sug.map((s) => t(l, { en: `Taxi to ${s}`, ru: `Такси до ${s}`, th: `แท็กซี่ไป ${s}` })), trace,
+      chips: sug.map((s) => placeChip(l, ask, err.details?.field, s)), trace,
     };
   }
   // Protocol-level text (argument validation) is for developers, not for the chat.

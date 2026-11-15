@@ -98,7 +98,7 @@ ${path ? html`<meta property="og:url" content="${abs(`${path}?lang=${l}`)}">` : 
 <meta property="og:image" content="${abs(OG_IMAGE_PATH)}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Unyly pixel unicorn. Ari × Grab: a partnership proposal by CSA PROJECT - FZCO, not affiliated with Grab.">
+<meta property="og:image:alt" content="Ari mark, a white letter A on a violet to pink gradient. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${o.title} · Ari × Grab">
 <meta name="twitter:description" content="${desc}">

@@ -353,7 +353,13 @@ async function resultAfterSubmit(ctx: Ctx, p: PartnerConfig, u: PartnerUser, c: 
 }
 
 async function confirmResult(ctx: Ctx, p: PartnerConfig, u: PartnerUser, checkoutId: string) {
-  const st = await checkoutStatus(ctx, partnerActor(p, u.user_id), checkoutId);
+  let st = await checkoutStatus(ctx, partnerActor(p, u.user_id), checkoutId);
+  // A parallel confirmation of the same checkout is sending the order right now: wait a moment for it so
+  // every caller gets the same order. If the provider is slow the answer stays "in_flight" with order null.
+  for (let i = 0; i < 20 && !st.order_id && (st as any).submission?.status === 'in_flight'; i++) {
+    await new Promise((r) => setTimeout(r, 100));
+    st = await checkoutStatus(ctx, partnerActor(p, u.user_id), checkoutId);
+  }
   const { confirm_url: _c, user_action: _ua, ...status } = st as any;
   const order = st.order_id ? { id: st.order_id, card: await orderCard(ctx, p, u, st.order_id) } : null;
   return { checkout: status, order };

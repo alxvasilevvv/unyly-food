@@ -197,17 +197,29 @@ export interface ServiceIntent {
   dropoff?: string;
   weight_kg?: number;
   passengers?: number;
+  /** The sentence names the user's home ("taxi home", "из дома", "กลับบ้าน"): the caller puts the saved default place there. */
+  pickup_home?: boolean;
+  dropoff_home?: boolean;
 }
 
-const RIDE = /taxi|\bcab\b|\bride\b|grabcar|justgrab|grabbike|\bbike to\b|\bcar to\b|такси|поездк|отвез|довез|подвез|машину до|แท็กซี่|เรียกรถ|นั่งรถ|รถไป|วินมอเตอร์ไซค์/u;
-const EXPRESS = /parcel|package|courier|\bsend\b|посылк|отправ|курьер|พัสดุ|ส่งของ|แมสเซนเจอร์/u;
+const RIDE = /taxi|\bcab\b|\bride\b|grabcar|justgrab|grabbike|\bbike to\b|\bcar to\b|такси|поездк|отвез|довез|подвез|машину до|แท็กซี่|เรียกรถ|นั่งรถ|รถไป|วินมอเตอร์ไซค์|วิน(?=ไป)/u;
+const EXPRESS = /parcel|package|courier|\bsend\b|посылк|отправ|курьер|พัสดุ|ส่งของ|ส่งเอกสาร|แมสเซนเจอร์/u;
+// Weaker cues: they decide only when nothing in the sentence names a shop or a meal.
+const SOFT_EXPRESS = /\bdeliver\b|\bdocuments?\b|\benvelope\b|(?<!\p{L})достав(?:ь|ьте|ить)(?!\p{L})|документ|(?<!\p{L})пакет(?!\p{L})|конверт|เอกสาร/u;
+const SOFT_RIDE = /\b(?:take|drive|get|bring) me\b|\bpick me up\b|\b(?:go|going|get|heading) (?:to|home|back)\b|\b(?:a|the) (?:car|driver)\b|\bmotorbike\b|\bairport\b|\bhome\b|поехали|поеду|(?<!\p{L})едем(?!\p{L})|(?<!\p{L})(?:нужно|надо|хочу|мне) (?:в|на|до|домой)(?!\p{L})|(?<!\p{L})машин[ауы]?(?!\p{L})|(?<!\p{L})домой(?!\p{L})|из дома|аэропорт|กลับบ้าน|ไปบ้าน|ไปส่ง|สนามบิน/u;
+/** A sentence that opens with "going to X" is a ride even when the place name looks like food (Khao San). */
+const START_GO = /^\s*(?:ไป(?!กิน|ซื้อ|หา|ทาน)|(?:я\s+)?еду\s+(?:в|на|до|домой)(?!\p{L}))/u;
+const HOME_PLACE = /^(?:to\s+)?(?:my\s+|the\s+)?(?:home|house|place)$|^(?:мой\s+|моего\s+)?(?:дом|дома|дому|домой)$|^(?:ที่)?บ้าน(?:ฉัน|ผม)?$/iu;
+const HOME_WORD = /\bhome\b|(?<!\p{L})домой(?!\p{L})|กลับบ้าน|ไปบ้าน|ถึงบ้าน/iu;
+/** True when a place phrase means the user's home. */
+export const isHomePlace = (s: string | undefined) => !!s && HOME_PLACE.test(s.trim());
 const FLOWERS = /flower|bouquet|roses?\b|lil(?:y|ies)|orchid|garland|цвет|букет|(?<!\p{L})роз[ыау]?(?!\p{L})|лили|орхиде|ดอกไม้|กุหลาบ|ช่อ|พวงมาลัย|กล้วยไม้/u;
-const PHARMACY = /pharmac|paracetamol|plaster|band-?aid|thermometer|medicine|drugstore|аптек|парацетамол|пластыр|лекарств|градусник|термометр|ร้านยา|ยาสามัญ|พาราเซตามอล|พลาสเตอร์|ปรอทวัดไข้|ยาแก้/u;
+const PHARMACY = /pharmac|paracetamol|plaster|band-?aid|thermometer|medicine|drugstore|headache|\bfever\b|sore throat|lozenge|sunscreen|repellent|antiseptic|аптек|парацетамол|пластыр|лекарств|градусник|термометр|болит голов|голова болит|от горл|болит горл|температур|от комаров|репеллент|от солнца|солнцезащит|антисепт|ร้านยา|ยาสามัญ|พาราเซตามอล|พลาสเตอร์|ปรอทวัดไข้|ยาแก้|ปวดหัว|เจ็บคอ|เป็นไข้|กันยุง|กันแดด|ยาอม/u;
 const CAKES = /\bcakes?\b|cheesecake|торт|чизкейк|пирожн|เค้ก/u;
-const GROCERY = /grocer|supermarket|продукт|супермаркет|ของชำ|ซูเปอร์มาร์เก็ต|ของใช้ในบ้าน/u;
-const STAPLE = /\beggs?\b|\bmilk\b|\bwater\b|bananas?|\brice\b|яйц|молок|(?<!\p{L})вод[уаы](?!\p{L})|банан|(?<!\p{L})рис(?!\p{L})|ไข่ไก่|นมสด|น้ำดื่ม|กล้วย|ข้าวสาร/u;
+const GROCERY = /grocer|supermarket|(?<!море)продукт|супермаркет|ของชำ|ซูเปอร์มาร์เก็ต|ของใช้ในบ้าน/u;
+const STAPLE = /\beggs?\b|\bmilk\b|\bwater\b|bananas?|\brice\b|\bcoffee\b|mango(?:es)?\b|яйц|молок|(?<!\p{L})кофе(?!\p{L})|манго|(?<!\p{L})вод[уаы](?!\p{L})|банан|(?<!\p{L})рис(?!\p{L})|ไข่ไก่|นมสด|น้ำดื่ม|กล้วย|ข้าวสาร|กาแฟ|มะม่วง|(?<!ข|ไม่ใส่|ไม่เอา|ไม่กิน|แพ้)นม/u;
 const MEAL = /dinner|lunch|breakfast|meal|ужин|обед|завтрак|ข้าวเย็น|มื้อ|อาหารเย็น|อาหารกลางวัน/u;
-const FOOD_CUE = /food|\beat|hungry|restaurant|pizza|burger|noodle|sushi|pad thai|curry|soup|salad|sandwich|chicken|vegan|vegetarian|halal|еда|еды|еду|поесть|покушать|перекус|голод|ресторан|пицц|бургер|лапш|суши|суп|салат|веган|вегетариан|халял|อาหาร|กิน|หิว|ข้าว|ก๋วยเตี๋ยว|พิซซ่า|เบอร์เกอร์|ซูชิ|ส้มตำ|ผัดไทย|แกง/u;
+const FOOD_CUE = /food|\beat|hungry|restaurant|pizza|burger|noodle|sushi|pad thai|curry|soup|salad|sandwich|chicken|tom yum|tom kha|som tam|fried rice|ramen|pasta|steak|kebab|dumpling|snack|vegan|vegetarian|halal|еда|еды|еду|поесть|покушать|перекус|голод|ресторан|пицц|бургер|лапш|суши|суп|салат|том ям|том кха|пад тай|рамен|стейк|шаурм|плов|(?<!\p{L})есть(?!\p{L})|веган|вегетариан|халял|อาหาร|กิน|หิว|ข้าว|ก๋วยเตี๋ยว|พิซซ่า|เบอร์เกอร์|ซูชิ|ส้มตำ|ผัดไทย|ต้มยำ|ไก่ทอด|แกง/u;
 /** True when the sentence asks for a meal: a meal or dish word, or anything the food parser understood. */
 export function hasFoodCue(input: string): boolean {
   const q = input.toLowerCase();
@@ -257,12 +269,14 @@ export function detectService(input: string): ServiceIntent {
   let service: DemoService = 'food';
   const S = PK.service;
   const meal = MEAL.test(q) || hasWord(q, PK.meal);
-  if (RIDE.test(q) || hasWord(q, S.ride)) service = 'ride';
+  if (RIDE.test(q) || hasWord(q, S.ride) || START_GO.test(q)) service = 'ride';
   else if (FLOWERS.test(q) || hasWord(q, S.flowers)) service = 'flowers';
   else if (PHARMACY.test(q) || hasWord(q, S.pharmacy)) service = 'pharmacy';
   else if (CAKES.test(q) || hasWord(q, S.cakes)) service = 'cakes';
   else if (EXPRESS.test(q) || hasWord(q, S.express)) service = 'express';
   else if (GROCERY.test(q) || (!meal && hasWord(q, S.groceries)) || (STAPLE.test(q) && !meal && !/\b(?:no|without)\s|без\s|ไม่ใส่|ไม่เอา/u.test(q))) service = 'groceries';
+  else if (!meal && !FOOD_CUE.test(q) && SOFT_EXPRESS.test(q)) service = 'express';
+  else if (!meal && !FOOD_CUE.test(q) && SOFT_RIDE.test(q)) service = 'ride';
   const out: ServiceIntent = { service };
   if (service === 'ride' || service === 'express') {
     // Match on the original text (case-insensitive) so place names keep their capitalisation.
@@ -280,8 +294,16 @@ export function detectService(input: string): ServiceIntent {
       if (pr.pickup) out.pickup = cutPlace(pr.pickup, pr.post) || undefined;
       if (pr.dropoff) out.dropoff = cutPlace(pr.dropoff, pr.post) || undefined;
     } else {
-      const d = /(?:\bto|(?:^|\s)до|(?:^|\s)в|(?:^|\s)во|ไปที่|ไป)\s+(.+)$/iu.exec(src) ?? /(?:ไปที่|ไป)(.+)$/iu.exec(src);
+      const d = /(?:\bto|(?:^|\s)до|(?:^|\s)в|(?:^|\s)во|(?:^|\s)на|ไปที่|ไป)\s+(.+)$/iu.exec(src) ?? /(?:ไปที่|ไป)(.+)$/iu.exec(src);
       if (d) out.dropoff = cutPlace(d[1]);
+    }
+    // Home: "taxi home", "from Siam Paragon home", "из дома в аэропорт", "กลับบ้าน".
+    if (isHomePlace(out.pickup)) { out.pickup = undefined; out.pickup_home = true; }
+    if (isHomePlace(out.dropoff)) { out.dropoff = undefined; out.dropoff_home = true; }
+    if (!out.dropoff && !out.dropoff_home && !out.pickup_home && HOME_WORD.test(src)) {
+      out.dropoff_home = true;
+      const f = /\bfrom\s+(.+?)(?:\s+(?:back\s+)?home\b.*)?$/iu.exec(src) ?? /(?:^|\s)(?:от|из|с)\s+(.+?)(?:\s+домой(?!\p{L}).*)?$/iu.exec(src) ?? /จาก\s*(.+?)\s*กลับบ้าน/iu.exec(src);
+      if (f && !isHomePlace(cutPlace(f[1]))) out.pickup = cutPlace(f[1]) || undefined;
     }
     const w = new RegExp(`${NUM}\\s*(?:${WEIGHT_UNITS})`, 'iu').exec(q);
     if (w) out.weight_kg = Math.min(Number(w[1].replace(',', '.')), 1000);

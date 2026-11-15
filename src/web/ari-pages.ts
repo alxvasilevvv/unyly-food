@@ -19,8 +19,28 @@ export const STATUS_LABEL: Record<CoverageStatus, Tri> = {
   designed: { en: 'Designed, built after onboarding', ru: 'Спроектировано, после подключения', th: 'ออกแบบแล้ว สร้างหลังเริ่มงาน' },
   proposed: { en: 'Needs a new Grab scope', ru: 'Нужен новый доступ Grab', th: 'ต้องการสิทธิ์ใหม่จาก Grab' },
 };
-const STATUS_CLASS: Record<CoverageStatus, string> = { built: 'ok', estimate: 'accent', handoff: 'warn', designed: '', proposed: 'warn' };
+/** One-word status for pills; the legend next to it carries the full STATUS_LABEL. */
+export const STATUS_SHORT: Record<CoverageStatus, Tri> = {
+  built: { en: 'Built', ru: 'Готово', th: 'พร้อมแล้ว' },
+  estimate: { en: 'Fares only', ru: 'Только цены', th: 'เฉพาะค่าโดยสาร' },
+  handoff: { en: 'Hand-off', ru: 'Передача в Grab', th: 'ส่งต่อให้ Grab' },
+  designed: { en: 'Designed', ru: 'Спроектировано', th: 'ออกแบบแล้ว' },
+  proposed: { en: 'Proposed', ru: 'Предложено', th: 'เสนอไว้' },
+};
+/** Legend and sort order: from the most finished status to the least. */
+const STATUS_ORDER: CoverageStatus[] = ['built', 'estimate', 'handoff', 'designed', 'proposed'];
 const GROUP_ICON: Record<string, string> = { move: 'car', deliver: 'box', pay: 'wallet', identity: 'shield', rewards: 'star', more: 'gift' };
+const PRODUCT_ICON: Record<string, string> = { rides: 'car', express: 'box', food: 'bowl', mart: 'basket', grabid: 'lock', grabpay: 'wallet', tokenisation: 'faceid', rewards: 'star', gifts: 'gift', digital: 'smartphone', chat: 'chat', business: 'receipt', defence: 'shield' };
+const productIcon = (p: { id: string; group: string }) => PRODUCT_ICON[p.id] ?? GROUP_ICON[p.group] ?? 'check';
+/** Status pill with a coloured dot: readable without relying on colour alone (the word is always there). */
+const statusPill = (l: Locale, s: CoverageStatus): SafeHtml =>
+  html`<span class="st st-${s}" title="${tr(l, STATUS_LABEL[s])}"><i class="st-dot" aria-hidden="true"></i>${tr(l, STATUS_SHORT[s])}</span>`;
+/** Legend with live counts per status, computed from the catalog (never hardcoded). */
+function statusLegend(l: Locale, opts: { detailed?: boolean } = {}): SafeHtml {
+  const counts = STATUS_ORDER.map((s) => [s, GRAB_PRODUCTS.filter((p) => p.today === s).length] as const).filter(([, n]) => n > 0);
+  return html`<ul class="cov-legend${opts.detailed ? ' detailed' : ''}" role="list" aria-label="${tr(l, { en: 'Status legend', ru: 'Обозначения статусов', th: 'คำอธิบายสถานะ' })}">${counts.map(([s, n]) =>
+    html`<li class="st-${s}"><i class="st-dot" aria-hidden="true"></i><b>${n}</b><span class="st-name">${tr(l, STATUS_SHORT[s])}</span><small>${tr(l, STATUS_LABEL[s])}</small></li>`)}</ul>`;
+}
 
 /** Static phone mock for the hero: Ari chat with a ride card, Live Activity and an incoming call chip. */
 function heroPhone(l: Locale): SafeHtml {
@@ -70,15 +90,15 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
       ['globe', { en: '8 markets, 10 languages', ru: '8 рынков, 10 языков', th: '8 ตลาด 10 ภาษา' }, { en: 'Interface in 10 languages; designed for all 8 Grab markets, Thailand first.', ru: 'Интерфейс на 10 языках; рассчитано на 8 рынков Grab, начинаем с Таиланда.', th: 'อินเทอร์เฟซ 10 ภาษา ออกแบบรองรับ 8 ตลาดของ Grab เริ่มที่ประเทศไทย' }],
     ];
     const coverage = GRAB_PRODUCTS.map((p) => html`<li class="cov is-${p.today}">
-  <div class="cov-head"><span class="ico">${icon(GROUP_ICON[p.group] ?? 'check')}</span><b>${p.name}</b></div>
+  <div class="cov-head"><span class="ico">${icon(productIcon(p))}</span><b>${p.name}</b></div>
   <p>${p.ari[L]}</p>
-  <span class="pill ${STATUS_CLASS[p.today]}">${tr(l, STATUS_LABEL[p.today])}</span>
+  ${statusPill(l, p.today)}
 </li>`);
     return send(reply, r, tr(l, { en: 'Partnership proposal', ru: 'Предложение о партнёрстве', th: 'ข้อเสนอความร่วมมือ' }), html`
 <section class="ari-hero"><div class="wrap ari-hero-grid">
   <div class="ari-hero-copy">
     <span class="eyebrow">${icon('handshake')} ${tr(l, { en: 'Partnership proposal · Thailand first', ru: 'Предложение о партнёрстве · старт в Таиланде', th: 'ข้อเสนอความร่วมมือ · เริ่มที่ประเทศไทย' })}</span>
-    <h1>${tr(l, { en: 'Say it once.', ru: 'Скажите один раз.', th: 'พูดครั้งเดียว' })} <span class="grad">${tr(l, { en: 'Ari orders Grab.', ru: 'Ari закажет Grab.', th: 'Ari สั่ง Grab ให้' })}</span></h1>
+    <h1>${tr(l, { en: 'Say it once.', ru: 'Скажите один раз.', th: 'พูดครั้งเดียว' })} <span class="grad h1-line">${tr(l, { en: 'Ari orders Grab.', ru: 'Ari закажет Grab.', th: 'Ari สั่ง Grab ให้' })}</span></h1>
     <p class="lead">${tr(l, {
       en: 'Ari is a personal assistant on iPhone that calls, reminds and gets things done. With Grab inside, one sentence becomes a ride, a meal, groceries or a courier: real prices, one tap or Face ID to confirm, live tracking, and a call from Ari when the driver is outside.',
       ru: 'Ari, персональный ассистент на iPhone, звонит, напоминает и берёт дела на себя. С Grab внутри одна фраза превращается в поездку, ужин, продукты или курьера: реальные цены, подтверждение одним нажатием или Face ID, отслеживание и звонок от Ari, когда водитель уже у входа.',
@@ -95,7 +115,7 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
     <div class="glow"></div>
     ${heroPhone(l)}
     <div class="float-chip f1" aria-hidden="true"><span class="fc-ico call">${icon('phone')}</span><span><b>${tr(l, { en: 'Ari is calling', ru: 'Звонит Ari', th: 'Ari กำลังโทร' })}</b><small>${tr(l, { en: '"Your driver is outside"', ru: '«Водитель у входа»', th: '"คนขับมาถึงแล้ว"' })}</small></span></div>
-    <div class="float-chip f2" aria-hidden="true"><span class="fc-ico">${icon('faceid')}</span><span><b>${tr(l, { en: 'Confirmed with Face ID', ru: 'Подтверждено Face ID', th: 'ยืนยันด้วย Face ID' })}</b><small>${tr(l, { en: 'price locked', ru: 'цена зафиксирована', th: 'ล็อกราคาแล้ว' })}</small></span></div>
+    <div class="float-chip f2" aria-hidden="true"><span class="fc-ico ari">${icon('faceid')}</span><span><b>${tr(l, { en: 'Confirmed with Face ID', ru: 'Подтверждено Face ID', th: 'ยืนยันด้วย Face ID' })}</b><small>${tr(l, { en: 'price locked', ru: 'цена зафиксирована', th: 'ล็อกราคาแล้ว' })}</small></span></div>
   </div>
 </div></section>
 
@@ -122,7 +142,10 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
   <span class="eyebrow">${icon('globe')} ${tr(l, { en: 'Grab\'s products, one assistant', ru: 'Продукты Grab в одном ассистенте', th: 'ผลิตภัณฑ์ของ Grab ในผู้ช่วยเดียว' })}</span>
   <h2>${tr(l, { en: 'What Ari does with each Grab product', ru: 'Что Ari делает с каждым продуктом Grab', th: 'Ari ทำอะไรกับแต่ละผลิตภัณฑ์ของ Grab' })}</h2>
   <p class="lead">${tr(l, { en: 'Mapped against the public APIs on developer.grab.com. The status shows how far the integration is today.', ru: 'Сверено с публичными API на developer.grab.com. Статус показывает готовность интеграции сегодня.', th: 'เทียบกับ API สาธารณะบน developer.grab.com สถานะแสดงความพร้อมของการเชื่อมต่อในวันนี้' })}</p>
-  <ul class="cov-grid" role="list">${coverage}</ul>
+  ${statusLegend(l)}
+  <ul class="cov-grid" role="list">${coverage}
+    <li class="cov cov-more"><b>${tr(l, { en: 'Every product, mapped to its Grab API', ru: 'Каждый продукт сопоставлен с API Grab', th: 'ทุกผลิตภัณฑ์จับคู่กับ API ของ Grab แล้ว' })}</b><p>${tr(l, { en: 'The proposal lists the exact API behind each card and what changes once Grab grants access.', ru: 'В предложении указаны API для каждой карточки и то, что изменится после выдачи доступа.', th: 'ข้อเสนอระบุ API ของแต่ละการ์ด และสิ่งที่เปลี่ยนไปเมื่อ Grab ให้สิทธิ์' })}</p><a class="btn secondary" href="/for-grab#coverage">${tr(l, { en: 'See the full table', ru: 'Открыть всю таблицу', th: 'ดูตารางทั้งหมด' })} ${icon('arrow')}</a></li>
+  </ul>
 </div></section>
 
 <section class="sec" id="architecture"><div class="wrap">
@@ -135,7 +158,7 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
     <div class="arch-arrow">${icon('arrow')}</div>
     <div class="arch-node engine"><span class="ico">${icon('shield')}</span><b>Unyly engine</b><small>${tr(l, { en: 'CSA PROJECT\'s integration layer between Ari and Grab\'s APIs', ru: 'Интеграционный слой CSA PROJECT между Ari и API Grab', th: 'ชั้นเชื่อมต่อของ CSA PROJECT ระหว่าง Ari กับ API ของ Grab' })}</small></div>
     <div class="arch-arrow">${icon('arrow')}</div>
-    <div class="arch-node grab"><span class="ico">${icon('plug')}</span><b>Grab APIs</b><small>GrabID · Farefeed · GrabExpress · GrabPay · Tokenisation · Rewards · GrabChat</small></div>
+    <div class="arch-node grab"><span class="ico">${icon('plug')}</span><b>Grab APIs</b><em class="arch-tag">developer.grab.com</em><small>GrabID · Farefeed · GrabExpress · GrabPay · Tokenisation · Rewards · GrabChat</small></div>
   </div>
   <div class="grid3 small-cards">
     <div class="card flat"><h3>${icon('code')} ${tr(l, { en: 'One API for Ari', ru: 'Один API для Ari', th: 'API เดียวสำหรับ Ari' })}</h3><p>${tr(l, { en: '22 signed endpoints, model-neutral tool definitions and a card schema the app renders natively.', ru: '22 подписанных эндпоинта, описания инструментов для любой модели и схема карточек для нативного отображения.', th: '22 endpoint ที่ลงนาม คำอธิบายเครื่องมือสำหรับทุกโมเดล และสคีมาการ์ดสำหรับแสดงผลในแอป' })}</p><a href="/developers">${tr(l, { en: 'Partner API', ru: 'Partner API', th: 'Partner API' })} ${icon('arrow')}</a></div>
@@ -157,11 +180,12 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
   <div class="markets">${MARKETS.map((m) => html`<span class="market ${m.demo ? 'on' : ''}"><b>${m.country[L]}</b><small>${m.currency} · ${m.languages.join(', ')}</small>${m.demo ? html`<em>${tr(l, { en: 'demo', ru: 'демо', th: 'เดโม' })}</em>` : ''}</span>`)}</div>
 </div></section>
 
-<section class="sec cta-band"><div class="wrap center">
+<section class="sec cta-band"><div class="wrap"><div class="cta-panel center">
+  <span class="ari-mark lg" aria-hidden="true">A</span>
   <h2>${tr(l, { en: 'Let\'s launch a pilot in Bangkok', ru: 'Запустим пилот в Бангкоке', th: 'เริ่มโครงการนำร่องที่กรุงเทพฯ' })}</h2>
   <p class="lead">${tr(l, { en: 'GrabExpress, Login with Grab and GrabPay are built from Grab\'s public docs and tested against mocks. With sandbox keys we start certification on day one.', ru: 'GrabExpress, вход через Grab и GrabPay написаны по публичной документации Grab и проверены на моках. С ключами песочницы начнём сертификацию в первый же день.', th: 'GrabExpress, Login with Grab และ GrabPay พัฒนาตามเอกสารสาธารณะของ Grab และทดสอบกับระบบจำลองแล้ว เมื่อได้คีย์ sandbox เราเริ่มทดสอบรับรองได้ทันที' })}</p>
   <div class="actions center"><a class="btn lg ari" href="/for-grab">${tr(l, { en: 'Read the proposal', ru: 'Читать предложение', th: 'อ่านข้อเสนอ' })} ${icon('arrow')}</a><a class="btn lg secondary" href="mailto:${CONTACT.owner.email}">${icon('mail')} ${CONTACT.owner.email}</a></div>
-</div></section>`, { wide: true, noBanner: true, description: tr(l, { en: 'Proposal: Ari, the personal assistant on iPhone, as a voice channel for Grab. Interactive demo with fictional data.', ru: 'Предложение: Ari, персональный ассистент на iPhone, как голосовой канал для Grab. Интерактивное демо на вымышленных данных.', th: 'ข้อเสนอ: Ari ผู้ช่วยส่วนตัวบน iPhone เป็นช่องทางสั่งงานด้วยเสียงสำหรับ Grab เดโมใช้ข้อมูลสมมติ' }) });
+</div></div></section>`, { wide: true, noBanner: true, description: tr(l, { en: 'Proposal: Ari, the personal assistant on iPhone, as a voice channel for Grab. Interactive demo with fictional data.', ru: 'Предложение: Ari, персональный ассистент на iPhone, как голосовой канал для Grab. Интерактивное демо на вымышленных данных.', th: 'ข้อเสนอ: Ari ผู้ช่วยส่วนตัวบน iPhone เป็นช่องทางสั่งงานด้วยเสียงสำหรับ Grab เดโมใช้ข้อมูลสมมติ' }) });
   });
 
   // ---------------------------------------------------------------- live demo
@@ -196,6 +220,14 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
       min: tr(l, { en: 'min', ru: 'мин', th: 'นาที' }),
       lang: l,
     };
+    // Presenter shortcuts: the first four examples are ride, dinner, parcel and flowers, in that order.
+    const scenarios: [string, Tri][] = [
+      ['car', { en: 'Ride', ru: 'Поездка', th: 'เรียกรถ' }],
+      ['bowl', { en: 'Dinner', ru: 'Ужин', th: 'มื้อเย็น' }],
+      ['box', { en: 'Parcel', ru: 'Посылка', th: 'พัสดุ' }],
+      ['flower', { en: 'Flowers', ru: 'Цветы', th: 'ดอกไม้' }],
+    ];
+    const scenLabel = tr(l, { en: 'One-tap scenarios', ru: 'Сценарии в одно нажатие', th: 'สถานการณ์ตัวอย่างแตะครั้งเดียว' });
     return send(reply, r, tr(l, { en: 'Ari live demo', ru: 'Живое демо Ari', th: 'เดโมสดของ Ari' }), html`
 <section class="ari-demo-page"><div class="wrap ari-demo-grid">
   <div class="ari-demo-left">
@@ -214,21 +246,26 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
           <input id="ari-input" name="text" maxlength="300" placeholder="${strings.placeholder}">
           <button class="ari-send" type="submit" aria-label="${tr(l, { en: 'Send', ru: 'Отправить', th: 'ส่ง' })}">${icon('send')}</button>
         </form>
-        <div class="ari-sheet" id="ari-faceid" role="dialog" aria-modal="true" aria-label="${strings.faceidHint}" tabindex="-1" hidden><div class="fid">${icon('faceid')}</div><b>${strings.faceidHint}</b></div>
+        <div class="ari-sheet" id="ari-faceid" role="dialog" aria-modal="true" aria-label="${strings.faceidHint}" tabindex="-1" hidden><div class="fid">${icon('faceid')}${icon('check', 'fid-ok')}</div><b>${strings.faceidHint}</b></div>
         <div class="ari-call" id="ari-call" role="dialog" aria-modal="true" aria-label="${strings.calling}" tabindex="-1" hidden>
-          <div class="call-top"><span class="ari-avatar xl">A</span><b>Ari</b><small id="call-state">${strings.calling}</small></div>
+          <div class="call-top"><span class="call-ring"><span class="ari-avatar xl">A</span></span><b>Ari</b><small id="call-state">${strings.calling}</small><span class="call-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
           <p class="call-line" id="call-line"></p>
           <div class="call-btns"><button type="button" class="call-no" id="call-no">${icon('phone')}<span>${strings.decline}</span></button><button type="button" class="call-yes" id="call-yes">${icon('phone')}<span>${strings.accept}</span></button></div>
         </div>
       </div>
     </div>
+    <a class="trace-hint" href="#under-the-hood">${icon('code')}<span>${strings.under}</span><b id="trace-count" hidden></b>${icon('arrow')}</a>
     <noscript><p class="notice warn">${tr(l, { en: 'The live demo needs JavaScript.', ru: 'Для живого демо нужен JavaScript.', th: 'เดโมสดต้องใช้ JavaScript' })}</p></noscript>
   </div>
   <aside class="ari-demo-right">
     <span class="eyebrow">${icon('sparkle')} ${tr(l, { en: 'Live demo · fictional Bangkok data', ru: 'Живое демо · вымышленные данные Бангкока', th: 'เดโมสด · ข้อมูลสมมติกรุงเทพฯ' })}</span>
     <h1>${tr(l, { en: 'How Ari would order Grab', ru: 'Так Ari будет заказывать Grab', th: 'Ari จะสั่ง Grab อย่างไร' })}</h1>
     <p class="lead">${tr(l, { en: 'Type or tap an example. Every step runs through the Unyly Partner API built for the Ari app: options, a priced card, your confirmation, then live status, pushes and a call from Ari.', ru: 'Напишите или выберите пример. Каждый шаг идёт через Partner API Unyly, созданный для приложения Ari: варианты, карточка с ценой, ваше подтверждение, затем статус, уведомления и звонок от Ari.', th: 'พิมพ์หรือแตะตัวอย่าง ทุกขั้นตอนผ่าน Unyly Partner API ที่สร้างไว้สำหรับแอป Ari: ตัวเลือก การ์ดราคา การยืนยันของคุณ แล้วสถานะสด การแจ้งเตือน และ Ari โทรหา' })}</p>
-    <div class="trace card flat"><div class="trace-h"><b>${strings.under}</b><span class="pill accent">Partner API</span></div><ol class="trace-list" id="ari-trace" role="list"><li class="muted small">${tr(l, { en: 'API calls appear here as you talk to Ari.', ru: 'Здесь появятся вызовы API по ходу диалога.', th: 'การเรียก API จะแสดงที่นี่ระหว่างคุยกับ Ari' })}</li></ol></div>
+    <div class="presenter" id="ari-presenter" role="group" aria-label="${scenLabel}">
+      <span class="presenter-h">${icon('bolt')} ${scenLabel}</span>
+      <div class="presenter-btns">${scenarios.map(([ic, t], i) => html`<button type="button" data-ex="${i}" title="${ex[i] ?? ''}">${icon(ic)}<span>${tr(l, t)}</span></button>`)}</div>
+    </div>
+    <div class="trace card flat" id="under-the-hood"><div class="trace-h"><b>${icon('code')} ${strings.under}</b><span class="trace-n" id="trace-n" hidden></span><span class="pill accent">Partner API</span></div><ol class="trace-list" id="ari-trace" role="list"><li class="muted small">${tr(l, { en: 'API calls appear here as you talk to Ari.', ru: 'Здесь появятся вызовы API по ходу диалога.', th: 'การเรียก API จะแสดงที่นี่ระหว่างคุยกับ Ari' })}</li></ol></div>
     <ul class="ari-legend small muted" role="list">
       <li>${icon('check')} ${tr(l, { en: 'Demo mode: nothing is driven, delivered or charged; drivers and plates are fictional.', ru: 'Демо: никто никуда не едет, ничего не доставляется и не списывается; водители и номера вымышлены.', th: 'โหมดเดโม: ไม่มีการเดินทาง จัดส่ง หรือเรียกเก็บเงินจริง คนขับและทะเบียนเป็นข้อมูลสมมติ' })}</li>
       <li>${icon('plug')} ${tr(l, { en: 'The "Under the hood" panel shows which Grab API a live system would call for the same step.', ru: 'В блоке «Что происходит внутри» видно, какой API Grab вызывался бы на этом шаге в рабочем режиме.', th: 'แผง "เบื้องหลังการทำงาน" แสดง API ของ Grab ที่ระบบจริงจะเรียกในขั้นตอนเดียวกัน' })}</li>
@@ -269,7 +306,7 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
       tr(l, { en: 'Product', ru: 'Продукт', th: 'ผลิตภัณฑ์' }), tr(l, { en: 'What Ari does', ru: 'Что делает Ari', th: 'Ari ทำอะไร' }), tr(l, { en: 'Grab API', ru: 'API Grab', th: 'API ของ Grab' }),
       tr(l, { en: 'Today', ru: 'Сегодня', th: 'วันนี้' }), tr(l, { en: 'With Grab', ru: 'С Grab', th: 'เมื่อร่วมกับ Grab' }),
     ];
-    return send(reply, r, tr(l, { en: 'Proposal for Grab', ru: 'Предложение для Grab', th: 'ข้อเสนอสำหรับ Grab' }), html`
+    return send(reply, r, tr(l, { en: 'Proposal for Grab', ru: 'Предложение для Grab', th: 'ข้อเสนอสำหรับ Grab' }), html`<div class="ari-doc proposal">
 <section class="pitch-hero">
   <span class="eyebrow">${icon('handshake')} ${tr(l, { en: 'Ari × Grab · partnership proposal', ru: 'Ari × Grab · предложение о партнёрстве', th: 'Ari × Grab · ข้อเสนอความร่วมมือ' })}</span>
   <h1>${tr(l, { en: 'Grab, inside the assistant people already talk to', ru: 'Grab внутри ассистента, с которым люди уже разговаривают', th: 'Grab อยู่ในผู้ช่วยที่ผู้คนคุยด้วยอยู่แล้ว' })}</h1>
@@ -281,10 +318,11 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
   <ul class="checklist" role="list">${ready.map((x) => html`<li>${icon('check')}<span>${tr(l, x)}</span></li>`)}</ul>
 </section>
 
-<section class="sec-block"><h2>${icon('globe')} ${tr(l, { en: 'Coverage of Grab products', ru: 'Покрытие продуктов Grab', th: 'ความครอบคลุมผลิตภัณฑ์ Grab' })}</h2>
+<section class="sec-block" id="coverage"><h2>${icon('globe')} ${tr(l, { en: 'Coverage of Grab products', ru: 'Покрытие продуктов Grab', th: 'ความครอบคลุมผลิตภัณฑ์ Grab' })}</h2>
+  ${statusLegend(l, { detailed: true })}
   <div class="table-wrap" tabindex="0" role="region" aria-label="${tr(l, { en: 'Coverage of Grab products', ru: 'Покрытие продуктов Grab', th: 'ความครอบคลุมผลิตภัณฑ์ Grab' })}"><table class="cov-table">
     <thead><tr><th scope="col">${covCols[0]}</th><th scope="col">${covCols[1]}</th><th scope="col">${covCols[2]}</th><th scope="col">${covCols[3]}</th><th scope="col">${covCols[4]}</th></tr></thead>
-    <tbody>${GRAB_PRODUCTS.map((p) => html`<tr><th scope="row">${p.name}</th><td data-label="${covCols[1]}">${p.ari[L]}</td><td class="mono small" data-label="${covCols[2]}">${p.api}</td><td data-label="${covCols[3]}"><span class="pill ${STATUS_CLASS[p.today]}">${tr(l, STATUS_LABEL[p.today])}</span></td><td data-label="${covCols[4]}">${p.with_grab[L]}</td></tr>`)}</tbody>
+    <tbody>${GRAB_PRODUCTS.map((p) => html`<tr><th scope="row">${p.name}</th><td data-label="${covCols[1]}">${p.ari[L]}</td><td class="mono small" data-label="${covCols[2]}">${p.api}</td><td data-label="${covCols[3]}">${statusPill(l, p.today)}</td><td data-label="${covCols[4]}">${p.with_grab[L]}</td></tr>`)}</tbody>
   </table></div>
 </section>
 
@@ -315,7 +353,7 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
     <div class="who">${CONTACT.owner.name}</div>
     <p class="small muted"><a href="mailto:${CONTACT.owner.email}">${CONTACT.owner.email}</a> · LINE <a href="tel:+${CONTACT.owner.line}">${phoneLabel(CONTACT.owner.line)}</a> · <a href="/contact">${tr(l, { en: 'All contacts', ru: 'Все контакты', th: 'ช่องทางติดต่อทั้งหมด' })}</a></p></div>
   <div class="actions"><a class="btn ari" href="mailto:${CONTACT.owner.email}">${icon('mail')} ${tr(l, { en: 'Email', ru: 'Написать', th: 'อีเมล' })}</a><a class="btn secondary" href="${whatsappUrl(CONTACT.owner.whatsapp)}" rel="noopener">${icon('chat')} WhatsApp</a><a class="btn secondary" href="${instagramUrl(CONTACT.owner.instagram)}" rel="noopener">${icon('users')} Instagram</a></div>
-</div></section>`, { noBanner: true, description: tr(l, { en: 'Ari × Grab: a partnership proposal to make Grab the way Ari users move, eat and send things, starting with a Bangkok pilot.', ru: 'Ari × Grab: предложение, чтобы пользователи Ari ездили, заказывали еду и отправляли посылки через Grab. Старт с пилота в Бангкоке.', th: 'Ari × Grab: ข้อเสนอให้ Grab เป็นวิธีที่ผู้ใช้ Ari เดินทาง สั่งอาหาร และส่งของ เริ่มจากนำร่องที่กรุงเทพฯ' }) });
+</div></section></div>`, { noBanner: true, description: tr(l, { en: 'Ari × Grab: a partnership proposal to make Grab the way Ari users move, eat and send things, starting with a Bangkok pilot.', ru: 'Ari × Grab: предложение, чтобы пользователи Ari ездили, заказывали еду и отправляли посылки через Grab. Старт с пилота в Бангкоке.', th: 'Ari × Grab: ข้อเสนอให้ Grab เป็นวิธีที่ผู้ใช้ Ari เดินทาง สั่งอาหาร และส่งของ เริ่มจากนำร่องที่กรุงเทพฯ' }) });
   });
 
   // ---------------------------------------------------------------- developers
@@ -360,25 +398,26 @@ X-Unyly-Signature: v1=hex(HMAC_SHA256(partner_secret, canonical))`;
               "level": "urgent", "suggest_call": true,
               "live_activity": { "state": "preparing", "progress": 0.5, "eta_at": "…" } }
 }`;
-    return send(reply, r, tr(l, { en: 'Partner API for Ari', ru: 'Partner API для Ari', th: 'Partner API สำหรับ Ari' }), html`
+    const code = (id: string, text: string) => html`<div class="code-block"><button class="code-copy" type="button" data-copy="${id}" data-copied="${r.m.copied}">${r.m.copy}</button><pre class="code" tabindex="0"><code id="${id}">${text}</code></pre></div>`;
+    return send(reply, r, tr(l, { en: 'Partner API for Ari', ru: 'Partner API для Ari', th: 'Partner API สำหรับ Ari' }), html`<div class="ari-doc">
 <section class="pitch-hero">
   <span class="eyebrow">${icon('code')} ${tr(l, { en: 'Developers', ru: 'Разработчикам', th: 'นักพัฒนา' })}</span>
   <h1>${tr(l, { en: 'Unyly Partner API', ru: 'Unyly Partner API', th: 'Unyly Partner API' })}</h1>
   <p class="lead">${tr(l, { en: 'Server-to-server API that lets Ari order every Grab service for its users. Your LLM calls tools; every result comes with a card your app renders natively; the user confirms in the app; events arrive by signed webhook.', ru: 'API сервер-сервер, через который Ari заказывает любые сервисы Grab для своих пользователей. Ваша LLM вызывает инструменты, каждый результат приходит с карточкой для нативного отображения, пользователь подтверждает в приложении, события приходят подписанным вебхуком.', th: 'API ระหว่างเซิร์ฟเวอร์ที่ให้ Ari สั่งทุกบริการ Grab ให้ผู้ใช้ LLM เรียกเครื่องมือ ทุกผลลัพธ์มีการ์ดให้แอปแสดงผล ผู้ใช้ยืนยันในแอป และเหตุการณ์มาทาง webhook ที่ลงนาม' })}</p>
-  <div class="actions"><a class="btn" href="/partner/v1/openapi.json">${icon('code')} OpenAPI 3.1</a><a class="btn secondary" href="/developers/ari-integration-ru.md">${tr(l, { en: 'Integration spec for the Ari team (RU)', ru: 'ТЗ для команды Ari', th: 'ข้อกำหนดสำหรับทีม Ari (RU)' })}</a></div>
+  <div class="actions"><a class="btn ari" href="/partner/v1/openapi.json">${icon('code')} OpenAPI 3.1</a><a class="btn secondary" href="/developers/ari-integration-ru.md">${tr(l, { en: 'Integration spec for the Ari team (RU)', ru: 'ТЗ для команды Ari', th: 'ข้อกำหนดสำหรับทีม Ari (RU)' })}</a></div>
 </section>
 <section class="sec-block"><h2>${tr(l, { en: 'Signing', ru: 'Подпись запросов', th: 'การลงนามคำขอ' })}</h2>
   <p>${tr(l, { en: 'Each request carries X-Unyly-Partner, X-Unyly-Timestamp (±300 s) and a single-use X-Unyly-Nonce. Webhooks to Ari use the same scheme with the webhook secret.', ru: 'Каждый запрос содержит X-Unyly-Partner, X-Unyly-Timestamp (±300 с) и одноразовый X-Unyly-Nonce. Вебхуки в Ari подписываются так же секретом вебхука.', th: 'ทุกคำขอมี X-Unyly-Partner, X-Unyly-Timestamp (±300 วินาที) และ X-Unyly-Nonce ใช้ครั้งเดียว webhook ถึง Ari ใช้รูปแบบเดียวกันด้วย webhook secret' })}</p>
-  <pre class="code"><code>${sign}</code></pre>
+  ${code('code-sign', sign)}
 </section>
 <section class="sec-block"><h2>${tr(l, { en: 'Endpoints', ru: 'Эндпоинты', th: 'Endpoints' })}</h2>
-  <div class="table-wrap"><table><tbody>${endpoints.map(([m, p, d]) => html`<tr><td><span class="pill ${m === 'GET' ? '' : 'accent'}">${m}</span></td><td class="mono small">${p}</td><td>${tr(l, d)}</td></tr>`)}</tbody></table></div>
+  <div class="table-wrap"><table class="ep-table"><tbody>${endpoints.map(([m, p, d]) => html`<tr><td class="ep-m"><span class="pill verb verb-${m.toLowerCase()}">${m}</span></td><td class="ep-p mono small">${p}</td><td class="ep-d">${tr(l, d)}</td></tr>`)}</tbody></table></div>
 </section>
 <section class="sec-block grid2">
-  <div><h2>${tr(l, { en: 'A card', ru: 'Карточка', th: 'การ์ด' })}</h2><pre class="code"><code>${sample}</code></pre></div>
-  <div><h2>${tr(l, { en: 'An event', ru: 'Событие', th: 'เหตุการณ์' })}</h2><pre class="code"><code>${event}</code></pre></div>
+  <div><h2>${tr(l, { en: 'A card', ru: 'Карточка', th: 'การ์ด' })}</h2>${code('code-card', sample)}</div>
+  <div><h2>${tr(l, { en: 'An event', ru: 'Событие', th: 'เหตุการณ์' })}</h2>${code('code-event', event)}</div>
 </section>
-<section class="sec-block"><div class="notice small">${tr(l, { en: 'Partner credentials are issued per partner by Unyly. Demo mode returns fictional Bangkok data; live mode switches each Grab product on as Grab grants access.', ru: 'Ключи партнёра выдаёт Unyly. Демо-режим возвращает вымышленные данные Бангкока; рабочий режим включает продукты Grab по мере выдачи доступа.', th: 'Unyly ออกคีย์ให้พาร์ทเนอร์แต่ละราย โหมดเดโมใช้ข้อมูลสมมติของกรุงเทพฯ โหมดจริงเปิดผลิตภัณฑ์ Grab ตามสิทธิ์ที่ได้รับ' })}</div></section>`, { noBanner: true, description: 'Unyly Partner API: signed server-to-server API for Ari to order Grab services with native cards and confirmation.' });
+<section class="sec-block"><div class="notice small">${tr(l, { en: 'Partner credentials are issued per partner by Unyly. Demo mode returns fictional Bangkok data; live mode switches each Grab product on as Grab grants access.', ru: 'Ключи партнёра выдаёт Unyly. Демо-режим возвращает вымышленные данные Бангкока; рабочий режим включает продукты Grab по мере выдачи доступа.', th: 'Unyly ออกคีย์ให้พาร์ทเนอร์แต่ละราย โหมดเดโมใช้ข้อมูลสมมติของกรุงเทพฯ โหมดจริงเปิดผลิตภัณฑ์ Grab ตามสิทธิ์ที่ได้รับ' })}</div></section></div>`, { noBanner: true, description: 'Unyly Partner API: signed server-to-server API for Ari to order Grab services with native cards and confirmation.' });
   });
 }
 

@@ -24,7 +24,7 @@ const PICKS: Record<string, [string, RegExp][]> = {
     ['m1-rice', /\brice\b|(?<!\p{L})рис(?!\p{L})|ข้าวสาร/u],
     ['m1-eggs', /\beggs?\b|яйц|ไข่/u],
     ['m1-water', /water|(?<!\p{L})вод[аыуе](?!\p{L})|น้ำดื่ม/u],
-    ['m1-milk', /\bmilk\b|молок|นม/u],
+    ['m1-milk', /\bmilk\b|молок|(?<!ข)นม/u],
     ['m1-banana', /banana|банан|กล้วย/u],
     ['m1-mango', /mango|манго|มะม่วง/u],
     ['m1-chicken', /chicken|куриц|(?<!ไข่)ไก่/u],
@@ -48,7 +48,7 @@ const PICKS: Record<string, [string, RegExp][]> = {
     ['m4-thermometer', /thermometer|градусник|термометр|ปรอท/u],
     ['m4-masks', /mask|маск|หน้ากาก/u],
     ['m4-repellent', /mosquito|repellent|комар|репеллент|กันยุง/u],
-    ['m4-sunscreen', /sunscreen|spf|солнцезащ|กันแดด/u],
+    ['m4-sunscreen', /sunscreen|spf|солнцезащ|от солнца|กันแดด/u],
   ],
   'demo-m5': [
     ['m5-choc', /chocolate|шоколад|ช็อกโกแลต/u],
@@ -89,6 +89,8 @@ export async function shopPlan(ctx: Ctx, actor: Actor, service: keyof typeof SHO
   const text = q.toLowerCase();
   const table = PICKS[storeId];
   let ids = table.filter(([id, re]) => re.test(text) || (SHOP_WORDS[id] ?? []).some((w) => text.includes(w))).map(([id]) => id);
+  // "A cake with candles" without a flavour is the birthday cake (the one that comes with candles).
+  if (!ids.length && service === 'cakes' && OPTION_WORDS.candles.test(text)) ids = ['m5-birthday'];
   if (!ids.length) ids = service === 'groceries' ? ['m1-rice', 'm1-eggs', 'm1-water'] : [table[0][0]];
   // One cake per request: the cake named first in the sentence ("chocolate cake for a birthday" is one chocolate cake).
   if (service === 'cakes' && ids.length > 1) {
@@ -154,8 +156,10 @@ export interface TripPlan {
 export async function tripPlan(ctx: Ctx, actor: Actor, si: ServiceIntent): Promise<TripPlan> {
   const service = si.service === 'express' ? 'express' : 'ride';
   const addr = await getDefaultAddress(ctx.db, actor.userId);
-  const pickup = si.pickup || addr?.label || '';
-  const dropoff = si.dropoff || '';
+  // "Home" in any language is the saved default place.
+  const pickup = (si.pickup_home ? addr?.label : si.pickup) || addr?.label || '';
+  const dropoff = (si.dropoff_home ? addr?.label : si.dropoff) || '';
+  if (si.dropoff_home && addr && !si.pickup) throw new DomainError('TRIP_REQUIRED', 'Where from? Add a pickup place, for example "from Siam Paragon home".');
   if (!dropoff) throw new DomainError('TRIP_REQUIRED', 'Where to? Add a destination, for example "to Suvarnabhumi airport".');
   const weight = service === 'express' ? si.weight_kg ?? 2 : undefined;
   const result = await estimateTrip(ctx, actor, { service, pickup, dropoff, parcel_weight_kg: weight, passengers: si.passengers });

@@ -28,6 +28,34 @@ function sendError(reply: FastifyReply, e: unknown) {
 
 const ok = (reply: FastifyReply, data: Record<string, unknown>, status = 200) => reply.code(status).header('cache-control', 'no-store').send({ ok: true, ...data });
 
+/** Errors that have no DomainError code (HTTP-level problems) in the same envelope as every other partner error. */
+const sendHttpError = (reply: FastifyReply, status: number, code: string, message: string) =>
+  reply.code(status).header('cache-control', 'no-store').send({ ok: false, error: { code, message } });
+
+const AUTH_FAIL_MAX = 300;
+const AUTH_FAIL_WINDOW_MS = 60_000;
+
+/**
+ * Failed signature checks per client IP (fixed one-minute window, in memory, no database work). The per-user
+ * limits only start after a valid signature, so without this an unsigned flood would never be limited at all.
+ */
+function authFailureLimiter() {
+  const seen = new Map<string, { n: number; reset: number }>();
+  const entry = (ip: string, now: number) => {
+    const e = seen.get(ip);
+    if (e && e.reset > now) return e;
+    if (seen.size > 20_000) for (const [k, v] of seen) if (v.reset <= now) seen.delete(k);
+    if (seen.size > 20_000) seen.clear();
+    const fresh = { n: 0, reset: now + AUTH_FAIL_WINDOW_MS };
+    seen.set(ip, fresh);
+    return fresh;
+  };
+  return {
+    blocked: (ip: string) => entry(ip, Date.now()).n >= AUTH_FAIL_MAX,
+    hit: (ip: string) => { entry(ip, Date.now()).n += 1; },
+  };
+}
+
 function uuidParam(v: unknown, name: string): string {
   const s = String(v ?? '');
   if (!UUID_RE.test(s)) throw new DomainError('NOT_FOUND', `${name} not found`);
@@ -43,10 +71,18 @@ export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx) {
     scope.removeAllContentTypeParsers();
     scope.addContentTypeParser('*', { parseAs: 'string', bodyLimit: 64 * 1024 }, (_req, body, done) => done(null, body));
 
+    const authFailures = authFailureLimiter();
     scope.addHook('preHandler', async (req: Req, reply) => {
       try {
+        // Too many bad signatures from this address: refuse before any signature or database work.
+        if (authFailures.blocked(req.ip)) throw new DomainError('RATE_LIMITED', 'Too many requests with a missing or invalid signature. Retry in a minute.');
         const raw = typeof req.body === 'string' ? req.body : '';
-        req.partner = await verifyPartnerRequest(ctx, { method: req.method, url: req.url, headers: req.headers as any, rawBody: raw });
+        try {
+          req.partner = await verifyPartnerRequest(ctx, { method: req.method, url: req.url, headers: req.headers as any, rawBody: raw });
+        } catch (e) {
+          if (isDomainError(e) && e.code === 'PARTNER_AUTH_FAILED') authFailures.hit(req.ip);
+          throw e;
+        }
         if (raw) {
           const ct = String(req.headers['content-type'] ?? '');
           if (!ct.includes('application/json')) throw new DomainError('VALIDATION_FAILED', 'Content-Type must be application/json');
@@ -55,6 +91,7 @@ export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx) {
           } catch {
             throw new DomainError('VALIDATION_FAILED', 'Body is not valid JSON');
           }
+          if (!req.jsonBody || typeof req.jsonBody !== 'object' || Array.isArray(req.jsonBody)) throw new DomainError('VALIDATION_FAILED', 'Body must be a JSON object');
         } else req.jsonBody = {};
       } catch (e) {
         return sendError(reply, e);
@@ -71,6 +108,7 @@ export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx) {
     // Errors raised outside the handlers (rate limit, body too large) use the same envelope as every other partner error.
     scope.setErrorHandler((err: any, _req, reply) => {
       if (err?.statusCode === 429) return sendError(reply, new DomainError('RATE_LIMITED', 'Too many requests. Retry after a short pause.'));
+      if (err?.statusCode === 413) return sendHttpError(reply, 413, 'PAYLOAD_TOO_LARGE', 'Request body is too large: the limit is 64 KB.');
       if (!isDomainError(err) && err?.statusCode >= 400 && err?.statusCode < 500) return sendError(reply, new DomainError('VALIDATION_FAILED', String(err.message ?? 'Bad request')));
       return sendError(reply, err);
     });
@@ -194,6 +232,14 @@ export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx) {
     scope.get('/partner/v1/users/:uid/grab', rl, route(async (req, reply) => ok(reply, { grab: await grabLinkStatus(ctx, await user(req)) })));
     scope.post('/partner/v1/users/:uid/grab/link', rl, route(async (req, reply) => ok(reply, await startGrabLink(ctx, req.partner!, await user(req)))));
     scope.delete('/partner/v1/users/:uid/grab', rl, route(async (req, reply) => ok(reply, { grab: await unlinkGrab(ctx, req.partner!, await user(req)) })));
+
+    // Anything else under /partner/v1 (unknown path, wrong method, trailing slash): the JSON 404 after the
+    // signature check, never the website's HTML page. Unsigned callers get the same 401 as everywhere else.
+    const noRoute = route(async (req) => {
+      throw new DomainError('NOT_FOUND', `No such endpoint: ${req.method} ${req.url.split('?')[0].slice(0, 200)}`);
+    });
+    scope.all('/partner/v1', noRoute);
+    scope.all('/partner/v1/*', noRoute);
   });
 }
 

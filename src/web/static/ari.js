@@ -26,6 +26,21 @@
   let lastPushAt = 0;
   let ringTimer = null;
   let liveCard = null;
+  // Bumped on every reset: answers that arrive for an earlier chat are dropped instead of
+  // being appended to the new one.
+  let gen = 0;
+  let traceCount = 0;
+  let hangCall = null;
+  const STORE = 'ari-demo-order';
+  const remember = (id) => {
+    try {
+      if (id) sessionStorage.setItem(STORE, id);
+      else sessionStorage.removeItem(STORE);
+    } catch (e) { /* private mode */ }
+  };
+  const remembered = () => {
+    try { return sessionStorage.getItem(STORE); } catch (e) { return null; }
+  };
 
   // While the Face ID sheet or the call covers the screen, keep keyboard and screen readers inside it.
   const overlay = (node, on) => {
@@ -121,14 +136,24 @@
       const li = el('li', `call ${t.ok ? '' : 'bad'}`);
       const [m, ...p] = String(t.call).split(' ');
       const path = p.join(' ').replace(/\/users\/[^/]+/, '/users/{uid}').replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '{id}');
-      li.append(el('span', 'm', m), el('span', 'p', path), el('span', 'ms', `${t.ms} ms`));
+      li.append(el('span', `m m-${m.toLowerCase()}`, m), el('span', 'p', path), el('span', 'ms', `${t.ms} ms`));
       if (t.grab) {
         const g = el('span', 'g');
-        g.append(el('b', '', `${S.liveCall}: `), document.createTextNode(t.grab));
+        g.append(svg('arrow'), el('b', '', S.liveCall), el('span', '', t.grab));
         li.appendChild(g);
       }
       trace.appendChild(li);
       trace.scrollTop = trace.scrollHeight;
+      traceCount += 1;
+    });
+    showTraceCount();
+  };
+  const showTraceCount = () => {
+    ['trace-count', 'trace-n'].forEach((id) => {
+      const n = $(id);
+      if (!n) return;
+      n.textContent = String(traceCount);
+      n.hidden = traceCount === 0;
     });
   };
 
@@ -167,7 +192,11 @@
           b.append(row);
         }
         if (!o.action) b.disabled = true;
-        else b.addEventListener('click', () => choose(o, list));
+        else b.addEventListener('click', () => {
+          if (busy) return;
+          b.classList.add('picked');
+          choose(o, list);
+        });
         list.appendChild(b);
       });
       c.append(list);
@@ -261,7 +290,14 @@
     const st = card.status;
     if (st) {
       const head = el('div', 'ac-status');
-      head.append(el('b', '', st.label));
+      const ended = /cancel|fail/.test(st.code);
+      const title = el('b', '', st.label);
+      if (st.is_final) {
+        const mk = el('span', `ac-final ${ended ? 'bad' : 'ok'}`);
+        mk.appendChild(svg(ended ? 'x' : 'check'));
+        title.prepend(mk);
+      }
+      head.append(title);
       const eta = st.eta_at && !st.is_final ? Math.max(1, Math.round((new Date(st.eta_at) - Date.now()) / 60000)) : null;
       if (eta) head.append(el('small', '', `${S.eta} ~${eta} ${S.min || 'min'}`));
       c.append(head);
@@ -311,6 +347,7 @@
     const q = String(text || '').trim();
     if (!q || busy) return;
     busy = true;
+    const g = gen;
     input.value = '';
     say('me', q);
     setChips([]);
@@ -318,40 +355,48 @@
     try {
       const r = await api('POST', withLang('/ari/api/message'), { text: q });
       await new Promise((ok) => setTimeout(ok, 350));
+      if (g !== gen) return;
       t.remove();
       say('ari', r.reply);
       if (r.card) focusCard(renderCard(r.card));
       setChips(r.chips && r.chips.length ? r.chips : []);
       addTrace(r.trace);
     } catch (e) {
+      if (g !== gen) return;
       t.remove();
       say('ari', e.message || S.error);
       setChips(EX.slice(0, 3));
     } finally {
-      busy = false;
+      if (g === gen) busy = false;
     }
   }
 
   async function choose(opt, list) {
     if (busy) return;
     busy = true;
+    const g = gen;
     list.querySelectorAll('button').forEach((b) => (b.disabled = true));
     say('me', opt.title);
     const t = typing();
     try {
       const a = opt.action.tool;
       const r = await api('POST', withLang('/ari/api/action'), { tool: a.name, arguments: a.arguments });
+      if (g !== gen) return;
       t.remove();
       if (r.reply) say('ari', r.reply);
       if (r.card) focusCard(renderCard(r.card));
       if (r.chips && r.chips.length) setChips(r.chips);
       addTrace(r.trace);
     } catch (e) {
+      if (g !== gen) return;
       t.remove();
       say('ari', e.message || S.error);
-      list.querySelectorAll('button').forEach((b) => (b.disabled = false));
+      list.querySelectorAll('button').forEach((b) => {
+        b.disabled = false;
+        b.classList.remove('picked');
+      });
     } finally {
-      busy = false;
+      if (g === gen) busy = false;
     }
   }
 
@@ -364,29 +409,39 @@
     node.insertBefore(d, foot);
   }
 
+  const sheetLabel = sheet.querySelector('b');
+  const closeSheet = () => {
+    sheet.hidden = true;
+    sheet.className = 'ari-sheet';
+    overlay(sheet, false);
+  };
   const faceId = () => new Promise((ok) => {
     sheet.hidden = false;
     sheet.className = 'ari-sheet scan';
+    if (sheetLabel) sheetLabel.textContent = S.faceidHint;
     overlay(sheet, true);
     sheet.focus({ preventScroll: true });
     setTimeout(() => {
       sheet.className = 'ari-sheet ok';
+      if (sheetLabel) sheetLabel.textContent = S.faceid;
       setTimeout(() => {
-        sheet.hidden = true;
-        overlay(sheet, false);
+        closeSheet();
         ok();
-      }, 450);
-    }, 1000);
+      }, 650);
+    }, 1150);
   });
 
   async function doConfirm(card, action, node) {
     if (busy) return;
     busy = true;
+    const g = gen;
     node.querySelectorAll('button').forEach((b) => (b.disabled = true));
     try {
       // The app may always ask for Face ID; it must when the card says biometric.
       await faceId();
+      if (g !== gen) return;
       const r = await api('POST', withLang('/ari/api/confirm'), { checkout_id: card.id, confirm_hash: action.endpoint.body.confirm_hash, user_verification: 'biometric' });
+      if (g !== gen) return;
       addTrace(r.trace);
       markDone(node, S.confirmed, true);
       say('ari', r.reply);
@@ -394,6 +449,7 @@
         const c = renderCard(r.card);
         orderCards.set(r.card.id, c);
         activeOrder = r.card.id;
+        remember(activeOrder);
         liveCard = r.card;
         orderShownAt = Date.now();
         updateIsland(r.card);
@@ -401,17 +457,20 @@
         startPolling();
       }
     } catch (e) {
+      if (g !== gen) return;
       say('ari', e.message || S.error);
       node.querySelectorAll('button').forEach((b) => (b.disabled = false));
     } finally {
-      busy = false;
+      if (g === gen) busy = false;
     }
   }
 
   async function doDecline(card, node) {
     node.querySelectorAll('button').forEach((b) => (b.disabled = true));
     try {
+      const g = gen;
       const r = await api('POST', withLang('/ari/api/decline'), { checkout_id: card.id });
+      if (g !== gen) return;
       markDone(node, S.declined, false);
       say('ari', r.reply);
       setChips(EX.slice(0, 4));
@@ -423,7 +482,10 @@
   async function doCancel(orderId, btn) {
     btn.disabled = true;
     try {
+      const g = gen;
       const r = await api('POST', withLang('/ari/api/cancel'), { order_id: orderId });
+      if (g !== gen) return;
+      addTrace(r.trace);
       say('ari', r.reply);
       if (r.card) renderCard(r.card);
     } catch (e) {
@@ -435,7 +497,10 @@
   async function doCancelConfirm(card, action, node) {
     node.querySelectorAll('button').forEach((b) => (b.disabled = true));
     try {
+      const g = gen;
       const r = await api('POST', withLang('/ari/api/cancel/confirm'), { cancellation_id: card.id, confirm_hash: action.endpoint.body.confirm_hash });
+      if (g !== gen) return;
+      addTrace(r.trace);
       say('ari', r.reply);
       if (r.card) {
         const c = orderCards.get(r.card.id);
@@ -448,6 +513,7 @@
   }
 
   // ---------------- live updates: Live Activity, pushes and a call from Ari
+  let islandTimer = null;
   function updateIsland(card) {
     if (!card || card.type !== 'order' || !card.status) return;
     if (card.id !== activeOrder) return;
@@ -457,8 +523,10 @@
     const ended = /cancel|fail/.test(st.code);
     $('la-eta').textContent = eta ? `${eta} ${S.min || 'min'}` : st.is_final && !ended ? '✓' : '';
     island.classList.toggle('ended', ended);
+    island.classList.toggle('done', !!st.is_final && !ended);
     island.classList.add('live');
-    if (st.is_final) setTimeout(() => island.classList.remove('live'), 5000);
+    clearTimeout(islandTimer);
+    if (st.is_final) islandTimer = setTimeout(() => island.classList.remove('live', 'done', 'ended'), 6000);
   }
 
   let pushTimer = null;
@@ -468,8 +536,10 @@
     push.classList.add('show');
     lastPushAt = Date.now();
     clearTimeout(pushTimer);
-    pushTimer = setTimeout(() => push.classList.remove('show'), 3800);
+    pushTimer = setTimeout(() => push.classList.remove('show'), 4200);
   }
+  // Like iOS: tap the banner to dismiss it.
+  push.addEventListener('click', () => push.classList.remove('show'));
 
   function ringCall(card, notify) {
     if (!call.hidden) return;
@@ -486,9 +556,15 @@
     const before = document.activeElement;
     overlay(call, true);
     $('call-yes').focus({ preventScroll: true });
+    let timer = null;
+    let safety = null;
     const hang = () => {
       if (call.hidden) return;
+      clearInterval(timer);
+      clearTimeout(safety);
+      hangCall = null;
       call.hidden = true;
+      call.className = 'ari-call';
       overlay(call, false);
       try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
       if (before && before !== document.body && before.isConnected && !before.disabled) before.focus({ preventScroll: true });
@@ -496,24 +572,46 @@
     };
     call.onkeydown = (e) => { if (e.key === 'Escape') hang(); };
     $('call-no').onclick = hang;
+    hangCall = hang;
     $('call-yes').onclick = () => {
-      call.className = 'ari-call active';
-      $('call-state').textContent = '0:01';
+      if (call.classList.contains('active')) return;
+      call.className = 'ari-call active speaking';
       $('call-line').textContent = line;
+      $('call-no').querySelector('span').textContent = S.endCall || S.decline;
       $('call-no').focus({ preventScroll: true });
+      // Call timer counts up while the call is connected.
+      const t0 = Date.now();
+      const show = () => {
+        const s = Math.floor((Date.now() - t0) / 1000);
+        $('call-state').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+      };
+      show();
+      timer = setInterval(show, 500);
+      // Ari "speaks" for about as long as the line takes to read; with a system voice the call
+      // ends when the voice does. The safety timer ends it even if the browser never reports the end.
+      const readMs = Math.min(14000, Math.max(5000, line.length * 75));
+      const quiet = () => call.classList.remove('speaking');
+      const finish = () => { quiet(); setTimeout(hang, 900); };
+      safety = setTimeout(finish, readMs + 6000);
       try {
-        if (window.speechSynthesis) {
+        if (window.speechSynthesis && window.SpeechSynthesisUtterance) {
           const u = new SpeechSynthesisUtterance(line);
           u.lang = lang === 'th' ? 'th-TH' : lang === 'ru' ? 'ru-RU' : 'en-US';
           u.rate = 1.02;
-          u.onend = () => setTimeout(hang, 800);
+          u.onend = finish;
+          u.onerror = () => { clearTimeout(safety); safety = setTimeout(finish, readMs); };
           window.speechSynthesis.speak(u);
-        } else setTimeout(hang, 6000);
+        } else {
+          clearTimeout(safety);
+          safety = setTimeout(finish, readMs);
+        }
       } catch (e) {
-        setTimeout(hang, 6000);
+        clearTimeout(safety);
+        safety = setTimeout(finish, readMs);
       }
     };
-    setTimeout(() => { if (!call.hidden && call.className === 'ari-call') hang(); }, 15000);
+    $('call-no').querySelector('span').textContent = S.decline;
+    setTimeout(() => { if (hangCall === hang && !call.classList.contains('active')) hang(); }, 15000);
   }
 
   async function pollOnce() {
@@ -522,10 +620,14 @@
       let latestNotify = null;
       for (const e of ev.events) {
         lastEvent = Math.max(lastEvent, e.seq);
-        if ((e.type === 'order.status_changed' || e.type === 'order.created') && e.notify) latestNotify = { e, n: e.notify };
+        // Only the order on screen may push or ring: an order left behind by "New chat" stays silent.
+        if ((e.type === 'order.status_changed' || e.type === 'order.created') && e.notify && e.data && e.data.order_id === activeOrder) latestNotify = { e, n: e.notify };
       }
       if (activeOrder) {
+        const g = gen;
+        const oidNow = activeOrder;
         const r = await api('GET', withLang(`/ari/api/orders/${activeOrder}`));
+        if (g !== gen || activeOrder !== oidNow) return;
         const c = orderCards.get(activeOrder);
         if (c) fillOrder(c, r.card);
         liveCard = r.card;
@@ -553,7 +655,9 @@
         }
         if (r.card.status && r.card.status.is_final) {
           activeOrder = null;
+          remember(null);
           stopPolling();
+          clearTimeout(ringTimer);
           setChips(EX.slice(0, 4));
         }
       }
@@ -581,8 +685,10 @@
     if (busy || mic.classList.contains('rec')) return;
     mic.classList.add('rec');
     const text = EX[exIdx++ % EX.length];
+    const g = gen;
     let i = 0;
     const iv = setInterval(() => {
+      if (g !== gen) { clearInterval(iv); return; }
       input.value = text.slice(0, (i += 3));
       if (i >= text.length) {
         clearInterval(iv);
@@ -604,20 +710,77 @@
       say('ari', e.message || S.error);
     }
   });
-  $('ari-reset').addEventListener('click', () => {
+  // Back to a clean chat at any moment, also in the middle of an order, Face ID or a call.
+  function reset() {
+    gen += 1;
+    busy = false;
     stopPolling();
     clearTimeout(ringTimer);
+    clearTimeout(islandTimer);
+    clearTimeout(pushTimer);
+    if (hangCall) hangCall();
+    if (!sheet.hidden) closeSheet();
     activeOrder = null;
     liveCard = null;
-    island.classList.remove('live', 'ended');
+    remember(null);
+    orderCards.clear();
+    called.clear();
+    island.classList.remove('live', 'ended', 'done');
+    push.classList.remove('show');
+    $('ari-mic').classList.remove('rec');
+    input.value = '';
     chat.textContent = '';
-    start(true);
+    setChips([]);
+    return start(true);
+  }
+  $('ari-reset').addEventListener('click', () => {
+    const b = $('ari-reset');
+    b.classList.remove('spin');
+    void b.offsetWidth;
+    b.classList.add('spin');
+    reset();
   });
 
+  // Presenter shortcuts: one tap starts a clean chat and sends that scenario.
+  const presenter = $('ari-presenter');
+  if (presenter) {
+    presenter.addEventListener('click', async (e) => {
+      const b = e.target.closest('button[data-ex]');
+      const text = b && EX[Number(b.dataset.ex)];
+      if (!text) return;
+      presenter.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+      await reset();
+      ask(text);
+    });
+  }
+
+  // Reopening the page in the same browser session: keep tracking an order that is still running.
+  async function resume(g) {
+    const id = remembered();
+    if (!id) return;
+    try {
+      const r = await api('GET', withLang(`/ari/api/orders/${id}`));
+      if (g !== gen) return;
+      if (!r.card || !r.card.status || r.card.status.is_final) { remember(null); return; }
+      activeOrder = r.card.id;
+      liveCard = r.card;
+      orderShownAt = Date.now();
+      const c = renderCard(r.card);
+      orderCards.set(r.card.id, c);
+      updateIsland(r.card);
+      setChips([]);
+      startPolling();
+    } catch (e) {
+      remember(null);
+    }
+  }
+
   async function start(again) {
+    const g = gen;
     const t = typing();
     try {
       const r = await api('POST', withLang('/ari/api/session'));
+      if (g !== gen) { t.remove(); return; }
       lastEvent = r.last_event || 0;
       t.remove();
       say('ari', r.greeting);
@@ -627,8 +790,12 @@
         $('ari-grab').setAttribute('aria-pressed', 'true');
         $('ari-grab').querySelector('span').textContent = S.linked;
       }
-      if (!again) say('note', S.voiceNote);
+      if (!again) {
+        say('note', S.voiceNote);
+        await resume(g);
+      }
     } catch (e) {
+      if (g !== gen) return;
       t.remove();
       say('ari', e.message || S.error);
     }
