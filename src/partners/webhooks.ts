@@ -143,7 +143,7 @@ function storedEvent(x: any): StoredEvent {
   return ({
     // Same shape as the webhook body: event_id, seq, then the stored payload fields.
     event_id: x.event_id, seq: Number(x.id), type: x.event_type, partner_id: x.payload.partner_id, user_id: x.payload.user_id,
-    created_at: new Date(x.created_at).toISOString(), data: x.payload.data, notify: x.payload.notify,
+    created_at: x.payload.created_at ?? new Date(x.created_at).toISOString(), data: x.payload.data, notify: x.payload.notify,
   });
 }
 

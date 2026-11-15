@@ -89,11 +89,10 @@ A tool call answers `200` with `{ ok: true, mode, data_as_of, result, next_actio
 | --- | --- |
 | `search_stores`, `estimate_trip` | `options` |
 | `create_cart`, `update_cart` | `checkout`, or `message` when something blocks the order |
-| `get_order_status` | `order` |
 | `prepare_cancellation` | `cancellation` |
-| `get_capabilities`, `get_store`, `quote_cart`, `prepare_checkout`, `get_checkout_status`, `list_orders` | `null` |
+| `get_capabilities`, `get_store`, `quote_cart`, `prepare_checkout`, `get_checkout_status`, `get_order_status`, `list_orders` | `null` (data for the model only) |
 
-`create_cart` and `update_cart` already quote the cart and prepare the checkout, so `quote_cart` and `prepare_checkout` are rarely needed. After `prepare_checkout` read the card with `GET /users/{uid}/checkouts/{cid}` using `result.checkout_id`.
+`create_cart` and `update_cart` already quote the cart and prepare the checkout, so `quote_cart` and `prepare_checkout` are rarely needed. Cards by id come from their own endpoints: after `prepare_checkout` read `GET /users/{uid}/checkouts/{cid}` with `result.checkout_id`; after `get_order_status` read `GET /users/{uid}/orders/{oid}` with `result.order_id`. Rule for the app: when a tool result has a `card` that is not `null`, show it.
 
 ### Confirming
 

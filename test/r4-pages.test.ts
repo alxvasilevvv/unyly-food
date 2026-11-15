@@ -88,7 +88,7 @@ describe('pitch pages copy (round 4)', () => {
 
   it('the proposal answers what Grab is asked for, the pilot scope and data handling', async () => {
     const p = text((await page('/for-grab', 'en')).main);
-    for (const s of ['grab_express.partner_deliveries', 'ride.estimate', 'openid, profile.read, phone', 'One-Time Charge', '1,000 invited Ari users', 'Week 10', 'AES-256-GCM', 'PDPA', 'kill switch', 'DELETE /partner/v1/users/{uid}']) expect(p).toContain(s);
+    for (const s of ['grab_express.partner_deliveries', 'ride.estimate', 'openid, profile.read, phone', 'One-Time Charge', '1,000 invited Ari users', 'Week 10', 'AES-256-GCM', 'PDPA', 'kill switch', 'One signed DELETE call']) expect(p).toContain(s);
     // Consumer ordering for food, mart and rides is an ask, never a present capability.
     expect(p).toContain('not public today');
     expect(p).not.toMatch(/Biller Gateway/);

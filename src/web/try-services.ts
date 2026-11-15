@@ -40,7 +40,7 @@ const PICKS: Record<string, [string, RegExp][]> = {
     ['m3-malai', /garland|malai|гирлянд|พวงมาลัย/u],
   ],
   'demo-m4': [
-    ['m4-paracetamol', /paracetamol|fever|headache|парацетамол|температур|голов|พาราเซตามอล|ยาพารา|ไข้|ปวดหัว/u],
+    ['m4-paracetamol', /paracetamol|fever|headache|парацетамол|температур|голов|พาราเซตามอล|ยาพารา|(?<!วัด)ไข้|ปวดหัว/u],
     ['m4-plasters', /plaster|band-?aid|пластыр|พลาสเตอร์/u],
     ['m4-ors', /rehydration|\bors\b|регидр|электролит|เกลือแร่/u],
     ['m4-lozenges', /throat|lozenge|горл|леденц|เจ็บคอ|ยาอม/u],

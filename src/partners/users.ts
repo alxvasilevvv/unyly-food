@@ -106,7 +106,7 @@ export async function loadPartnerUser(ctx: Ctx, p: PartnerConfig, ext: string): 
       WHERE pu.partner_id = $1 AND pu.external_user_id = $2 AND u.deleted_at IS NULL`,
     [p.id, ext],
   )).rows[0];
-  if (!r) throw new DomainError('NOT_FOUND', 'Unknown user. Create it first with PUT /partner/v1/users/{user_id}.');
+  if (!r) throw new DomainError('NOT_FOUND', 'Unknown user. Create it first with PUT /partner/v1/users/{uid}.');
   return fromJoined(p, ext, r);
 }
 

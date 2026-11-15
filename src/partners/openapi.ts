@@ -100,8 +100,8 @@ export function openApiDocument(ctx: Ctx) {
             'VALIDATION_FAILED for wrong arguments, NOT_FOUND for an unknown order id, PRICE_CHANGED): branch on error.code, not on the HTTP status. ' +
             'HTTP 404 means the user or the tool name is unknown; HTTP 400 means the request itself is malformed or the tool is not available to partner apps (submit_order, cancel_order). ' +
             'Cards: search_stores and estimate_trip return an options card; create_cart and update_cart return a checkout card (or a message card when something blocks the order); ' +
-            'get_order_status returns an order card; prepare_cancellation a cancellation card. Other tools return card: null ' +
-            '(after prepare_checkout read the card with GET /partner/v1/users/{uid}/checkouts/{cid}).',
+            'prepare_cancellation returns a cancellation card. Other tools return card: null: after prepare_checkout read the card with GET /partner/v1/users/{uid}/checkouts/{cid}, ' +
+            'after get_order_status with GET /partner/v1/users/{uid}/orders/{oid}. When card is not null, show it.',
           parameters: [uid, { name: 'name', in: 'path', required: true, description: 'A tool name from GET /partner/v1/tools', schema: { type: 'string', examples: ['search_stores', 'estimate_trip', 'create_cart'] } }],
           requestBody: { description: 'Optional for tools without arguments.', content: { 'application/json': { schema: { type: 'object', properties: { arguments: { type: 'object', description: 'Arguments as the tool\'s input_schema describes them' } } } } } },
           responses: { '200': json(ref('ToolResult')), '422': json(ref('ToolResult'), 'Tool error (ok: false, error.code, error.message, error.user_action, next_actions, card: null). All tool-level errors use 422.'), ...errors },

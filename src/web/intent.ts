@@ -150,7 +150,7 @@ export function parseIntent(input: string): Intent {
   // Party size.
   const party =
     /(?:for|на|สำหรับ)\s*(\d{1,2})\s*(?:people|persons|pax|guests|of us|человек\S*|чел|персон\S*|คน)?/.exec(q) ??
-    /(\d{1,2})\s*(?:people|persons|pax|guests|of us|человек\S*|чел|персон\S*|คน)/.exec(q);
+    /(\d{1,2})\s*(?:people|persons|pax|guests|of us|portions?|servings?|человек\S*|чел|персон\S*|порци\S*|คน|ที่(?!\p{L})|จาน|ชาม)/u.exec(q);
   if (party && Number(party[1]) !== out.budget_total_major) out.party_size = Number(party[1]);
   else {
     // A whole word only: "someone", "phone" and "острое" hold no number.
@@ -210,24 +210,24 @@ export interface ServiceIntent {
   dropoff_home?: boolean;
 }
 
-const RIDE = /taxi|taksi|\btaxy\b|\btexi\b|\bcab\b|\bride\b|grabcar|justgrab|grabbike|grabtaxi|grabvan|\bbike to\b|\bcar to\b|\blift to\b|\bgrab to\b|такси|токси|мототакси|(?<!\p{L})байк\S* (?:до|в|на)(?!\p{L})|поездк|отвез|довез|подвез|машину до|แท็กซี่|แทกซี่|แท๊กซี่|เรียกรถ|นั่งรถ|รถไป|จองรถ|ขอรถ|หารถ|รถ(?:สำหรับ|ตู้|เก๋ง)|เรียกแกร็บ|วินมอเตอร์ไซค์|วิน(?=ไป)/u;
+const RIDE = /taxi|taksi|\btaxy\b|\btexi\b|\bcab\b|\bride\b|grabcar|justgrab|grabbike|grabtaxi|grabvan|\bbike to\b|\bcar to\b|\blift to\b|\bgrab to\b|такси|токси|мототакси|минивэн|микроавтобус|(?<!\p{L})байк\S* (?:до|в|на)(?!\p{L})|поездк|отвез|довез|подвез|машину до|แท็กซี่|แทกซี่|แท๊กซี่|เรียกรถ|นั่งรถ|รถไป|จองรถ|ขอรถ|หารถ|รถ(?:สำหรับ|ตู้|เก๋ง)|เรียกแกร็บ|วินมอเตอร์ไซค์|มอเตอร์ไซค์ไป|มอไซค์|วิน(?=ไป)/u;
 const EXPRESS = /parcel|package|courier|\bsend\b|посылк|отправ|курьер|พัสดุ|ส่งของ|ส่งเอกสาร|แมสเซนเจอร์/u;
 // Weaker cues: they decide only when nothing in the sentence names a shop or a meal.
-const SOFT_EXPRESS = /\bdeliver\b|\bdocuments?\b|\benvelope\b|(?<!\p{L})достав(?:ь|ьте|ить)(?!\p{L})|документ|(?<!\p{L})пакет(?!\p{L})|конверт|เอกสาร/u;
-const SOFT_RIDE = /\b(?:take|drive|get|bring) me\b|\bpick me up\b|\b(?:go|going|get|heading) (?:to|home|back)\b|\b(?:a|the) (?:car|driver)\b|\bmotorbike\b|\bairport\b|\bhome\b|поехали|поеду|(?<!\p{L})едем(?!\p{L})|(?<!\p{L})(?:нужно|надо|хочу|мне) (?:в|на|до|домой)(?!\p{L})|(?<!\p{L})машин[ауы]?(?!\p{L})|(?<!\p{L})домой(?!\p{L})|из дома|аэропорт|กลับบ้าน|ไปบ้าน|ไปส่ง|สนามบิน/u;
+const SOFT_EXPRESS = /(?<!ไป)ส่ง(?!ดอก).{0,24}?ไป|доставля\S*|\bdeliver\b|\bdocuments?\b|\benvelope\b|(?<!\p{L})достав(?:ь|ьте|ить)(?!\p{L})|документ|(?<!\p{L})пакет(?!\p{L})|конверт|เอกสาร/u;
+const SOFT_RIDE = /^\s*from\s+\S.*\sto\s+\S|^\s*(?:от|из)\s+\S.*\s(?:до|в|на)\s+\S|^\s*จาก.+ไป|(?:พา|จะ|อยาก|ขอ)ไป(?!กิน|ซื้อ|หา|ทาน|เที่ยว)|\bdrop me\b|\b(?:take|drive|get|bring) me\b|\bpick me up\b|\b(?:go|going|get|heading) (?:to|home|back)\b|\b(?:a|the) (?:car|driver)\b|\bmotorbike\b|\bairport\b|\bhome\b|поехали|поеду|(?<!\p{L})едем(?!\p{L})|(?<!\p{L})(?:нужно|надо|хочу|мне) (?:в|на|до|домой)(?!\p{L})|(?<!\p{L})машин[ауы]?(?!\p{L})|(?<!\p{L})домой(?!\p{L})|из дома|аэропорт|กลับบ้าน|ไปบ้าน|ไปส่ง|สนามบิน/u;
 /** A sentence that opens with "going to X" is a ride even when the place name looks like food (Khao San). */
 const START_GO = /^\s*(?:ไป(?!กิน|ซื้อ|หา|ทาน)|(?:я\s+)?еду\s+(?:в|на|до|домой)(?!\p{L}))/u;
 const HOME_PLACE = /^(?:to\s+)?(?:my\s+|the\s+)?(?:home|house|place)$|^(?:мой\s+|моего\s+)?(?:дом|дома|дому|домой)$|^(?:ที่)?บ้าน(?:ฉัน|ผม)?$/iu;
 const HOME_WORD = /\bhome\b|(?<!\p{L})домой(?!\p{L})|กลับบ้าน|ไปบ้าน|ถึงบ้าน/iu;
 /** True when a place phrase means the user's home. */
 export const isHomePlace = (s: string | undefined) => !!s && HOME_PLACE.test(s.trim());
-const FLOWERS = /flower|bouquet|roses?\b|lil(?:y|ies)|orchid|garland|цвет|букет|(?<!\p{L})роз[ыау]?(?!\p{L})|лили|орхиде|ดอกไม้|กุหลาบ|ช่อ|พวงมาลัย|กล้วยไม้/u;
+const FLOWERS = /flower|bouquet|roses?\b|lil(?:y|ies)|orchid|garland|tulips?|sunflowers?|тюльпан|ลิลลี่|ทิวลิป|ดอกทานตะวัน|цвет|букет|(?<!\p{L})роз[ыау]?(?!\p{L})|лили|орхиде|ดอกไม้|กุหลาบ|ช่อ|พวงมาลัย|กล้วยไม้/u;
 const PHARMACY = /pharmac|painkiller|pain ?relief|ibuprofen|aspirin|vitamins?\b|\bcough|(?:a|the|my) cold\b|cold medicine|\bflu\b|diarrh|stomach ?ache|antihistamine|eye drops|bandage|first aid|face masks?|\bpills?\b|\btablets?\b|головн\S* бол|от головы|обезбол|ибупрофен|аспирин|витамин|кашл|кашел|простуд|насморк|понос|диаре|таблетк|(?<!\p{L})бинт|ยาพารา|ขอยา|ซื้อยา|ยาลดไข้|แอสไพริน|ไอบูโพรเฟน|วิตามิน|แก้ไอ|เป็นหวัด|ท้องเสีย|ปวดท้อง|หน้ากากอนามัย|paracetamol|plaster|band-?aid|thermometer|medicine|drugstore|headache|\bfever\b|sore throat|lozenge|sunscreen|repellent|antiseptic|аптек|парацетамол|пластыр|лекарств|градусник|термометр|болит голов|голова болит|от горл|болит горл|температур|от комаров|репеллент|от солнца|солнцезащит|антисепт|ร้านยา|ยาสามัญ|พาราเซตามอล|พลาสเตอร์|ปรอทวัดไข้|ยาแก้|ปวดหัว|เจ็บคอ|เป็นไข้|กันยุง|กันแดด|ยาอม/u;
 const CAKES = /\bcakes?\b|cheesecake|торт|чизкейк|пирожн|เค้ก/u;
 const GROCERY = /grocer|supermarket|(?<!море)продукт|супермаркет|ของชำ|ซูเปอร์มาร์เก็ต|ของใช้ในบ้าน/u;
-const STAPLE = /\beggs?\b|\bmilk\b|\bwater\b|bananas?|\brice\b|\bcoffee\b|mango(?:es)?\b|яйц|молок|(?<!\p{L})кофе(?!\p{L})|манго|(?<!\p{L})вод[уаы](?!\p{L})|банан|(?<!\p{L})рис(?!\p{L})|ไข่ไก่|นมสด|น้ำดื่ม|กล้วย|ข้าวสาร|กาแฟ|มะม่วง|(?<!ข|ไม่ใส่|ไม่เอา|ไม่กิน|แพ้)นม/u;
+const STAPLE = /\bbread\b|\bbutter\b|\bcheese\b|yogh?urt|\bfruits?\b|\bvegetables\b|\bsugar\b|toilet paper|(?<!\p{L})хлеб|(?<!\p{L})масл[оа](?!\p{L})|(?<!\p{L})сыр(?!\p{L})|йогурт|фрукт|овощ|сахар|ขนมปัง|เนย(?!ถั่ว)|ชีส(?!เค้ก|เบอร์เกอร์)|โยเกิร์ต|ผลไม้|น้ำตาล|ทิชชู่|\beggs?\b|\bmilk\b|\bwater\b|bananas?|\brice\b|\bcoffee\b|mango(?:es)?\b|яйц|молок|(?<!\p{L})кофе(?!\p{L})|манго|(?<!\p{L})вод[уаы](?!\p{L})|банан|(?<!\p{L})рис(?!\p{L})|ไข่ไก่|นมสด|น้ำดื่ม|กล้วย|ข้าวสาร|กาแฟ|มะม่วง|(?<!ข|ไม่ใส่|ไม่เอา|ไม่กิน|แพ้)นม/u;
 const MEAL = /dinner|lunch|breakfast|meal|ужин|обед|завтрак|ข้าวเย็น|มื้อ|อาหารเย็น|อาหารกลางวัน/u;
-const FOOD_CUE = /food|\beat|hungry|restaurant|pizza|burger|noodle|sushi|pad thai|curry|soup|salad|sandwich|chicken|tom yum|tom kha|som tam|fried rice|ramen|pasta|steak|kebab|dumpling|snack|fries|\bpho\b|taco|dim sum|bubble tea|dessert|ice cream|spicy|vegan|vegetarian|halal|еда|еды|еду|поесть|покушать|перекус|голод|ресторан|пицц|бургер|лапш|суши|суп|салат|том ям|том кха|пад тай|рамен|стейк|шаурм|плов|картошк\S* фри|пельмен|десерт|морожен|остр(?:ое|ого|енько)|(?<!\p{L})есть(?!\p{L})|веган|вегетариан|халял|อาหาร|กิน|หิว|ข้าว|ก๋วยเตี๋ยว|พิซซ่า|เบอร์เกอร์|ซูชิ|ส้มตำ|ผัดไทย|ต้มยำ|ไก่ทอด|แกง|ราเมง|สเต๊ก|ชานม|ของหวาน|ไอศกรีม|เผ็ด/u;
+const FOOD_CUE = /\bmenu\b|(?<!\p{L})меню(?!\p{L})|เมนู|ร้าน(?:ไหน|อะไร)|food|\beat|hungry|restaurant|pizza|burger|noodle|sushi|pad thai|curry|soup|salad|sandwich|chicken|tom yum|tom kha|som tam|fried rice|ramen|pasta|steak|kebab|dumpling|snack|fries|\bpho\b|taco|dim sum|bubble tea|dessert|ice cream|spicy|vegan|vegetarian|halal|еда|еды|еду|поесть|покушать|перекус|голод|ресторан|пицц|бургер|лапш|суши|суп|салат|том ям|том кха|пад тай|рамен|стейк|шаурм|плов|картошк\S* фри|пельмен|десерт|морожен|остр(?:ое|ого|енько)|(?<!\p{L})есть(?!\p{L})|веган|вегетариан|халял|อาหาร|กิน|หิว|ข้าว|ก๋วยเตี๋ยว|พิซซ่า|เบอร์เกอร์|ซูชิ|ส้มตำ|ผัดไทย|ต้มยำ|ไก่ทอด|แกง|ราเมง|สเต๊ก|ชานม|ของหวาน|ไอศกรีม|เผ็ด/u;
 /** True when the sentence asks for a meal: a meal or dish word, or anything the food parser understood. */
 export function hasFoodCue(input: string): boolean {
   const q = input.toLowerCase();
@@ -311,7 +311,8 @@ export function detectService(input: string): ServiceIntent {
   const out: ServiceIntent = { service };
   if (service === 'ride' || service === 'express') {
     // Match on the original text (case-insensitive) so place names keep their capitalisation.
-    const src = input.trim();
+    // The party size is not part of a place ("такси на 6 человек в аэропорт").
+    const src = input.trim().replace(/(?<!\p{L})на\s+(?:\d{1,2}\s*(?:человек\S*|чел\.?|персон\S*|пассажир\S*)|одного|двоих|троих|четверых|пятерых|шестерых)(?!\p{L})/giu, ' ').replace(/\s+/g, ' ').trim();
     const m =
       /\bfrom\s+(.+?)\s+to\s+(.+)$/iu.exec(src) ??
       /(?:^|\s)(?:от|из|с)\s+(.+?)\s+(?:до|в|во|на)\s+(.+)$/iu.exec(src) ??

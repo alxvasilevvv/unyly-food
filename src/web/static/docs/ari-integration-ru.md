@@ -190,11 +190,10 @@ def unyly(method, path, body=None):
    |---|---|
    | `search_stores`, `estimate_trip` | `options` |
    | `create_cart`, `update_cart` | `checkout`; если заказ что-то блокирует, `message` с объяснением |
-   | `get_order_status` | `order` |
    | `prepare_cancellation` | `cancellation` |
-   | `get_capabilities`, `get_store`, `quote_cart`, `prepare_checkout`, `get_checkout_status`, `list_orders` | `null` |
+   | `get_capabilities`, `get_store`, `quote_cart`, `prepare_checkout`, `get_checkout_status`, `get_order_status`, `list_orders` | карточки нет (`card: null`), данные только для модели |
 
-   `create_cart` и `update_cart` сами считают цену и готовят чекаут, поэтому `quote_cart` и `prepare_checkout` обычно не нужны. Если модель всё же вызвала `prepare_checkout`, карточку нужно запросить отдельно: `GET /partner/v1/users/{uid}/checkouts/{cid}` с `result.checkout_id`.
+   `create_cart` и `update_cart` сами считают цену и готовят чекаут, поэтому `quote_cart` и `prepare_checkout` обычно не нужны. Карточки по id бэкенд читает отдельными вызовами: чекаут после `prepare_checkout` через `GET /partner/v1/users/{uid}/checkouts/{cid}` с `result.checkout_id`, заказ после `get_order_status` через `GET /partner/v1/users/{uid}/orders/{oid}` с `result.order_id`. Правило для приложения простое: если в ответе инструмента `card` не `null`, показать её.
 7. Если пользователь выбирает вариант нажатием на карточку `options`, приложение присылает `action.tool` (имя и готовые аргументы), бэкенд вызывает этот инструмент напрямую, без LLM.
 8. Число пассажиров передаётся только в `estimate_trip` (`passengers`, от 1 до 10). Машины, в которых мест меньше, остаются в карточке без кнопки и с причиной в `disabled_reason` («Мест всего 4»). Значение больше 10 даёт 422 `VALIDATION_FAILED`. У `create_cart` аргумента `passengers` нет.
 9. Для еды и магазинов нужен сохранённый адрес доставки (B6). Если в `notices` встретится ссылка на сайт Unyly для добавления адреса, пользователю её не показывать: адреса партнёрских пользователей добавляет бэкенд Ari.
@@ -221,6 +220,7 @@ POST /partner/v1/users/{uid}/checkouts/{cid}/confirm
 - Повторный вызов безопасен: вернёт тот же заказ, второй заказ не создаётся. Это верно и для нескольких параллельных вызовов.
 - `order: null` при ответе 200 означает, что исход ещё не известен. Смотрите `checkout.submission.status`: `unknown` (провайдер ещё не ответил, Unyly сам уточняет исход) или `in_flight` (заказ прямо сейчас отправляет параллельный вызов). В обоих случаях второй заказ создавать нельзя: дождитесь события `order.created` или повторите этот же вызов позже.
 - Если провайдер отказал в заказе, вызов вернёт 422 `PROVIDER_REJECTED` (или 409 `OUT_OF_STOCK`, `RESTAURANT_CLOSED`, `DELIVERY_UNAVAILABLE`): заказ не создан, деньги не списаны. Повтор вызова после отказа вернёт 200 с `order: null` и `submission.status: "rejected"`.
+- Актуальную карточку заказа в любой момент возвращает `GET /partner/v1/users/{uid}/orders/{oid}` (статус при этом обновляется у провайдера). Список последних заказов: `GET /partner/v1/users/{uid}/orders?limit=10` (от 1 до 50, сначала новые) с полями `orders[]` (`order_id`, `service`, `title`, `total`, `fulfillment_status`, `status_label`, `is_final`, `placed_at`), `next_before`, `handoffs[]`.
 - У модели (LLM) не должно быть доступа к этому вызову: его запускает только нажатие пользователя в приложении.
 - «Не сейчас»: `POST /partner/v1/users/{uid}/checkouts/{cid}/decline` без тела. Ответ: `checkout` со `status: "declined"`. Подтвердить такой чекаут уже нельзя (409 `CONFIRMATION_INVALIDATED`, `details.reason: "DECLINED"`).
 - Предоплата GrabPay в режиме `live` для партнёрских приложений включается вместе с мерчант-аккаунтом GrabPay; до этого подтверждение такого заказа вернёт 503 `NOT_CONFIGURED`, деньги не списываются. В демо-режиме этого случая нет.

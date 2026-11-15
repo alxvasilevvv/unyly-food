@@ -40,7 +40,9 @@ const rewriteText = (s: string) =>
     .replace(/the Unyly confirmation page|the Unyly page/g, 'the app')
     .replace(/creates a confirmation page\. The user confirms on that page before cancel_order can run\./g, 'creates a cancellation card. The user confirms on that card in the app.')
     .replace(/(a|the) confirmation page/g, '$1 confirmation card')
-    .replace(/on that page/g, 'on that card');
+    .replace(/on that page/g, 'on that card')
+    // The web address book is for website users; a partner app saves places through the API.
+    .replace(/https?:\/\/[^\s"')]+\/app\/addresses/g, 'the saved places of the app (POST /partner/v1/users/{uid}/places)');
 
 /** Same wording changes for every string of a JSON value, keeping all keys (used for tool input schemas). */
 function rewriteStrings(v: unknown): unknown {
