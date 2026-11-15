@@ -1112,7 +1112,6 @@
  "Ari × Grab, home": "Ari × Grab ပင်မစာမျက်နှာ",
  "Language": "ဘာသာစကား",
  "DEMO": "DEMO",
- "Ari mark, a white letter A on a violet to pink gradient. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "Ari အမှတ်တံဆိပ်၊ ခရမ်းရောင်မှ ပန်းရောင်သို့ ပြောင်းသော နောက်ခံပေါ်ရှိ အဖြူရောင် A စာလုံး။ Ari × Grab: တစ်ခါပဲ ပြောပါ။ Ari က Grab မှာပေးသည်။ CSA PROJECT - FZCO ၏ မိတ်ဖက်ပြုရန် အဆိုပြုချက်။ Grab နှင့် ဆက်စပ်မှု မရှိပါ။",
  "\"Dinner for two under 600 baht, no nuts\": Ari turns the request into a short checklist (dishes, budget, allergy note) and opens Grab; the user chooses and orders in the Grab app.": "\"600 ဘတ်အောက် နှစ်ယောက်စာ ညစာ၊ အခွံမာသီး မပါ\" - Ari က တောင်းဆိုချက်ကို စာရင်းတို (ဟင်းပွဲများ၊ ဘတ်ဂျက်၊ ဓာတ်မတည့်မှု မှတ်ချက်) အဖြစ် ပြောင်းပြီး Grab ကို ဖွင့်ပေးသည်။ အသုံးပြုသူက Grab အက်ပ်ထဲတွင် ရွေးချယ်ပြီး မှာယူသည်။",
  "\"Send Mai a lunch voucher for her birthday\": Ari issues a Grab gift and sends the redemption link.": "\"Mai ကို မွေးနေ့အတွက် နေ့လယ်စာ ဘောက်ချာ ပို့ပေးပါ\" - Ari က Grab လက်ဆောင် ထုတ်ပေးပြီး လဲလှယ်ရန် လင့်ခ်ကို ပို့ပေးသည်။",
  "\"Taxi to the airport\": fare range, pickup time and surge notice for each ride type Farefeed returns; one tap opens the Grab app with the trip filled in, and the user books there.": "\"လေဆိပ်သို့ Taxi\" - Farefeed က ပြန်ပေးသော ကားအမျိုးအစားတစ်ခုစီအတွက် ခန့်မှန်းခ အပိုင်းအခြား၊ လာကြိုမည့်အချိန်နှင့် ဈေးတက်ချိန် အသိပေးချက်။ တစ်ချက်နှိပ်ရုံဖြင့် ခရီးစဉ် ဖြည့်ပြီးသား Grab အက်ပ် ပွင့်လာပြီး အသုံးပြုသူက ထိုနေရာတွင် ဘွတ်ကင်လုပ်သည်။",
@@ -1350,5 +1349,12 @@
  "Up to {kg} kg only": "{kg} ကီလိုဂရမ်အထိသာ",
  "Your latest order: {status}.": "သင့်နောက်ဆုံး အော်ဒါ: {status}။",
  "Metered: the final fare may differ from the estimate.": "မီတာဖြင့် တွက်သည်။ နောက်ဆုံးကျသင့်ငွေက ခန့်မှန်းချက်နဲ့ ကွာနိုင်ပါတယ်။",
- "Airport pickup fee": "လေဆိပ်မှ လာကြိုခ"
+ "Airport pickup fee": "လေဆိပ်မှ လာကြိုခ",
+ "The Ari face: two glowing mint dot-matrix eyes on black. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "Ari ၏ မျက်နှာ၊ အနက်ရောင်နောက်ခံပေါ်ရှိ တောက်ပသော ပူစီနံရောင် အစက်မျက်လုံးနှစ်လုံး။ Ari × Grab: တစ်ခါပဲ ပြောပါ။ Ari က Grab မှာပေးသည်။ CSA PROJECT - FZCO ၏ မိတ်ဖက်ပြုရန် အဆိုပြုချက်။ Grab နှင့် ဆက်စပ်မှု မရှိပါ။",
+ "Chat": "ချက်",
+ "Settings": "ဆက်တင်များ",
+ "Speaker": "စပီကာ",
+ "Mute": "အသံပိတ်",
+ "Captions": "စာတန်း",
+ "Listening": "နားထောင်နေသည်"
 }

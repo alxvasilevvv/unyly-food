@@ -2,7 +2,7 @@
 import type { FastifyInstance } from 'fastify';
 import { GRAB_PRODUCTS, MARKETS, CoverageStatus } from '../partners/catalog.js';
 import { ariExamples } from '../partners/webdemo.js';
-import { icon } from './art.js';
+import { ariEyes, ariMark, dotText, icon } from './art.js';
 import { CONTACT, instagramUrl, phoneLabel, whatsappUrl } from './contacts.js';
 import { html, SafeHtml } from './html.js';
 import { fmt, Locale, tr } from './messages.js';
@@ -44,26 +44,52 @@ function statusLegend(l: Locale, opts: { detailed?: boolean } = {}): SafeHtml {
     html`<li class="st-${s}"><i class="st-dot" aria-hidden="true"></i><b>${n}</b><span class="st-name">${tr(l, STATUS_SHORT[s])}</span><small>${tr(l, STATUS_LABEL[s])}</small></li>`)}</ul>`;
 }
 
-/** Static phone mock for the hero: Ari chat with a ride card, Live Activity and an incoming call chip. */
+/** "Today" as the interface language writes it (from the runtime's own locale data, no extra strings). */
+function todayStamp(l: Locale): string {
+  try {
+    const rtf = new Intl.RelativeTimeFormat(l, { numeric: 'auto' });
+    if (rtf.resolvedOptions().locale.split('-')[0] !== l) return '';
+    const t = rtf.format(0, 'day');
+    return t.charAt(0).toLocaleUpperCase(l) + t.slice(1);
+  } catch {
+    return '';
+  }
+}
+
+/** The Home tab in every interface language (the catalog's "Home" means a home address, not a start screen). */
+const HOME_TAB: Record<Locale, string> = { en: 'Home', ru: 'Главная', th: 'หน้าหลัก', vi: 'Trang chủ', id: 'Beranda', ms: 'Utama', fil: 'Home', km: 'ទំព័រដើម', my: 'ပင်မ', zh: '首页' };
+
+/** Decorative floating tab bar of the Ari app (Home, Chat, Settings): not focusable, hidden from assistive tech. */
+function tabBar(l: Locale): SafeHtml {
+  const tab = (ic: string, t: Tri, on = false) => html`<span class="ari-tab${on ? ' on' : ''}">${icon(ic)}<span>${tr(l, t)}</span></span>`;
+  return html`<div class="ari-tabbar" aria-hidden="true">${html`<span class="ari-tab">${icon('home')}<span>${HOME_TAB[l]}</span></span>`}${tab('bubble', { en: 'Chat', ru: 'Чат', th: 'แชท' }, true)}${tab('gear', { en: 'Settings', ru: 'Настройки', th: 'ตั้งค่า' })}</div>`;
+}
+
+/** Static phone mock for the hero: the Ari chat screen with a ride card, Live Activity and the tab bar. */
 function heroPhone(l: Locale): SafeHtml {
+  const min = tr(l, { en: 'min', ru: 'мин', th: 'นาที' });
   return html`<div class="ari-phone hero-phone" aria-hidden="true">
   <div class="ari-screen">
-    <div class="ari-status"><span>9:41</span><span class="ari-island live"><span class="la-dot"></span><b>${tr(l, { en: 'Driver arriving', ru: 'Водитель едет', th: 'คนขับกำลังมา' })}</b><span>4 ${tr(l, { en: 'min', ru: 'мин', th: 'นาที' })}</span></span><span>5G</span></div>
-    <div class="ari-head"><span class="ari-avatar">A</span><span><b>Ari</b><small>${tr(l, { en: 'online', ru: 'онлайн', th: 'ออนไลน์' })}</small></span></div>
+    <div class="ari-status"><span>9:41</span><span class="ari-island live"><span class="la-dot"></span><b>${tr(l, { en: 'Driver arriving', ru: 'Водитель едет', th: 'คนขับกำลังมา' })}</b><span>${dotText('4')} ${min}</span></span><span>5G</span></div>
+    <div class="ari-head">${ariMark()}<span class="ari-who"><b>Ari</b><small>${tr(l, { en: 'online', ru: 'онлайн', th: 'ออนไลน์' })}</small></span><span class="ari-icon-btn call">${icon('phone')}</span></div>
     <div class="ari-chat">
+      <div class="ari-stamp">${[todayStamp(l), '09:41'].filter(Boolean).join(', ')}</div>
       <div class="ari-msg me">${ariExamples(l)[0]}</div>
       <div class="ari-msg ari">${tr(l, { en: 'JustGrab, about 52 min. Here is the fare:', ru: 'JustGrab, около 52 минут. Вот цена:', th: 'JustGrab ประมาณ 52 นาที นี่คือค่าโดยสารค่ะ' })}</div>
       <div class="ari-card mini">
+        <div class="ac-label">${icon('car')}<span>Grab</span></div>
         <div class="ac-route"><span>Siam Paragon</span>${icon('arrow')}<span>BKK ${tr(l, { en: 'airport', ru: 'аэропорт', th: 'สนามบิน' })}</span></div>
         <div class="ac-row"><span>JustGrab · 4 ${tr(l, { en: 'seats', ru: 'места', th: 'ที่นั่ง' })}</span><b>฿421</b></div>
         <div class="ac-btn">${icon('faceid')} ${tr(l, { en: 'Confirm ride · ฿421', ru: 'Заказать · ฿421', th: 'ยืนยัน · ฿421' })}</div>
       </div>
       <div class="ari-msg ari">${tr(l, { en: 'Booked. I will call you when the driver is outside.', ru: 'Заказано. Позвоню, когда водитель будет у входа.', th: 'จองแล้วค่ะ Ari จะโทรบอกเมื่อคนขับมาถึงนะคะ' })}</div>
       <div class="ari-card mini">
-        <div class="ac-status"><b>${tr(l, { en: 'Driver arriving', ru: 'Водитель едет к вам', th: 'คนขับกำลังมารับ' })}</b><small>~4 ${tr(l, { en: 'min', ru: 'мин', th: 'นาที' })}</small></div>
+        <div class="ac-label">${icon('car')}<span>Grab</span></div>
+        <div class="ac-status"><b>${tr(l, { en: 'Driver arriving', ru: 'Водитель едет к вам', th: 'คนขับกำลังมารับ' })}</b><small>${dotText('4')} ${min}</small></div>
         <div class="ac-steps"><span class="done"></span><span class="done"></span><span class="now"></span><span></span></div>
       </div>
     </div>
+    ${tabBar(l)}
   </div>
 </div>`;
 }
@@ -99,6 +125,7 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
     return send(reply, r, tr(l, { en: 'Partnership proposal', ru: 'Предложение о партнёрстве', th: 'ข้อเสนอความร่วมมือ' }), html`
 <section class="ari-hero"><div class="wrap ari-hero-grid">
   <div class="ari-hero-copy">
+    <div class="ari-face" aria-hidden="true"><span class="ari-eyes">${ariEyes('hero')}</span><span class="ari-online">${tr(l, { en: 'online', ru: 'онлайн', th: 'ออนไลน์' })}</span></div>
     <span class="eyebrow">${icon('handshake')} ${tr(l, { en: 'Partnership proposal · Thailand first', ru: 'Предложение о партнёрстве · старт в Таиланде', th: 'ข้อเสนอความร่วมมือ · เริ่มที่ประเทศไทย' })}</span>
     <h1>${tr(l, { en: 'Say it once.', ru: 'Скажите один раз.', th: 'พูดครั้งเดียว' })} <span class="grad h1-line">${tr(l, { en: 'Ari orders Grab.', ru: 'Ari закажет Grab.', th: 'Ari สั่ง Grab ให้' })}</span></h1>
     <p class="lead">${tr(l, {
@@ -183,7 +210,7 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
 </div></section>
 
 <section class="sec cta-band"><div class="wrap"><div class="cta-panel center">
-  <span class="ari-mark lg" aria-hidden="true">A</span>
+  <span class="ari-eyes cta-eyes" aria-hidden="true">${ariEyes('cta')}</span>
   <h2>${tr(l, { en: 'Let\'s launch a pilot in Bangkok', ru: 'Запустим пилот в Бангкоке', th: 'มาเริ่มโครงการนำร่องที่กรุงเทพฯ ด้วยกัน' })}</h2>
   <p class="lead">${tr(l, { en: 'GrabExpress, Login with Grab and GrabPay are built from Grab\'s public docs and tested against mocks. With sandbox keys we start certification on day one.', ru: 'GrabExpress, Login with Grab и GrabPay написаны по публичной документации Grab и проверены на моках. С ключами песочницы начнём сертификацию в первый же день.', th: 'GrabExpress, Login with Grab และ GrabPay พัฒนาตามเอกสารสาธารณะของ Grab และทดสอบกับระบบจำลองแล้ว เมื่อได้คีย์ sandbox เราพร้อมเริ่มกระบวนการรับรองได้ตั้งแต่วันแรก' })}</p>
   <div class="actions center"><a class="btn lg ari" href="/for-grab">${tr(l, { en: 'Read the proposal', ru: 'Читать предложение', th: 'อ่านข้อเสนอ' })} ${icon('arrow')}</a><a class="btn lg secondary" href="mailto:${CONTACT.owner.email}">${icon('mail')} ${CONTACT.owner.email}</a></div>
@@ -239,8 +266,8 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
     <div class="ari-phone big" id="ari-app" data-strings="${JSON.stringify(strings)}" data-examples="${JSON.stringify(ex)}">
       <div class="ari-screen">
         <div class="ari-status"><span class="clock" id="ari-clock">9:41</span><span class="ari-island" id="ari-island"><span class="la-dot"></span><b id="la-title"></b><span id="la-eta"></span></span><span>5G ${icon('bolt')}</span></div>
-        <div class="ari-push" id="ari-push" role="status" aria-live="polite"><span class="ari-avatar sm">A</span><span><b id="push-title"></b><small id="push-body"></small></span></div>
-        <div class="ari-head"><span class="ari-avatar">A</span><span><b>Ari</b><small id="ari-sub">${tr(l, { en: 'online', ru: 'онлайн', th: 'ออนไลน์' })}</small></span>
+        <div class="ari-push" id="ari-push" role="status" aria-live="polite"><span class="ari-tile" aria-hidden="true">${ariMark()}</span><span><b id="push-title"></b><small id="push-body"></small></span></div>
+        <div class="ari-head">${ariMark()}<span class="ari-who"><b>Ari</b><small id="ari-sub">${tr(l, { en: 'online', ru: 'онлайн', th: 'ออนไลน์' })}</small></span>
           <button class="ari-link" type="button" id="ari-grab" aria-pressed="false">${icon('plug')} <span>${strings.linkGrab}</span></button>
           <button class="ari-icon-btn" type="button" id="ari-reset" title="${strings.reset}" aria-label="${strings.reset}">${icon('repeat')}</button></div>
         <div class="ari-chat" id="ari-chat" role="log" aria-live="polite" aria-label="${tr(l, { en: 'Conversation with Ari', ru: 'Диалог с Ari', th: 'บทสนทนากับ Ari' })}"></div>
@@ -249,12 +276,23 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
           <button type="button" class="ari-mic" id="ari-mic" aria-label="${tr(l, { en: 'Voice', ru: 'Голос', th: 'เสียง' })}">${icon('mic')}</button>
           <label class="sr-only" for="ari-input">${strings.placeholder}</label>
           <input id="ari-input" name="text" maxlength="300" placeholder="${strings.placeholder}">
-          <button class="ari-send" type="submit" aria-label="${tr(l, { en: 'Send', ru: 'Отправить', th: 'ส่ง' })}">${icon('send')}</button>
+          <button class="ari-send" type="submit" aria-label="${tr(l, { en: 'Send', ru: 'Отправить', th: 'ส่ง' })}">${icon('up')}</button>
         </form>
+        ${tabBar(l)}
         <div class="ari-sheet" id="ari-faceid" role="dialog" aria-modal="true" aria-label="${strings.faceidHint}" tabindex="-1" hidden><div class="fid">${icon('faceid')}${icon('check', 'fid-ok')}</div><b>${strings.faceidHint}</b></div>
         <div class="ari-call" id="ari-call" role="dialog" aria-modal="true" aria-label="${strings.calling}" tabindex="-1" hidden>
-          <div class="call-top"><span class="call-ring"><span class="ari-avatar xl">A</span></span><b>Ari</b><small id="call-state">${strings.calling}</small><span class="call-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
-          <p class="call-line" id="call-line"></p>
+          <div class="call-top"><b>Ari</b><small id="call-state">${strings.calling}</small></div>
+          <span class="ari-eyes call-eyes" aria-hidden="true">${ariEyes('call')}</span>
+          <div class="call-mid">
+            <span class="call-listening">${tr(l, { en: 'Listening', ru: 'Слушаю', th: 'กำลังฟัง' })}</span>
+            <span class="call-who" aria-hidden="true">ARI</span>
+            <p class="call-line" id="call-line"></p>
+          </div>
+          <div class="call-tools" aria-hidden="true">
+            <span class="call-tool on"><i>${icon('speaker')}</i><span>${tr(l, { en: 'Speaker', ru: 'Динамик', th: 'ลำโพง' })}</span></span>
+            <span class="call-tool"><i>${icon('micoff')}</i><span>${tr(l, { en: 'Mute', ru: 'Без звука', th: 'ปิดเสียง' })}</span></span>
+            <span class="call-tool on"><i>${icon('captions')}</i><span>${tr(l, { en: 'Captions', ru: 'Субтитры', th: 'คำบรรยาย' })}</span></span>
+          </div>
           <div class="call-btns"><button type="button" class="call-no" id="call-no">${icon('phone')}<span>${strings.decline}</span></button><button type="button" class="call-yes" id="call-yes">${icon('phone')}<span>${strings.accept}</span></button></div>
         </div>
       </div>

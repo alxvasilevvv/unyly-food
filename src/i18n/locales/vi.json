@@ -1112,7 +1112,6 @@
  "Ari × Grab, home": "Ari × Grab, trang chủ",
  "Language": "Ngôn ngữ",
  "DEMO": "DEMO",
- "Ari mark, a white letter A on a violet to pink gradient. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "Biểu tượng Ari: chữ A màu trắng trên nền chuyển màu từ tím sang hồng. Ari × Grab: Chỉ cần nói một lần. Ari đặt Grab. Đề xuất hợp tác của CSA PROJECT - FZCO. Không liên kết với Grab.",
  "\"Dinner for two under 600 baht, no nuts\": Ari turns the request into a short checklist (dishes, budget, allergy note) and opens Grab; the user chooses and orders in the Grab app.": "\"Bữa tối cho hai người dưới 600 baht, không có hạt\": Ari chuyển yêu cầu thành một danh sách ngắn (món ăn, ngân sách, ghi chú dị ứng) rồi mở Grab; người dùng chọn và đặt trong ứng dụng Grab.",
  "\"Send Mai a lunch voucher for her birthday\": Ari issues a Grab gift and sends the redemption link.": "\"Gửi Mai một phiếu ăn trưa mừng sinh nhật\": Ari phát hành quà tặng Grab và gửi liên kết đổi quà.",
  "\"Taxi to the airport\": fare range, pickup time and surge notice for each ride type Farefeed returns; one tap opens the Grab app with the trip filled in, and the user books there.": "\"Taxi ra sân bay\": khoảng giá cước, thời gian đón và thông báo giá cao điểm cho từng loại xe mà Farefeed trả về; một chạm sẽ mở ứng dụng Grab với chuyến đi đã điền sẵn, và người dùng đặt xe ở đó.",
@@ -1350,5 +1349,12 @@
  "Up to {kg} kg only": "Chỉ tối đa {kg} kg",
  "Your latest order: {status}.": "Đơn gần nhất của bạn: {status}.",
  "Metered: the final fare may differ from the estimate.": "Tính theo đồng hồ: giá cuối cùng có thể khác với ước tính.",
- "Airport pickup fee": "Phí đón tại sân bay"
+ "Airport pickup fee": "Phí đón tại sân bay",
+ "The Ari face: two glowing mint dot-matrix eyes on black. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "Gương mặt Ari: hai con mắt ma trận điểm màu xanh bạc hà phát sáng trên nền đen. Ari × Grab: Chỉ cần nói một lần. Ari đặt Grab. Đề xuất hợp tác của CSA PROJECT - FZCO. Không liên kết với Grab.",
+ "Chat": "Trò chuyện",
+ "Settings": "Cài đặt",
+ "Speaker": "Loa ngoài",
+ "Mute": "Tắt tiếng",
+ "Captions": "Phụ đề",
+ "Listening": "Đang nghe"
 }

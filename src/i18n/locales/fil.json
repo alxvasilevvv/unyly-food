@@ -1112,7 +1112,6 @@
  "Ari × Grab, home": "Ari × Grab, pangunahing pahina",
  "Language": "Wika",
  "DEMO": "DEMO",
- "Ari mark, a white letter A on a violet to pink gradient. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "Logo ng Ari: puting titik A sa gradient na violet hanggang pink. Ari × Grab: Sabihin nang isang beses. Si Ari ang umo-order sa Grab. Panukalang partnership ng CSA PROJECT - FZCO. Hindi kaanib ng Grab.",
  "\"Dinner for two under 600 baht, no nuts\": Ari turns the request into a short checklist (dishes, budget, allergy note) and opens Grab; the user chooses and orders in the Grab app.": "\"Hapunan para sa dalawa, hanggang 600 baht, walang mani\": ginagawa ni Ari ang request na maikling checklist (mga putahe, budget, paalala sa allergy) at binubuksan ang Grab; ang user ang pumipili at umo-order sa Grab app.",
  "\"Send Mai a lunch voucher for her birthday\": Ari issues a Grab gift and sends the redemption link.": "\"Padalhan si Mai ng lunch voucher para sa birthday niya\": nag-iisyu si Ari ng Grab gift at ipinapadala ang link para ma-redeem ito.",
  "\"Taxi to the airport\": fare range, pickup time and surge notice for each ride type Farefeed returns; one tap opens the Grab app with the trip filled in, and the user books there.": "\"Taxi papuntang airport\": saklaw ng pamasahe, oras ng pickup at abiso ng surge para sa bawat uri ng ride na ibinabalik ng Farefeed; isang tap lang at bubukas ang Grab app na nakalagay na ang biyahe, at doon magbu-book ang user.",
@@ -1350,5 +1349,12 @@
  "Up to {kg} kg only": "Hanggang {kg} kg lang",
  "Your latest order: {status}.": "Ang pinakahuli mong order: {status}.",
  "Metered: the final fare may differ from the estimate.": "De-metro: maaaring iba ang huling pamasahe sa tantiya.",
- "Airport pickup fee": "Bayad sa pickup sa airport"
+ "Airport pickup fee": "Bayad sa pickup sa airport",
+ "The Ari face: two glowing mint dot-matrix eyes on black. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "Ang mukha ni Ari: dalawang kumikinang na mint na matang gawa sa mga tuldok sa itim na background. Ari × Grab: Sabihin nang isang beses. Si Ari ang umo-order sa Grab. Panukalang partnership ng CSA PROJECT - FZCO. Hindi kaanib ng Grab.",
+ "Chat": "Chat",
+ "Settings": "Mga Setting",
+ "Speaker": "Speaker",
+ "Mute": "I-mute",
+ "Captions": "Mga Caption",
+ "Listening": "Nakikinig"
 }

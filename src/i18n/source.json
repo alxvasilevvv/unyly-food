@@ -50,7 +50,7 @@
  {
   "en": "\"Your driver is outside\"",
   "where": [
-   "src/web/ari-pages.ts:119"
+   "src/web/ari-pages.ts:144"
   ]
  },
  {
@@ -128,7 +128,7 @@
  {
   "en": "{n} signed endpoints, model-neutral tool definitions and a card schema the app renders natively.",
   "where": [
-   "src/web/ari-pages.ts:166"
+   "src/web/ari-pages.ts:191"
   ]
  },
  {
@@ -189,13 +189,13 @@
  {
   "en": "400+ automated tests, 10 interface languages, audit trail, kill switch, data export and deletion.",
   "where": [
-   "src/web/ari-pages.ts:315"
+   "src/web/ari-pages.ts:351"
   ]
  },
  {
   "en": "8 markets, 10 languages",
   "where": [
-   "src/web/ari-pages.ts:92"
+   "src/web/ari-pages.ts:116"
   ]
  },
  {
@@ -207,7 +207,7 @@
  {
   "en": "A blueprint for AI channels",
   "where": [
-   "src/web/ari-pages.ts:323"
+   "src/web/ari-pages.ts:359"
   ]
  },
  {
@@ -219,19 +219,19 @@
  {
   "en": "A business contact (PIC) and a shared channel with the integration team",
   "where": [
-   "src/web/ari-pages.ts:307"
+   "src/web/ari-pages.ts:343"
   ]
  },
  {
   "en": "A card",
   "where": [
-   "src/web/ari-pages.ts:448"
+   "src/web/ari-pages.ts:484"
   ]
  },
  {
   "en": "A card with the exact price is bound to a one-time hash. A chat \"yes\" can never place an order.",
   "where": [
-   "src/web/ari-pages.ts:81"
+   "src/web/ari-pages.ts:105"
   ]
  },
  {
@@ -249,7 +249,7 @@
  {
   "en": "A consumer ordering scope for GrabFood and GrabMart (not public today)",
   "where": [
-   "src/web/ari-pages.ts:305"
+   "src/web/ari-pages.ts:341"
   ]
  },
  {
@@ -273,7 +273,7 @@
  {
   "en": "A new front door",
   "where": [
-   "src/web/ari-pages.ts:89"
+   "src/web/ari-pages.ts:113"
   ]
  },
  {
@@ -309,13 +309,13 @@
  {
   "en": "Above a per-currency threshold the confirmation needs Face ID or the passcode.",
   "where": [
-   "src/web/ari-pages.ts:82"
+   "src/web/ari-pages.ts:106"
   ]
  },
  {
   "en": "Accept",
   "where": [
-   "src/web/ari-pages.ts:204"
+   "src/web/ari-pages.ts:229"
   ]
  },
  {
@@ -327,7 +327,7 @@
  {
   "en": "Account linking with PKCE on Grab's pages. We keep the user identifier only, no Grab tokens.",
   "where": [
-   "src/web/ari-pages.ts:300"
+   "src/web/ari-pages.ts:336"
   ]
  },
  {
@@ -433,7 +433,7 @@
  {
   "en": "airport",
   "where": [
-   "src/web/ari-pages.ts:57"
+   "src/web/ari-pages.ts:79"
   ]
  },
  {
@@ -445,7 +445,7 @@
  {
   "en": "All contacts",
   "where": [
-   "src/web/ari-pages.ts:384",
+   "src/web/ari-pages.ts:420",
    "src/web/layout.ts:184",
    "src/web/showcase.ts:306"
   ]
@@ -507,7 +507,7 @@
  {
   "en": "An event",
   "where": [
-   "src/web/ari-pages.ts:449"
+   "src/web/ari-pages.ts:485"
   ]
  },
  {
@@ -543,7 +543,7 @@
  {
   "en": "Any assistant, same rules",
   "where": [
-   "src/web/ari-pages.ts:168"
+   "src/web/ari-pages.ts:193"
   ]
  },
  {
@@ -562,13 +562,13 @@
  {
   "en": "API calls appear here as you talk to Ari.",
   "where": [
-   "src/web/ari-pages.ts:273"
+   "src/web/ari-pages.ts:309"
   ]
  },
  {
   "en": "Architecture",
   "where": [
-   "src/web/ari-pages.ts:154"
+   "src/web/ari-pages.ts:179"
   ]
  },
  {
@@ -580,13 +580,13 @@
  {
   "en": "Ari (iPhone, App Store) is a voice-first personal assistant by CSA PROJECT - FZCO. We propose to make Grab the way Ari users move, eat and send things in Southeast Asia, starting with a Bangkok pilot on Grab's public partner APIs.",
   "where": [
-   "src/web/ari-pages.ts:342"
+   "src/web/ari-pages.ts:378"
   ]
  },
  {
   "en": "Ari × Grab · partnership proposal",
   "where": [
-   "src/web/ari-pages.ts:340"
+   "src/web/ari-pages.ts:376"
   ]
  },
  {
@@ -598,7 +598,7 @@
  {
   "en": "Ari × Grab is a proposal by CSA PROJECT - FZCO (Dubai), the developer of Ari and Unyly. It is not affiliated with, endorsed by or sponsored by Grab. No agreement with Grab exists. The Grab features shown are proposed and are not in the released Ari app. Integrations were tested only against mocks. Grab and its service names are trademarks of their respective owners and are used only to describe the proposed integration; no Grab logos are used. The demo uses fictional stores, drivers, plates and fares; no real orders, rides or payments are created.",
   "where": [
-   "src/web/ari-pages.ts:376"
+   "src/web/ari-pages.ts:412"
   ]
  },
  {
@@ -616,7 +616,7 @@
  {
   "en": "Ari × Grab: a partnership proposal to make Grab the way Ari users move, eat and send things, starting with a Bangkok pilot.",
   "where": [
-   "src/web/ari-pages.ts:386"
+   "src/web/ari-pages.ts:422"
   ]
  },
  {
@@ -628,7 +628,7 @@
  {
   "en": "Ari backend",
   "where": [
-   "src/web/ari-pages.ts:159"
+   "src/web/ari-pages.ts:184"
   ]
  },
  {
@@ -640,56 +640,50 @@
  {
   "en": "Ari iPhone app",
   "where": [
-   "src/web/ari-pages.ts:157"
+   "src/web/ari-pages.ts:182"
   ]
  },
  {
   "en": "Ari is a personal assistant on iPhone that calls, reminds and gets things done. With Grab inside, one sentence becomes a ride, a meal, groceries or a courier: real prices, one tap or Face ID to confirm, live tracking, and a call from Ari when the driver is outside.",
   "where": [
-   "src/web/ari-pages.ts:105"
+   "src/web/ari-pages.ts:130"
   ]
  },
  {
   "en": "Ari is calling",
   "where": [
-   "src/web/ari-pages.ts:119"
+   "src/web/ari-pages.ts:144"
   ]
  },
  {
   "en": "Ari is calling…",
   "where": [
-   "src/web/ari-pages.ts:203"
+   "src/web/ari-pages.ts:228"
   ]
  },
  {
   "en": "Ari is live on the App Store",
   "where": [
-   "src/web/ari-pages.ts:113"
+   "src/web/ari-pages.ts:138"
   ]
  },
  {
   "en": "Ari is typing",
   "where": [
-   "src/web/ari-pages.ts:200"
+   "src/web/ari-pages.ts:225"
   ]
  },
  {
   "en": "Ari keeps watch",
   "where": [
-   "src/web/ari-pages.ts:138"
+   "src/web/ari-pages.ts:163"
   ]
  },
  {
   "en": "Ari live demo",
   "where": [
-   "src/web/ari-pages.ts:236",
+   "src/web/ari-pages.ts:261",
    "src/web/layout.ts:164"
-  ]
- },
- {
-  "en": "Ari mark, a white letter A on a violet to pink gradient. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.",
-  "where": [
-   "src/web/layout.ts:74"
   ]
  },
  {
@@ -701,7 +695,7 @@
  {
   "en": "Ari orders Grab.",
   "where": [
-   "src/web/ari-pages.ts:103"
+   "src/web/ari-pages.ts:128"
   ]
  },
  {
@@ -719,19 +713,19 @@
  {
   "en": "Ari remembers routines (\"Friday dinner?\", \"airport at 6?\") and suggests them. The user still confirms every order.",
   "where": [
-   "src/web/ari-pages.ts:91"
+   "src/web/ari-pages.ts:115"
   ]
  },
  {
   "en": "Ari shows options, then a card with every fee and the total; in live mode, from Grab's APIs.",
   "where": [
-   "src/web/ari-pages.ts:136"
+   "src/web/ari-pages.ts:161"
   ]
  },
  {
   "en": "Ari talks to Grab through one signed engine",
   "where": [
-   "src/web/ari-pages.ts:155"
+   "src/web/ari-pages.ts:180"
   ]
  },
  {
@@ -859,7 +853,7 @@
  {
   "en": "Bangkok pilot",
   "where": [
-   "src/web/ari-pages.ts:291"
+   "src/web/ari-pages.ts:327"
   ]
  },
  {
@@ -907,7 +901,7 @@
  {
   "en": "Booked. I will call you when the driver is outside.",
   "where": [
-   "src/web/ari-pages.ts:61"
+   "src/web/ari-pages.ts:83"
   ]
  },
  {
@@ -951,7 +945,7 @@
  {
   "en": "Built for Grab's risk teams",
   "where": [
-   "src/web/ari-pages.ts:173"
+   "src/web/ari-pages.ts:198"
   ]
  },
  {
@@ -994,7 +988,7 @@
  {
   "en": "By voice, Siri, the Lock Screen or chat: \"Taxi to the airport\", \"dinner for two under 600 baht, no nuts\".",
   "where": [
-   "src/web/ari-pages.ts:135"
+   "src/web/ari-pages.ts:160"
   ]
  },
  {
@@ -1032,7 +1026,7 @@
   "en": "Cancel order",
   "where": [
    "src/partners/cards.ts:71",
-   "src/web/ari-pages.ts:209",
+   "src/web/ari-pages.ts:234",
    "src/web/messages.ts:385"
   ]
  },
@@ -1071,7 +1065,7 @@
  {
   "en": "Cancelled.",
   "where": [
-   "src/partners/webdemo.ts:1062"
+   "src/partners/webdemo.ts:1064"
   ]
  },
  {
@@ -1090,6 +1084,12 @@
   "en": "Cannot cancel: the trip has started or ended.",
   "where": [
    "src/partners/cards.ts:148"
+  ]
+ },
+ {
+  "en": "Captions",
+  "where": [
+   "src/web/ari-pages.ts:292"
   ]
  },
  {
@@ -1119,7 +1119,7 @@
  {
   "en": "Certification",
   "where": [
-   "src/web/ari-pages.ts:290"
+   "src/web/ari-pages.ts:326"
   ]
  },
  {
@@ -1132,6 +1132,12 @@
   "en": "Charged",
   "where": [
    "src/web/messages.ts:399"
+  ]
+ },
+ {
+  "en": "Chat",
+  "where": [
+   "src/web/ari-pages.ts:63"
   ]
  },
  {
@@ -1186,7 +1192,7 @@
   "en": "Choose",
   "where": [
    "src/partners/cards.ts:70",
-   "src/web/ari-pages.ts:220",
+   "src/web/ari-pages.ts:245",
    "src/web/showcase.ts:526"
   ]
  },
@@ -1265,7 +1271,7 @@
  {
   "en": "Completed deliveries, quote-to-order conversion, cancellations and failures, new GrabID links, GrabPay volume, Farefeed deep-link opens, incidents.",
   "where": [
-   "src/web/ari-pages.ts:292"
+   "src/web/ari-pages.ts:328"
   ]
  },
  {
@@ -1314,13 +1320,13 @@
  {
   "en": "Confirm ride · ฿421",
   "where": [
-   "src/web/ari-pages.ts:59"
+   "src/web/ari-pages.ts:81"
   ]
  },
  {
   "en": "Confirm with Face ID",
   "where": [
-   "src/web/ari-pages.ts:202"
+   "src/web/ari-pages.ts:227"
   ]
  },
  {
@@ -1339,7 +1345,7 @@
  {
   "en": "Confirmation stays on the device",
   "where": [
-   "src/web/ari-pages.ts:320"
+   "src/web/ari-pages.ts:356"
   ]
  },
  {
@@ -1351,8 +1357,8 @@
  {
   "en": "Confirmed with Face ID",
   "where": [
-   "src/web/ari-pages.ts:120",
-   "src/web/ari-pages.ts:215"
+   "src/web/ari-pages.ts:145",
+   "src/web/ari-pages.ts:240"
   ]
  },
  {
@@ -1459,7 +1465,7 @@
  {
   "en": "Control stays with Grab",
   "where": [
-   "src/web/ari-pages.ts:322"
+   "src/web/ari-pages.ts:358"
   ]
  },
  {
@@ -1471,7 +1477,7 @@
  {
   "en": "Conversation with Ari",
   "where": [
-   "src/web/ari-pages.ts:246"
+   "src/web/ari-pages.ts:271"
   ]
  },
  {
@@ -1561,8 +1567,8 @@
  {
   "en": "Coverage of Grab products",
   "where": [
-   "src/web/ari-pages.ts:350",
-   "src/web/ari-pages.ts:352"
+   "src/web/ari-pages.ts:386",
+   "src/web/ari-pages.ts:388"
   ]
  },
  {
@@ -1586,7 +1592,7 @@
  {
   "en": "Create or update a user (locale, region)",
   "where": [
-   "src/web/ari-pages.ts:396"
+   "src/web/ari-pages.ts:432"
   ]
  },
  {
@@ -1610,7 +1616,7 @@
  {
   "en": "CSA PROJECT's integration layer between Ari and Grab's APIs",
   "where": [
-   "src/web/ari-pages.ts:161"
+   "src/web/ari-pages.ts:186"
   ]
  },
  {
@@ -1635,7 +1641,7 @@
  {
   "en": "Customer stays with Grab",
   "where": [
-   "src/web/ari-pages.ts:319"
+   "src/web/ari-pages.ts:355"
   ]
  },
  {
@@ -1674,13 +1680,13 @@
  {
   "en": "Data is used only to fulfil the order the user confirmed. Before any live launch, retention periods and consent texts go through Thai counsel review.",
   "where": [
-   "src/web/ari-pages.ts:331"
+   "src/web/ari-pages.ts:367"
   ]
  },
  {
   "en": "Decline",
   "where": [
-   "src/web/ari-pages.ts:205",
+   "src/web/ari-pages.ts:230",
    "src/web/messages.ts:415"
   ]
  },
@@ -1762,13 +1768,13 @@
  {
   "en": "demo",
   "where": [
-   "src/web/ari-pages.ts:182"
+   "src/web/ari-pages.ts:207"
   ]
  },
  {
   "en": "Demo",
   "where": [
-   "src/web/ari-pages.ts:207",
+   "src/web/ari-pages.ts:232",
    "src/web/messages.ts:324",
    "src/web/showcase.ts:140"
   ]
@@ -1800,7 +1806,7 @@
  {
   "en": "Demo mode: nothing is driven, delivered or charged; drivers and plates are fictional.",
   "where": [
-   "src/web/ari-pages.ts:275"
+   "src/web/ari-pages.ts:311"
   ]
  },
  {
@@ -1903,7 +1909,7 @@
  {
   "en": "Developers",
   "where": [
-   "src/web/ari-pages.ts:434",
+   "src/web/ari-pages.ts:470",
    "src/web/layout.ts:81"
   ]
  },
@@ -1928,7 +1934,7 @@
  {
   "en": "Dinner",
   "where": [
-   "src/web/ari-pages.ts:231"
+   "src/web/ari-pages.ts:256"
   ]
  },
  {
@@ -2010,7 +2016,7 @@
  {
   "en": "Done! I'll keep you posted and call you when it matters.",
   "where": [
-   "src/partners/webdemo.ts:989"
+   "src/partners/webdemo.ts:991"
   ]
  },
  {
@@ -2067,8 +2073,8 @@
   "en": "Driver arriving",
   "where": [
    "src/domain/labels.ts:32",
-   "src/web/ari-pages.ts:51",
-   "src/web/ari-pages.ts:63"
+   "src/web/ari-pages.ts:71",
+   "src/web/ari-pages.ts:86"
   ]
  },
  {
@@ -2092,7 +2098,7 @@
  {
   "en": "Each request carries X-Unyly-Partner, X-Unyly-Timestamp (±300 s) and a single-use X-Unyly-Nonce. Webhooks to Ari use the same scheme with the webhook secret.",
   "where": [
-   "src/web/ari-pages.ts:440"
+   "src/web/ari-pages.ts:476"
   ]
  },
  {
@@ -2104,7 +2110,7 @@
  {
   "en": "Email",
   "where": [
-   "src/web/ari-pages.ts:385",
+   "src/web/ari-pages.ts:421",
    "src/web/messages.ts:300"
   ]
  },
@@ -2117,19 +2123,19 @@
  {
   "en": "Email, saved addresses, preferences, carts, orders and an audit log. From Login with Grab: the account identifier (sub) only.",
   "where": [
-   "src/web/ari-pages.ts:327"
+   "src/web/ari-pages.ts:363"
   ]
  },
  {
   "en": "End",
   "where": [
-   "src/web/ari-pages.ts:206"
+   "src/web/ari-pages.ts:231"
   ]
  },
  {
   "en": "Endpoints",
   "where": [
-   "src/web/ari-pages.ts:443"
+   "src/web/ari-pages.ts:479"
   ]
  },
  {
@@ -2160,49 +2166,49 @@
   "en": "ETA",
   "where": [
    "src/partners/core.ts:255",
-   "src/web/ari-pages.ts:208"
+   "src/web/ari-pages.ts:233"
   ]
  },
  {
   "en": "Events (same as webhooks) for polling and recovery",
   "where": [
-   "src/web/ari-pages.ts:402"
+   "src/web/ari-pages.ts:438"
   ]
  },
  {
   "en": "Events instead of polling",
   "where": [
-   "src/web/ari-pages.ts:167"
+   "src/web/ari-pages.ts:192"
   ]
  },
  {
   "en": "Every order needs the user's tap on a card with the final price; above a per-currency threshold, Face ID. The assistant cannot confirm for the user.",
   "where": [
-   "src/web/ari-pages.ts:320"
+   "src/web/ari-pages.ts:356"
   ]
  },
  {
   "en": "Every order runs on GrabID and GrabPay",
   "where": [
-   "src/web/ari-pages.ts:90"
+   "src/web/ari-pages.ts:114"
   ]
  },
  {
   "en": "Every product, mapped to its Grab API",
   "where": [
-   "src/web/ari-pages.ts:149"
+   "src/web/ari-pages.ts:174"
   ]
  },
  {
   "en": "Every submission is idempotent; unknown outcomes are reconciled, never resent.",
   "where": [
-   "src/web/ari-pages.ts:84"
+   "src/web/ari-pages.ts:108"
   ]
  },
  {
   "en": "Every week",
   "where": [
-   "src/web/ari-pages.ts:292"
+   "src/web/ari-pages.ts:328"
   ]
  },
  {
@@ -2220,7 +2226,7 @@
  {
   "en": "Example requests",
   "where": [
-   "src/web/ari-pages.ts:247"
+   "src/web/ari-pages.ts:272"
   ]
  },
  {
@@ -2245,13 +2251,13 @@
  {
   "en": "Face ID",
   "where": [
-   "src/web/ari-pages.ts:201"
+   "src/web/ari-pages.ts:226"
   ]
  },
  {
   "en": "Face ID for large orders",
   "where": [
-   "src/web/ari-pages.ts:82"
+   "src/web/ari-pages.ts:106"
   ]
  },
  {
@@ -2288,7 +2294,7 @@
  {
   "en": "Fare ranges and pickup times in Ari, then a deep link: the user books in the Grab app. A ride-booking scope is a separate conversation.",
   "where": [
-   "src/web/ari-pages.ts:304"
+   "src/web/ari-pages.ts:340"
   ]
  },
  {
@@ -2349,7 +2355,7 @@
  {
   "en": "Flowers",
   "where": [
-   "src/web/ari-pages.ts:233",
+   "src/web/ari-pages.ts:258",
    "src/web/showcase.ts:48",
    "src/web/showcase.ts:87"
   ]
@@ -2497,7 +2503,7 @@
  {
   "en": "From a sentence to a tracked order in four steps",
   "where": [
-   "src/web/ari-pages.ts:133"
+   "src/web/ari-pages.ts:158"
   ]
  },
  {
@@ -2517,7 +2523,7 @@
  {
   "en": "Full retention table",
   "where": [
-   "src/web/ari-pages.ts:372"
+   "src/web/ari-pages.ts:408"
   ]
  },
  {
@@ -2584,7 +2590,7 @@
  {
   "en": "Go or no-go against targets agreed before the start. If the result is positive: design consumer scopes for GrabFood, GrabMart and ride booking together, then add markets one by one, each with Grab's approval.",
   "where": [
-   "src/web/ari-pages.ts:293"
+   "src/web/ari-pages.ts:329"
   ]
  },
  {
@@ -2626,25 +2632,25 @@
  {
   "en": "Grab account linked (simulated in the demo; live uses Login with Grab).",
   "where": [
-   "src/web/ari-pages.ts:214"
+   "src/web/ari-pages.ts:239"
   ]
  },
  {
   "en": "Grab API",
   "where": [
-   "src/web/ari-pages.ts:335"
+   "src/web/ari-pages.ts:371"
   ]
  },
  {
   "en": "Grab APIs",
   "where": [
-   "src/web/ari-pages.ts:163"
+   "src/web/ari-pages.ts:188"
   ]
  },
  {
   "en": "Grab credentials stay on the server. GrabPay tokens are sealed with AES-256-GCM. For production, secrets move to a KMS, as Grab's partner rules require.",
   "where": [
-   "src/web/ari-pages.ts:329"
+   "src/web/ari-pages.ts:365"
   ]
  },
  {
@@ -2656,7 +2662,7 @@
  {
   "en": "Grab linked",
   "where": [
-   "src/web/ari-pages.ts:213"
+   "src/web/ari-pages.ts:238"
   ]
  },
  {
@@ -2680,19 +2686,19 @@
  {
   "en": "Grab markets, 10 languages",
   "where": [
-   "src/web/ari-pages.ts:127"
+   "src/web/ari-pages.ts:152"
   ]
  },
  {
   "en": "Grab passwords, SMS codes, card numbers and wallet credentials. Sign-in and checkout run on Grab's own pages.",
   "where": [
-   "src/web/ari-pages.ts:328"
+   "src/web/ari-pages.ts:364"
   ]
  },
  {
   "en": "Grab products mapped",
   "where": [
-   "src/web/ari-pages.ts:126"
+   "src/web/ari-pages.ts:151"
   ]
  },
  {
@@ -2734,13 +2740,13 @@
  {
   "en": "Grab, inside the assistant people already talk to",
   "where": [
-   "src/web/ari-pages.ts:341"
+   "src/web/ari-pages.ts:377"
   ]
  },
  {
   "en": "Grab's products, one assistant",
   "where": [
-   "src/web/ari-pages.ts:144"
+   "src/web/ari-pages.ts:169"
   ]
  },
  {
@@ -2752,7 +2758,7 @@
  {
   "en": "Grab's security team gets the OpenAPI document, the test suite and a staging environment before any production key is issued.",
   "where": [
-   "src/web/ari-pages.ts:332"
+   "src/web/ari-pages.ts:368"
   ]
  },
  {
@@ -2776,13 +2782,13 @@
  {
   "en": "GrabExpress client: quotes, create, status, cancel, tracking webhook, unknown-outcome reconciliation.",
   "where": [
-   "src/web/ari-pages.ts:312"
+   "src/web/ari-pages.ts:348"
   ]
  },
  {
   "en": "GrabExpress on sandbox, Login with Grab on staging, GrabPay on test credentials. We run Grab's happy and unhappy paths and go through Grab's security review. No real users yet.",
   "where": [
-   "src/web/ari-pages.ts:290"
+   "src/web/ari-pages.ts:326"
   ]
  },
  {
@@ -2794,19 +2800,19 @@
  {
   "en": "GrabExpress, Login with Grab and GrabPay are built from Grab's public docs and tested against mocks. With sandbox keys we start certification on day one.",
   "where": [
-   "src/web/ari-pages.ts:188"
+   "src/web/ari-pages.ts:213"
   ]
  },
  {
   "en": "GrabExpress: sandbox, then production for Bangkok (scope grab_express.partner_deliveries)",
   "where": [
-   "src/web/ari-pages.ts:297"
+   "src/web/ari-pages.ts:333"
   ]
  },
  {
   "en": "GrabID client for Login with Grab (openid, profile.read, phone)",
   "where": [
-   "src/web/ari-pages.ts:299"
+   "src/web/ari-pages.ts:335"
   ]
  },
  {
@@ -2836,13 +2842,13 @@
  {
   "en": "GrabPay merchant account for One-Time Charge in THB",
   "where": [
-   "src/web/ari-pages.ts:301"
+   "src/web/ari-pages.ts:337"
   ]
  },
  {
   "en": "GrabPay One-Time Charge with HMAC and proof-of-possession, automatic idempotent refunds.",
   "where": [
-   "src/web/ari-pages.ts:313"
+   "src/web/ari-pages.ts:349"
   ]
  },
  {
@@ -3020,7 +3026,7 @@
  {
   "en": "Here are the cancellation terms:",
   "where": [
-   "src/partners/webdemo.ts:1044"
+   "src/partners/webdemo.ts:1046"
   ]
  },
  {
@@ -3038,7 +3044,7 @@
  {
   "en": "Here is everything with the final price. Tap Confirm when you are ready.",
   "where": [
-   "src/partners/webdemo.ts:963"
+   "src/partners/webdemo.ts:965"
   ]
  },
  {
@@ -3062,7 +3068,7 @@
  {
   "en": "Hi, it's Ari. {status}. {courier} {vehicle}, plate {plate}. I'll stay on it until you arrive.",
   "where": [
-   "src/web/ari-pages.ts:217"
+   "src/web/ari-pages.ts:242"
   ]
  },
  {
@@ -3074,7 +3080,7 @@
  {
   "en": "HMAC on every request, single-use nonces, signed webhooks, full audit trail.",
   "where": [
-   "src/web/ari-pages.ts:85"
+   "src/web/ari-pages.ts:109"
   ]
  },
  {
@@ -3088,7 +3094,7 @@
   "where": [
    "src/partners/webdemo.ts:516",
    "src/partners/webdemo.ts:868",
-   "src/web/messages.ts:339"
+   "src/web/ari-pages.ts:58"
   ]
  },
  {
@@ -3157,7 +3163,7 @@
  {
   "en": "How Ari would order Grab",
   "where": [
-   "src/web/ari-pages.ts:267"
+   "src/web/ari-pages.ts:303"
   ]
  },
  {
@@ -3181,7 +3187,7 @@
  {
   "en": "How it works",
   "where": [
-   "src/web/ari-pages.ts:132",
+   "src/web/ari-pages.ts:157",
    "src/web/messages.ts:245",
    "src/web/messages.ts:259"
   ]
@@ -3375,7 +3381,7 @@
  {
   "en": "Incremental orders",
   "where": [
-   "src/web/ari-pages.ts:318"
+   "src/web/ari-pages.ts:354"
   ]
  },
  {
@@ -3393,7 +3399,7 @@
  {
   "en": "Integration spec for the Ari team (in Russian)",
   "where": [
-   "src/web/ari-pages.ts:437"
+   "src/web/ari-pages.ts:473"
   ]
  },
  {
@@ -3411,7 +3417,7 @@
  {
   "en": "Interactive demo with fictional data: how Ari would order a Grab ride, food or a parcel, from options and a priced card to Face ID, live status and a call.",
   "where": [
-   "src/web/ari-pages.ts:281"
+   "src/web/ari-pages.ts:317"
   ]
  },
  {
@@ -3423,7 +3429,7 @@
  {
   "en": "Interface in 10 languages; designed for all 8 Grab markets, Thailand first.",
   "where": [
-   "src/web/ari-pages.ts:92"
+   "src/web/ari-pages.ts:116"
   ]
  },
  {
@@ -3491,7 +3497,7 @@
  {
   "en": "Joint review",
   "where": [
-   "src/web/ari-pages.ts:293"
+   "src/web/ari-pages.ts:329"
   ]
  },
  {
@@ -3503,7 +3509,7 @@
  {
   "en": "JustGrab, about 52 min. Here is the fare:",
   "where": [
-   "src/web/ari-pages.ts:55"
+   "src/web/ari-pages.ts:76"
   ]
  },
  {
@@ -3563,7 +3569,7 @@
  {
   "en": "Kill switch and PDPA",
   "where": [
-   "src/web/ari-pages.ts:86"
+   "src/web/ari-pages.ts:110"
   ]
  },
  {
@@ -3600,7 +3606,7 @@
  {
   "en": "Let's launch a pilot in Bangkok",
   "where": [
-   "src/web/ari-pages.ts:187"
+   "src/web/ari-pages.ts:212"
   ]
  },
  {
@@ -3613,13 +3619,19 @@
  {
   "en": "Link Grab",
   "where": [
-   "src/web/ari-pages.ts:212"
+   "src/web/ari-pages.ts:237"
   ]
  },
  {
   "en": "Link GrabPay once, then pay by voice with Face ID: no redirect on every order (Singapore, Malaysia, Philippines today).",
   "where": [
    "src/partners/catalog.ts:61"
+  ]
+ },
+ {
+  "en": "Listening",
+  "where": [
+   "src/web/ari-pages.ts:285"
   ]
  },
  {
@@ -3631,7 +3643,7 @@
  {
   "en": "Live Activity in the Dynamic Island, pushes, and a call from Ari when the driver arrives.",
   "where": [
-   "src/web/ari-pages.ts:138"
+   "src/web/ari-pages.ts:163"
   ]
  },
  {
@@ -3643,14 +3655,14 @@
  {
   "en": "Live demo",
   "where": [
-   "src/web/ari-pages.ts:343",
+   "src/web/ari-pages.ts:379",
    "src/web/layout.ts:137"
   ]
  },
  {
   "en": "Live demo · fictional Bangkok data",
   "where": [
-   "src/web/ari-pages.ts:266"
+   "src/web/ari-pages.ts:302"
   ]
  },
  {
@@ -3662,7 +3674,7 @@
  {
   "en": "live Grab API",
   "where": [
-   "src/web/ari-pages.ts:219"
+   "src/web/ari-pages.ts:244"
   ]
  },
  {
@@ -3680,19 +3692,19 @@
  {
   "en": "LLM, memory, reminders, tool calling",
   "where": [
-   "src/web/ari-pages.ts:159"
+   "src/web/ari-pages.ts:184"
   ]
  },
  {
   "en": "Login with Grab (OIDC, PKCE S256) with protection against account pre-hijacking; Farefeed estimates with deep links.",
   "where": [
-   "src/web/ari-pages.ts:314"
+   "src/web/ari-pages.ts:350"
   ]
  },
  {
   "en": "Login with Grab and GrabPay run on Grab's pages. Documented Grab APIs only.",
   "where": [
-   "src/web/ari-pages.ts:83"
+   "src/web/ari-pages.ts:107"
   ]
  },
  {
@@ -3760,7 +3772,7 @@
  {
   "en": "Mapped against the public APIs on developer.grab.com. The status shows how far each integration is today. None is live: Grab has not issued credentials to us.",
   "where": [
-   "src/web/ari-pages.ts:146"
+   "src/web/ari-pages.ts:171"
   ]
  },
  {
@@ -3839,13 +3851,13 @@
  {
   "en": "Menus, cart, order and status inside Ari under the same confirmation rules. A design discussion, outside the pilot.",
   "where": [
-   "src/web/ari-pages.ts:306"
+   "src/web/ari-pages.ts:342"
   ]
  },
  {
   "en": "Message Ari…",
   "where": [
-   "src/web/ari-pages.ts:199"
+   "src/web/ari-pages.ts:224"
   ]
  },
  {
@@ -3863,7 +3875,7 @@
  {
   "en": "Method",
   "where": [
-   "src/web/ari-pages.ts:445"
+   "src/web/ari-pages.ts:481"
   ]
  },
  {
@@ -3894,8 +3906,8 @@
   "en": "min",
   "where": [
    "src/partners/cards.ts:69",
-   "src/web/ari-pages.ts:51",
-   "src/web/ari-pages.ts:63"
+   "src/web/ari-pages.ts:68",
+   "src/web/ari-pages.ts:247"
   ]
  },
  {
@@ -3927,6 +3939,12 @@
   "en": "Mushroom larb",
   "where": [
    "src/providers/demo/catalog.ts:85"
+  ]
+ },
+ {
+  "en": "Mute",
+  "where": [
+   "src/web/ari-pages.ts:291"
   ]
  },
  {
@@ -4000,7 +4018,7 @@
  {
   "en": "Never a duplicate order",
   "where": [
-   "src/web/ari-pages.ts:84"
+   "src/web/ari-pages.ts:108"
   ]
  },
  {
@@ -4012,7 +4030,7 @@
  {
   "en": "New chat",
   "where": [
-   "src/web/ari-pages.ts:210"
+   "src/web/ari-pages.ts:235"
   ]
  },
  {
@@ -4024,7 +4042,7 @@
  {
   "en": "New orders stop instantly while tracking continues. One call deletes a user's data.",
   "where": [
-   "src/web/ari-pages.ts:86"
+   "src/web/ari-pages.ts:110"
   ]
  },
  {
@@ -4079,7 +4097,7 @@
  {
   "en": "No connection to the server. Check the network and try again.",
   "where": [
-   "src/web/ari-pages.ts:224"
+   "src/web/ari-pages.ts:249"
   ]
  },
  {
@@ -4139,7 +4157,7 @@
  {
   "en": "No passwords, no cards",
   "where": [
-   "src/web/ari-pages.ts:83"
+   "src/web/ari-pages.ts:107"
   ]
  },
  {
@@ -4151,7 +4169,7 @@
  {
   "en": "No problem, nothing was ordered.",
   "where": [
-   "src/partners/webdemo.ts:1004"
+   "src/partners/webdemo.ts:1006"
   ]
  },
  {
@@ -4238,7 +4256,7 @@
  {
   "en": "Not ordered",
   "where": [
-   "src/web/ari-pages.ts:216"
+   "src/web/ari-pages.ts:241"
   ]
  },
  {
@@ -4335,7 +4353,7 @@
  {
   "en": "One API for Ari",
   "where": [
-   "src/web/ari-pages.ts:166"
+   "src/web/ari-pages.ts:191"
   ]
  },
  {
@@ -4347,19 +4365,19 @@
  {
   "en": "One market, one city, up to 1,000 invited Ari users. GrabExpress deliveries paid with GrabPay, plus Farefeed ride estimates that hand off to the Grab app. Grab can pause the pilot at any moment.",
   "where": [
-   "src/web/ari-pages.ts:291"
+   "src/web/ari-pages.ts:327"
   ]
  },
  {
   "en": "One narrow integration surface",
   "where": [
-   "src/web/ari-pages.ts:321"
+   "src/web/ari-pages.ts:357"
   ]
  },
  {
   "en": "One partner client, server to server, with a short list of scopes. No scraping, no unofficial endpoints, no Grab credentials on the phone.",
   "where": [
-   "src/web/ari-pages.ts:321"
+   "src/web/ari-pages.ts:357"
   ]
  },
  {
@@ -4377,7 +4395,7 @@
  {
   "en": "One tap or Face ID",
   "where": [
-   "src/web/ari-pages.ts:137"
+   "src/web/ari-pages.ts:162"
   ]
  },
  {
@@ -4389,20 +4407,21 @@
  {
   "en": "One thread for certification, incidents and the weekly pilot report.",
   "where": [
-   "src/web/ari-pages.ts:308"
+   "src/web/ari-pages.ts:344"
   ]
  },
  {
   "en": "One-tap scenarios",
   "where": [
-   "src/web/ari-pages.ts:235"
+   "src/web/ari-pages.ts:260"
   ]
  },
  {
   "en": "online",
   "where": [
-   "src/web/ari-pages.ts:52",
-   "src/web/ari-pages.ts:243"
+   "src/web/ari-pages.ts:72",
+   "src/web/ari-pages.ts:126",
+   "src/web/ari-pages.ts:268"
   ]
  },
  {
@@ -4427,7 +4446,7 @@
  {
   "en": "Only the user confirms",
   "where": [
-   "src/web/ari-pages.ts:81"
+   "src/web/ari-pages.ts:105"
   ]
  },
  {
@@ -4465,7 +4484,7 @@
  {
   "en": "Open to review",
   "where": [
-   "src/web/ari-pages.ts:332"
+   "src/web/ari-pages.ts:368"
   ]
  },
  {
@@ -4501,7 +4520,7 @@
  {
   "en": "Order card with live status, courier and ETA",
   "where": [
-   "src/web/ari-pages.ts:400"
+   "src/web/ari-pages.ts:436"
   ]
  },
  {
@@ -4531,7 +4550,7 @@
  {
   "en": "Orders that start in a voice assistant at the moment of intent and are fulfilled by Grab. The pilot measures how many of them are new.",
   "where": [
-   "src/web/ari-pages.ts:318"
+   "src/web/ari-pages.ts:354"
   ]
  },
  {
@@ -4635,7 +4654,7 @@
   "en": "Parcel",
   "where": [
    "src/domain/labels.ts:54",
-   "src/web/ari-pages.ts:232",
+   "src/web/ari-pages.ts:257",
    "src/web/routes.ts:948"
   ]
  },
@@ -4654,7 +4673,7 @@
  {
   "en": "Parcel delivery by voice: quote, booking, tracking, cancellation. We also ask Grab to confirm that an assistant may book for its users, with Unyly as the shipper of record.",
   "where": [
-   "src/web/ari-pages.ts:298"
+   "src/web/ari-pages.ts:334"
   ]
  },
  {
@@ -4678,9 +4697,9 @@
  {
   "en": "Partner API",
   "where": [
-   "src/web/ari-pages.ts:166",
-   "src/web/ari-pages.ts:279",
-   "src/web/ari-pages.ts:343"
+   "src/web/ari-pages.ts:191",
+   "src/web/ari-pages.ts:315",
+   "src/web/ari-pages.ts:379"
   ]
  },
  {
@@ -4693,25 +4712,25 @@
  {
   "en": "Partner API for Ari",
   "where": [
-   "src/web/ari-pages.ts:432"
+   "src/web/ari-pages.ts:468"
   ]
  },
  {
   "en": "Partner API for Ari: signed requests, user mapping, cards, native confirmation, events and webhooks (tested end to end against mocks; not yet run in Grab's sandbox).",
   "where": [
-   "src/web/ari-pages.ts:311"
+   "src/web/ari-pages.ts:347"
   ]
  },
  {
   "en": "Partner credentials are issued per partner by Unyly. Demo mode returns fictional Bangkok data: stores, couriers and fares are invented, and nothing is ordered or charged. Live mode switches each Grab product on only after Grab grants access. No Grab credentials exist today.",
   "where": [
-   "src/web/ari-pages.ts:451"
+   "src/web/ari-pages.ts:487"
   ]
  },
  {
   "en": "Partner Farefeed (scope ride.estimate) with its display terms",
   "where": [
-   "src/web/ari-pages.ts:303"
+   "src/web/ari-pages.ts:339"
   ]
  },
  {
@@ -4729,14 +4748,14 @@
  {
   "en": "Partnership contact",
   "where": [
-   "src/web/ari-pages.ts:382",
+   "src/web/ari-pages.ts:418",
    "src/web/showcase.ts:304"
   ]
  },
  {
   "en": "Partnership proposal",
   "where": [
-   "src/web/ari-pages.ts:99"
+   "src/web/ari-pages.ts:123"
   ]
  },
  {
@@ -4748,7 +4767,7 @@
  {
   "en": "Partnership proposal · Thailand first",
   "where": [
-   "src/web/ari-pages.ts:102"
+   "src/web/ari-pages.ts:127"
   ]
  },
  {
@@ -4803,7 +4822,7 @@
  {
   "en": "passwords or cards shared",
   "where": [
-   "src/web/ari-pages.ts:128"
+   "src/web/ari-pages.ts:153"
   ]
  },
  {
@@ -4821,7 +4840,7 @@
  {
   "en": "Path",
   "where": [
-   "src/web/ari-pages.ts:445"
+   "src/web/ari-pages.ts:481"
   ]
  },
  {
@@ -4839,7 +4858,7 @@
  {
   "en": "Payment for deliveries Ari books, on Grab's hosted checkout, with automatic refunds. Tokenisation (SG, MY, PH) is a later step.",
   "where": [
-   "src/web/ari-pages.ts:302"
+   "src/web/ari-pages.ts:338"
   ]
  },
  {
@@ -4887,7 +4906,7 @@
  {
   "en": "PDPA (Thailand)",
   "where": [
-   "src/web/ari-pages.ts:331"
+   "src/web/ari-pages.ts:367"
   ]
  },
  {
@@ -4918,7 +4937,7 @@
  {
   "en": "Per-user rate limits, an audit trail, Grab request IDs in our logs and a kill switch that stops new orders while tracking continues. Grab can revoke the keys at any time.",
   "where": [
-   "src/web/ari-pages.ts:322"
+   "src/web/ari-pages.ts:358"
   ]
  },
  {
@@ -5054,7 +5073,7 @@
  {
   "en": "Pilot proposal: Bangkok, 10 weeks",
   "where": [
-   "src/web/ari-pages.ts:358"
+   "src/web/ari-pages.ts:394"
   ]
  },
  {
@@ -5127,7 +5146,7 @@
  {
   "en": "Prepare a cancellation card with the fee",
   "where": [
-   "src/web/ari-pages.ts:401"
+   "src/web/ari-pages.ts:437"
   ]
  },
  {
@@ -5146,7 +5165,7 @@
  {
   "en": "price locked",
   "where": [
-   "src/web/ari-pages.ts:120"
+   "src/web/ari-pages.ts:145"
   ]
  },
  {
@@ -5164,13 +5183,13 @@
  {
   "en": "Pricing, fulfilment, support and the brand remain Grab's. Users sign in with GrabID and pay with GrabPay.",
   "where": [
-   "src/web/ari-pages.ts:319"
+   "src/web/ari-pages.ts:355"
   ]
  },
  {
   "en": "Product",
   "where": [
-   "src/web/ari-pages.ts:335",
+   "src/web/ari-pages.ts:371",
    "src/web/layout.ts:162"
   ]
  },
@@ -5189,15 +5208,15 @@
  {
   "en": "Proposal for Grab",
   "where": [
-   "src/web/ari-pages.ts:111",
-   "src/web/ari-pages.ts:279",
-   "src/web/ari-pages.ts:338"
+   "src/web/ari-pages.ts:136",
+   "src/web/ari-pages.ts:315",
+   "src/web/ari-pages.ts:374"
   ]
  },
  {
   "en": "Proposal: Ari, the personal assistant on iPhone, as a voice channel for Grab. Interactive demo with fictional data.",
   "where": [
-   "src/web/ari-pages.ts:190"
+   "src/web/ari-pages.ts:215"
   ]
  },
  {
@@ -5252,7 +5271,7 @@
  {
   "en": "Purpose",
   "where": [
-   "src/web/ari-pages.ts:445"
+   "src/web/ari-pages.ts:481"
   ]
  },
  {
@@ -5282,7 +5301,7 @@
  {
   "en": "Read the proposal",
   "where": [
-   "src/web/ari-pages.ts:189",
+   "src/web/ari-pages.ts:214",
    "src/web/showcase.ts:186"
   ]
  },
@@ -5302,7 +5321,7 @@
  {
   "en": "Ready today",
   "where": [
-   "src/web/ari-pages.ts:346"
+   "src/web/ari-pages.ts:382"
   ]
  },
  {
@@ -5363,13 +5382,13 @@
  {
   "en": "Repeat orders from routines",
   "where": [
-   "src/web/ari-pages.ts:91"
+   "src/web/ari-pages.ts:115"
   ]
  },
  {
   "en": "Report to Grab",
   "where": [
-   "src/web/ari-pages.ts:292"
+   "src/web/ari-pages.ts:328"
   ]
  },
  {
@@ -5411,7 +5430,7 @@
  {
   "en": "Retention and deletion",
   "where": [
-   "src/web/ari-pages.ts:330"
+   "src/web/ari-pages.ts:366"
   ]
  },
  {
@@ -5460,7 +5479,7 @@
   "en": "Ride",
   "where": [
    "src/domain/labels.ts:53",
-   "src/web/ari-pages.ts:230",
+   "src/web/ari-pages.ts:255",
    "src/web/showcase.ts:46"
   ]
  },
@@ -5509,7 +5528,7 @@
  {
   "en": "Run a tool: search_stores, estimate_trip, create_cart… returns a card",
   "where": [
-   "src/web/ari-pages.ts:398"
+   "src/web/ari-pages.ts:434"
   ]
  },
  {
@@ -5571,7 +5590,7 @@
  {
   "en": "Save Home, Work and delivery addresses",
   "where": [
-   "src/web/ari-pages.ts:397"
+   "src/web/ari-pages.ts:433"
   ]
  },
  {
@@ -5583,13 +5602,13 @@
  {
   "en": "Say it",
   "where": [
-   "src/web/ari-pages.ts:135"
+   "src/web/ari-pages.ts:160"
   ]
  },
  {
   "en": "Say it once.",
   "where": [
-   "src/web/ari-pages.ts:103"
+   "src/web/ari-pages.ts:128"
   ]
  },
  {
@@ -5632,7 +5651,7 @@
  {
   "en": "seats",
   "where": [
-   "src/web/ari-pages.ts:58"
+   "src/web/ari-pages.ts:80"
   ]
  },
  {
@@ -5656,7 +5675,7 @@
  {
   "en": "Security and data",
   "where": [
-   "src/web/ari-pages.ts:370"
+   "src/web/ari-pages.ts:406"
   ]
  },
  {
@@ -5668,19 +5687,19 @@
  {
   "en": "See the full table",
   "where": [
-   "src/web/ari-pages.ts:149"
+   "src/web/ari-pages.ts:174"
   ]
  },
  {
   "en": "See the real card",
   "where": [
-   "src/web/ari-pages.ts:136"
+   "src/web/ari-pages.ts:161"
   ]
  },
  {
   "en": "Send",
   "where": [
-   "src/web/ari-pages.ts:252"
+   "src/web/ari-pages.ts:277"
   ]
  },
  {
@@ -5753,13 +5772,13 @@
  {
   "en": "sentence to a Grab order",
   "where": [
-   "src/web/ari-pages.ts:125"
+   "src/web/ari-pages.ts:150"
   ]
  },
  {
   "en": "Server-to-server API between the Ari backend and the Unyly engine. Your LLM calls tools; every result comes with a card the app renders natively; the user confirms in the app; events arrive by signed webhook. Today it runs in demo mode with fictional data.",
   "where": [
-   "src/web/ari-pages.ts:436"
+   "src/web/ari-pages.ts:472"
   ]
  },
  {
@@ -5779,6 +5798,12 @@
   "en": "Set up in a few steps",
   "where": [
    "src/web/messages.ts:309"
+  ]
+ },
+ {
+  "en": "Settings",
+  "where": [
+   "src/web/ari-pages.ts:63"
   ]
  },
  {
@@ -5901,7 +5926,7 @@
  {
   "en": "Signed server to server",
   "where": [
-   "src/web/ari-pages.ts:85"
+   "src/web/ari-pages.ts:109"
   ]
  },
  {
@@ -5913,13 +5938,13 @@
  {
   "en": "Signed webhooks carry ready-to-show notifications: push, Live Activity state, or \"call the user now\".",
   "where": [
-   "src/web/ari-pages.ts:167"
+   "src/web/ari-pages.ts:192"
   ]
  },
  {
   "en": "Signing",
   "where": [
-   "src/web/ari-pages.ts:439"
+   "src/web/ari-pages.ts:475"
   ]
  },
  {
@@ -5931,7 +5956,7 @@
  {
   "en": "Six controls a platform team can check",
   "where": [
-   "src/web/ari-pages.ts:174"
+   "src/web/ari-pages.ts:199"
   ]
  },
  {
@@ -5987,7 +6012,7 @@
   "en": "Something went wrong. Please try again.",
   "where": [
    "src/partners/webdemo.ts:798",
-   "src/web/ari-pages.ts:211"
+   "src/web/ari-pages.ts:236"
   ]
  },
  {
@@ -6028,6 +6053,12 @@
   ]
  },
  {
+  "en": "Speaker",
+  "where": [
+   "src/web/ari-pages.ts:290"
+  ]
+ },
+ {
   "en": "Spice level",
   "where": [
    "src/providers/demo/catalog.ts:38"
@@ -6048,7 +6079,7 @@
  {
   "en": "Start Login with Grab for this user",
   "where": [
-   "src/web/ari-pages.ts:403"
+   "src/web/ari-pages.ts:439"
   ]
  },
  {
@@ -6228,7 +6259,7 @@
  {
   "en": "Target experience, shown with fictional data. No agreement with Grab exists yet. Grab cards and Face ID confirmation are proposed features and are not in the App Store version of Ari. With today's public Grab APIs Ari could book parcels and quote rides; ride, food and grocery ordering need the access we are asking for.",
   "where": [
-   "src/web/ari-pages.ts:114"
+   "src/web/ari-pages.ts:139"
   ]
  },
  {
@@ -6360,7 +6391,7 @@
  {
   "en": "The \"Under the hood\" panel shows which Grab API a live system would call for the same step.",
   "where": [
-   "src/web/ari-pages.ts:276"
+   "src/web/ari-pages.ts:312"
   ]
  },
  {
@@ -6379,6 +6410,12 @@
   "en": "The amount you saw is missing. Go back to the order confirmation.",
   "where": [
    "src/payments/routes.ts:30"
+  ]
+ },
+ {
+  "en": "The Ari face: two glowing mint dot-matrix eyes on black. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.",
+  "where": [
+   "src/web/layout.ts:74"
   ]
  },
  {
@@ -6408,13 +6445,13 @@
  {
   "en": "The assistant: a new ordering channel for Grab",
   "where": [
-   "src/web/ari-pages.ts:180"
+   "src/web/ari-pages.ts:205"
   ]
  },
  {
   "en": "The cancellation did not go through; the order continues.",
   "where": [
-   "src/partners/webdemo.ts:1063"
+   "src/partners/webdemo.ts:1065"
   ]
  },
  {
@@ -6432,7 +6469,7 @@
  {
   "en": "The confirmation is bound to that exact price. Large orders need Face ID.",
   "where": [
-   "src/web/ari-pages.ts:137"
+   "src/web/ari-pages.ts:162"
   ]
  },
  {
@@ -6486,7 +6523,7 @@
  {
   "en": "The demo is busy right now. Please try again in a minute.",
   "where": [
-   "src/web/ari-pages.ts:223"
+   "src/web/ari-pages.ts:248"
   ]
  },
  {
@@ -6558,13 +6595,13 @@
  {
   "en": "The live demo needs JavaScript.",
   "where": [
-   "src/web/ari-pages.ts:263"
+   "src/web/ari-pages.ts:299"
   ]
  },
  {
   "en": "The main {shown} of {total} signed endpoints. The full list is in the OpenAPI document.",
   "where": [
-   "src/web/ari-pages.ts:444"
+   "src/web/ari-pages.ts:480"
   ]
  },
  {
@@ -6636,7 +6673,7 @@
  {
   "en": "The proposal lists the exact API behind each card and what changes once Grab grants access.",
   "where": [
-   "src/web/ari-pages.ts:149"
+   "src/web/ari-pages.ts:174"
   ]
  },
  {
@@ -6654,13 +6691,13 @@
  {
   "en": "The same engine has an MCP server, so ChatGPT, Claude, Gemini and other assistants can follow one set of safety rules.",
   "where": [
-   "src/web/ari-pages.ts:323"
+   "src/web/ari-pages.ts:359"
   ]
  },
  {
   "en": "The same engine has an MCP server, so ChatGPT, Claude, Gemini and other assistants follow the same confirmation rules.",
   "where": [
-   "src/web/ari-pages.ts:168"
+   "src/web/ari-pages.ts:193"
   ]
  },
  {
@@ -6702,7 +6739,7 @@
  {
   "en": "The user tapped Confirm (Face ID above the threshold)",
   "where": [
-   "src/web/ari-pages.ts:399"
+   "src/web/ari-pages.ts:435"
   ]
  },
  {
@@ -6871,13 +6908,13 @@
  {
   "en": "To order, an Ari user links a Grab account and pays with GrabPay. The customer relationship stays with Grab.",
   "where": [
-   "src/web/ari-pages.ts:90"
+   "src/web/ari-pages.ts:114"
   ]
  },
  {
   "en": "Today",
   "where": [
-   "src/web/ari-pages.ts:336"
+   "src/web/ari-pages.ts:372"
   ]
  },
  {
@@ -6895,7 +6932,7 @@
  {
   "en": "Tokens and secrets",
   "where": [
-   "src/web/ari-pages.ts:329"
+   "src/web/ari-pages.ts:365"
   ]
  },
  {
@@ -6919,7 +6956,7 @@
  {
   "en": "Tool definitions and system instructions for your LLM",
   "where": [
-   "src/web/ari-pages.ts:395"
+   "src/web/ari-pages.ts:431"
   ]
  },
  {
@@ -6971,7 +7008,7 @@
  {
   "en": "Trips run at demo speed: a whole ride takes about two minutes.",
   "where": [
-   "src/web/ari-pages.ts:277"
+   "src/web/ari-pages.ts:313"
   ]
  },
  {
@@ -6983,13 +7020,13 @@
  {
   "en": "Try again",
   "where": [
-   "src/web/ari-pages.ts:225"
+   "src/web/ari-pages.ts:250"
   ]
  },
  {
   "en": "Try it in the browser",
   "where": [
-   "src/web/ari-pages.ts:140"
+   "src/web/ari-pages.ts:165"
   ]
  },
  {
@@ -7001,7 +7038,7 @@
  {
   "en": "Try the interactive demo",
   "where": [
-   "src/web/ari-pages.ts:110"
+   "src/web/ari-pages.ts:135"
   ]
  },
  {
@@ -7025,7 +7062,7 @@
  {
   "en": "Type or tap an example. Every step runs through the Unyly Partner API built for the Ari app: options, a priced card, your confirmation, then live status, pushes and a call from Ari.",
   "where": [
-   "src/web/ari-pages.ts:268"
+   "src/web/ari-pages.ts:304"
   ]
  },
  {
@@ -7043,7 +7080,7 @@
  {
   "en": "Under the hood",
   "where": [
-   "src/web/ari-pages.ts:218"
+   "src/web/ari-pages.ts:243"
   ]
  },
  {
@@ -7097,7 +7134,7 @@
  {
   "en": "Unyly engine",
   "where": [
-   "src/web/ari-pages.ts:161"
+   "src/web/ari-pages.ts:186"
   ]
  },
  {
@@ -7127,13 +7164,13 @@
  {
   "en": "Unyly Partner API",
   "where": [
-   "src/web/ari-pages.ts:435"
+   "src/web/ari-pages.ts:471"
   ]
  },
  {
   "en": "Unyly Partner API: signed server-to-server API between the Ari backend and the Unyly engine, with native cards and user confirmation. Demo mode, fictional data.",
   "where": [
-   "src/web/ari-pages.ts:451"
+   "src/web/ari-pages.ts:487"
   ]
  },
  {
@@ -7268,25 +7305,25 @@
  {
   "en": "Voice",
   "where": [
-   "src/web/ari-pages.ts:249"
+   "src/web/ari-pages.ts:274"
   ]
  },
  {
   "en": "Voice input is simulated in the browser: pick an example.",
   "where": [
-   "src/web/ari-pages.ts:221"
+   "src/web/ari-pages.ts:246"
   ]
  },
  {
   "en": "voice, cards, Face ID, Live Activity, calls",
   "where": [
-   "src/web/ari-pages.ts:157"
+   "src/web/ari-pages.ts:182"
   ]
  },
  {
   "en": "Voice, Siri and the Lock Screen become a way to order Grab, in the moment of need.",
   "where": [
-   "src/web/ari-pages.ts:89"
+   "src/web/ari-pages.ts:113"
   ]
  },
  {
@@ -7370,7 +7407,7 @@
  {
   "en": "Webhook and provider event logs are deleted after 30 days. Orders stay while the account exists. One signed DELETE call erases a user and their data.",
   "where": [
-   "src/web/ari-pages.ts:330"
+   "src/web/ari-pages.ts:366"
   ]
  },
  {
@@ -7382,13 +7419,13 @@
  {
   "en": "Week 10",
   "where": [
-   "src/web/ari-pages.ts:293"
+   "src/web/ari-pages.ts:329"
   ]
  },
  {
   "en": "Weeks 1-3",
   "where": [
-   "src/web/ari-pages.ts:290",
+   "src/web/ari-pages.ts:326",
    "src/web/showcase.ts:287"
   ]
  },
@@ -7401,19 +7438,19 @@
  {
   "en": "Weeks 4-9",
   "where": [
-   "src/web/ari-pages.ts:291"
+   "src/web/ari-pages.ts:327"
   ]
  },
  {
   "en": "What Ari does",
   "where": [
-   "src/web/ari-pages.ts:335"
+   "src/web/ari-pages.ts:371"
   ]
  },
  {
   "en": "What Ari does with each Grab product",
   "where": [
-   "src/web/ari-pages.ts:145"
+   "src/web/ari-pages.ts:170"
   ]
  },
  {
@@ -7425,7 +7462,7 @@
  {
   "en": "What Grab gets",
   "where": [
-   "src/web/ari-pages.ts:366"
+   "src/web/ari-pages.ts:402"
   ]
  },
  {
@@ -7449,7 +7486,7 @@
  {
   "en": "What we ask from Grab, and what we build with it",
   "where": [
-   "src/web/ari-pages.ts:362"
+   "src/web/ari-pages.ts:398"
   ]
  },
  {
@@ -7461,13 +7498,13 @@
  {
   "en": "What we never see",
   "where": [
-   "src/web/ari-pages.ts:328"
+   "src/web/ari-pages.ts:364"
   ]
  },
  {
   "en": "What we store",
   "where": [
-   "src/web/ari-pages.ts:327"
+   "src/web/ari-pages.ts:363"
   ]
  },
  {
@@ -7554,7 +7591,7 @@
  {
   "en": "Why Grab",
   "where": [
-   "src/web/ari-pages.ts:179"
+   "src/web/ari-pages.ts:204"
   ]
  },
  {
@@ -7572,7 +7609,7 @@
  {
   "en": "With Grab",
   "where": [
-   "src/web/ari-pages.ts:336"
+   "src/web/ari-pages.ts:372"
   ]
  },
  {

@@ -1112,7 +1112,6 @@
  "Ari × Grab, home": "Ari × Grab ទំព័រដើម",
  "Language": "ភាសា",
  "DEMO": "DEMO",
- "Ari mark, a white letter A on a violet to pink gradient. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "និមិត្តសញ្ញា Ari៖ អក្សរ A ពណ៌សលើផ្ទៃពណ៌ស្វាយប្តូរទៅផ្កាឈូក។ Ari × Grab៖ និយាយតែម្តង។ Ari បញ្ជា Grab។ សំណើភាពជាដៃគូរបស់ CSA PROJECT - FZCO។ មិនមានទំនាក់ទំនងជាមួយ Grab ទេ។",
  "\"Dinner for two under 600 baht, no nuts\": Ari turns the request into a short checklist (dishes, budget, allergy note) and opens Grab; the user chooses and orders in the Grab app.": "\"អាហារពេលល្ងាចសម្រាប់ពីរនាក់ ក្រោម 600 បាត មិនដាក់សណ្តែកដី\"៖ Ari ប្រែសំណើទៅជាបញ្ជីខ្លី (មុខម្ហូប ថវិកា កំណត់ចំណាំអាឡែរហ្ស៊ី) រួចបើក Grab។ អ្នកប្រើជ្រើសរើស និងបញ្ជាទិញក្នុងកម្មវិធី Grab។",
  "\"Send Mai a lunch voucher for her birthday\": Ari issues a Grab gift and sends the redemption link.": "\"ផ្ញើប័ណ្ណអាហារថ្ងៃត្រង់ជូន Mai សម្រាប់ខួបកំណើត\"៖ Ari ចេញកាដូ Grab ហើយផ្ញើតំណសម្រាប់ប្តូរយក។",
  "\"Taxi to the airport\": fare range, pickup time and surge notice for each ride type Farefeed returns; one tap opens the Grab app with the trip filled in, and the user books there.": "\"តាក់ស៊ីទៅព្រលានយន្តហោះ\"៖ ចន្លោះតម្លៃ ពេលមកទទួល និងការជូនដំណឹងតម្លៃឡើងសម្រាប់ប្រភេទរថយន្តនីមួយៗដែល Farefeed ផ្តល់ឱ្យ។ ចុចម្តង កម្មវិធី Grab បើកឡើងជាមួយដំណើរដែលបំពេញរួច ហើយអ្នកប្រើកក់នៅទីនោះ។",
@@ -1350,5 +1349,12 @@
  "Up to {kg} kg only": "ត្រឹម {kg} គីឡូក្រាមប៉ុណ្ណោះ",
  "Your latest order: {status}.": "ការបញ្ជាទិញចុងក្រោយរបស់អ្នក៖ {status}។",
  "Metered: the final fare may differ from the estimate.": "គិតតាមម៉ែត្រ៖ ថ្លៃចុងក្រោយអាចខុសពីការប៉ាន់ស្មាន។",
- "Airport pickup fee": "ថ្លៃទទួលនៅព្រលានយន្តហោះ"
+ "Airport pickup fee": "ថ្លៃទទួលនៅព្រលានយន្តហោះ",
+ "The Ari face: two glowing mint dot-matrix eyes on black. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "មុខរបស់ Ari៖ ភ្នែកពីរធ្វើពីចំណុចពណ៌បៃតងខ្ចីភ្លឺលើផ្ទៃខ្មៅ។ Ari × Grab៖ និយាយតែម្តង។ Ari បញ្ជា Grab។ សំណើភាពជាដៃគូរបស់ CSA PROJECT - FZCO។ មិនមានទំនាក់ទំនងជាមួយ Grab ទេ។",
+ "Chat": "ជជែក",
+ "Settings": "ការកំណត់",
+ "Speaker": "ឧបករណ៍បំពងសំឡេង",
+ "Mute": "បិទសំឡេង",
+ "Captions": "អក្សររត់",
+ "Listening": "កំពុងស្តាប់"
 }

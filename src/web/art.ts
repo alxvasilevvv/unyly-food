@@ -201,11 +201,73 @@ const DISH_BY_RESTAURANT: Record<string, (l?: string) => SafeHtml> = {
 };
 export const restaurantArt = (id: string | null | undefined, label: string) => (DISH_BY_RESTAURANT[id ?? ''] ?? greenCurry)(label);
 
-// ---------- Brand ----------
-export const logoMark = () =>
-  raw(`<svg class="logo-mark" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="40" height="40" rx="12" fill="#0a8a53"/><path d="M8.5 19.5h23a11.5 11.5 0 0 1-23 0z" fill="#fff"/><path d="M12 25.5c3 2.6 13 2.6 16 0" stroke="#0a8a53" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".35"/><path d="M23.5 6.5h8a3 3 0 0 1 3 3v3.5a3 3 0 0 1-3 3h-3.2l-3.3 2.6v-2.7a3 3 0 0 1-1.5-2.6V9.5a3 3 0 0 1 3-3z" fill="#c9f26b"/><circle cx="26" cy="11.2" r="1" fill="#0a8a53"/><circle cx="29" cy="11.2" r="1" fill="#0a8a53"/><circle cx="32" cy="11.2" r="1" fill="#0a8a53"/></svg>`);
-export const FAVICON =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%230a8a53'/%3E%3Cpath d='M8.5 19.5h23a11.5 11.5 0 0 1-23 0z' fill='white'/%3E%3Cpath d='M23.5 6.5h8a3 3 0 0 1 3 3v3.5a3 3 0 0 1-3 3h-3.2l-3.3 2.6v-2.7a3 3 0 0 1-1.5-2.6V9.5a3 3 0 0 1 3-3z' fill='%23c9f26b'/%3E%3C/svg%3E";
+// ---------- Brand: the Ari face ----------
+// Two "eyes", each a rounded square drawn as a 7x7 dot matrix: bright mint in the middle,
+// dimmer toward the outer columns and corners, with a soft green glow. Original artwork drawn in code.
+const hex2 = (n: number) => Math.round(n).toString(16).padStart(2, '0');
+const mixHex = (a: [number, number, number], b: [number, number, number], t: number) => `#${a.map((v, i) => hex2(v + (b[i]! - v) * t)).join('')}`;
+const EYE_CORE: [number, number, number] = [0xe6, 0xfd, 0xef];
+const EYE_EDGE: [number, number, number] = [0x4f, 0xdc, 0x8f];
+function eyeDots(ox: number, pitch = 10, r = 3.9) {
+  let out = '';
+  for (let j = -3; j <= 3; j++) {
+    for (let i = -3; i <= 3; i++) {
+      // Squircle distance: 0 in the centre, 1 on the middle of an edge, about 1.26 in a corner.
+      const d = Math.cbrt((Math.abs(i) / 3) ** 3 + (Math.abs(j) / 3) ** 3);
+      const op = Math.max(0.16, 1 - 0.3 * d * d - (d > 1 ? (d - 1) * 2 : 0));
+      out += `<circle cx="${ox + (i + 3) * pitch + pitch / 2}" cy="${(j + 3) * pitch + pitch / 2}" r="${r}" fill="${mixHex(EYE_CORE, EYE_EDGE, Math.min(1, d))}" opacity="${op.toFixed(2)}"/>`;
+    }
+  }
+  return out;
+}
+/** Inner markup of the eyes on a 154 x 70 canvas (two 70 px eyes, 14 px apart). */
+const eyesInner = (id: string, blur = 5) =>
+  `<defs><filter id="${id}" x="-40%" y="-60%" width="180%" height="220%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="${blur}" result="b"/><feColorMatrix in="b" type="matrix" values="0 0 0 0 0.2  0 0 0 0 0.82  0 0 0 0 0.48  0 0 0 0.75 0" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g filter="url(#${id})"><g class="eye">${eyeDots(0)}</g><g class="eye">${eyeDots(84)}</g></g>`;
+/** The big dot-matrix eyes. `id` keeps the glow filter unique on a page (pass a different one per use). */
+export const ariEyes = (id: string, cls = '') =>
+  raw(`<svg class="ari-eyes-svg${cls ? ` ${cls}` : ''}" viewBox="-24 -24 202 118" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">${eyesInner(`eg-${id}`)}</svg>`);
+/** Small mark for the header, chat header and small icons: two solid mint rounded squares side by side. */
+export const ariMark = (cls = '') =>
+  raw(`<svg class="ari-mark${cls ? ` ${cls}` : ''}" viewBox="0 0 34 15" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><rect width="15" height="15" rx="4.2" fill="#b9f5d0"/><rect x="19" width="15" height="15" rx="4.2" fill="#b9f5d0"/></svg>`);
+/** App icon as a standalone SVG: black rounded square with the eyes. Small sizes use the two solid squares. */
+export function ariIconSvg(size: number, opts: { solid?: boolean; square?: boolean } = {}) {
+  const rx = opts.square ? 0 : 23;
+  const face = opts.solid
+    ? `<rect x="19" y="35" width="27" height="30" rx="7.5" fill="#b9f5d0"/><rect x="54" y="35" width="27" height="30" rx="7.5" fill="#b9f5d0"/>`
+    : `<g transform="translate(17.5 35.2) scale(.4221)">${eyeDots(0)}${eyeDots(84)}</g>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100"><defs><radialGradient id="ig" cx="50%" cy="46%" r="62%"><stop offset="0" stop-color="#103322"/><stop offset=".6" stop-color="#07110b"/><stop offset="1" stop-color="#030504"/></radialGradient></defs><rect width="100" height="100" rx="${rx}" fill="url(#ig)"/>${face}</svg>`;
+}
+
+// ---------- Dot-matrix digits (the LED style of times and timers in the Ari app) ----------
+const DM_FONT: Record<string, string[]> = {
+  '0': ['01110', '10001', '10001', '10001', '10001', '10001', '01110'],
+  '1': ['00100', '01100', '00100', '00100', '00100', '00100', '01110'],
+  '2': ['01110', '10001', '00001', '00010', '00100', '01000', '11111'],
+  '3': ['01110', '10001', '00001', '00110', '00001', '10001', '01110'],
+  '4': ['00010', '00110', '01010', '10010', '11111', '00010', '00010'],
+  '5': ['11111', '10000', '11110', '00001', '00001', '10001', '01110'],
+  '6': ['00110', '01000', '10000', '11110', '10001', '10001', '01110'],
+  '7': ['11111', '00001', '00010', '00100', '01000', '01000', '01000'],
+  '8': ['01110', '10001', '10001', '01110', '10001', '10001', '01110'],
+  '9': ['01110', '10001', '10001', '01111', '00001', '00010', '01100'],
+  ':': ['0', '0', '1', '0', '1', '0', '0'],
+  '-': ['000', '000', '000', '111', '000', '000', '000'],
+  '~': ['00000', '00000', '01000', '10101', '00010', '00000', '00000'],
+  ' ': ['00', '00', '00', '00', '00', '00', '00'],
+};
+/** Text drawn as LED dots. The real text stays in the DOM for screen readers and copy; the dots are decoration. */
+export function dotText(text: string, cls = '') {
+  let x = 0;
+  let dots = '';
+  for (const ch of text) {
+    const g = DM_FONT[ch];
+    if (!g) continue;
+    g.forEach((row, y) => { for (let c = 0; c < row.length; c++) if (row[c] === '1') dots += `<circle cx="${(x + c) * 2 + 1}" cy="${y * 2 + 1}" r=".8"/>`; });
+    x += g[0]!.length + 1;
+  }
+  const w = Math.max(2, (x - 1) * 2);
+  return raw(`<span class="dm${cls ? ` ${cls}` : ''}"><span class="sr-only">${esc(text)}</span><svg viewBox="0 0 ${w} 14" width="${w}" height="14" fill="currentColor" aria-hidden="true" focusable="false">${dots}</svg></span>`);
+}
 
 // ---------- Scenes ----------
 export function scooter(label = 'Rider on the way') {
@@ -278,6 +340,13 @@ const ICONS: Record<string, string> = {
   basket: '<path d="M3 10h18l-2 10H5z"/><path d="M8 10l3-6M16 10l-3-6M9 14v3M12 14v3M15 14v3"/>',
   bowl: '<path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M8 20h8M9 7c0-2 2-2 2-4M13 7c0-2 2-2 2-4"/>',
   send: '<path d="M4 12l16-8-6 16-3-7z"/><path d="M11 13l9-9"/>',
+  up: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+  home: '<path d="M4 11l8-7 8 7v8a1.5 1.5 0 0 1-1.5 1.5H14v-6h-4v6H5.5A1.5 1.5 0 0 1 4 19z"/>',
+  bubble: '<path d="M12 4c4.7 0 8.5 3.1 8.5 7s-3.8 7-8.5 7c-1 0-2-.1-2.9-.4L4.5 19.5l1.2-3.7C4.3 14.5 3.5 12.8 3.5 11c0-3.9 3.8-7 8.5-7z"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.500V21M3 12h2.500M18.5 12H21M5.6 5.600l1.8 1.800M16.6 16.600l1.8 1.800M5.6 18.400l1.8-1.800M16.6 7.400l1.8-1.8"/>',
+  speaker: '<path d="M4 9.500h3.500L12 5.500v13l-4.5-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.500a8 8 0 0 1 0 11"/>',
+  micoff: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16"/>',
+  captions: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 11h4M13.5 11H17M7 15h7"/>',
 };
 export const icon = (name: keyof typeof ICONS | string, cls = '') =>
   raw(`<svg class="i ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] ?? ICONS.check}</svg>`);
@@ -286,19 +355,19 @@ export const icon = (name: keyof typeof ICONS | string, cls = '') =>
 export function flowDiagram(t: { you: string; assistant: string; assistantSub: string; unyly: string; unylySub: string; grab: string; grabSub: string; confirm: string; confirmSub: string; tap: string; mcp: string; api: string }) {
   const box = (x: number, y: number, w: number, title: string, sub: string, fill: string, ink: string, subInk: string) =>
     `<rect x="${x}" y="${y}" width="${w}" height="74" rx="18" fill="${fill}"/><text x="${x + w / 2}" y="${y + 32}" text-anchor="middle" font-size="17" font-weight="800" fill="${ink}">${esc(title)}</text><text x="${x + w / 2}" y="${y + 54}" text-anchor="middle" font-size="12.5" fill="${subInk}">${esc(sub)}</text>`;
-  return raw(`<svg viewBox="0 0 900 290" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(t.you)} → ${esc(t.assistant)} → ${esc(t.unyly)} → ${esc(t.grab)}" font-family="Manrope, Inter, 'Noto Sans Thai', sans-serif">
-<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0l10 5-10 5z" fill="#0a8a53"/></marker></defs>
-${box(10, 30, 150, t.you, '', '#0f1f18', '#ffffff', '#b6c8be')}
-${box(220, 30, 190, t.assistant, t.assistantSub, '#ffffff', '#0f1f18', '#5c6b64')}
-${box(470, 30, 190, t.unyly, t.unylySub, '#0a8a53', '#ffffff', '#d9f3e5')}
-${box(720, 30, 170, t.grab, t.grabSub, '#ffffff', '#0f1f18', '#5c6b64')}
-<rect x="220.5" y="30.5" width="189" height="73" rx="18" fill="none" stroke="#e2ded2"/><rect x="720.5" y="30.5" width="169" height="73" rx="18" fill="none" stroke="#0a8a53" stroke-dasharray="6 5"/>
-${[162, 412, 662].map((x) => `<path d="M${x} 67h50" stroke="#0a8a53" stroke-width="2.5" marker-end="url(#ah)"/>`).join('')}
-<text x="437" y="58" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0a8a53">${esc(t.mcp)}</text>
-<text x="688" y="58" text-anchor="middle" font-size="11.5" font-weight="700" fill="#0a8a53">${esc(t.api)}</text>
-${box(470, 190, 190, t.confirm, t.confirmSub, '#c9f26b', '#0f1f18', '#2c4a3b')}
-<path d="M565 106v78" stroke="#0a8a53" stroke-width="2.5" marker-end="url(#ah)"/>
-<path d="M466 227H85V110" stroke="#0f1f18" stroke-width="2.5" stroke-dasharray="7 6" fill="none" marker-end="url(#ah)"/>
-<rect x="190" y="212" width="170" height="30" rx="15" fill="#0f1f18"/><text x="275" y="232" text-anchor="middle" font-size="13" font-weight="800" fill="#c9f26b">${esc(t.tap)}</text>
+  return raw(`<svg viewBox="0 0 900 290" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(t.you)} → ${esc(t.assistant)} → ${esc(t.unyly)} → ${esc(t.grab)}" font-family="-apple-system, Inter, 'Noto Sans Thai', sans-serif">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0l10 5-10 5z" fill="#34d17a"/></marker></defs>
+${box(10, 30, 150, t.you, '', '#262a27', '#ffffff', '#8b918d')}
+${box(220, 30, 190, t.assistant, t.assistantSub, '#1b1e1c', '#ffffff', '#8b918d')}
+${box(470, 30, 190, t.unyly, t.unylySub, '#1e4a33', '#e9fff2', '#b9f5d0')}
+${box(720, 30, 170, t.grab, t.grabSub, '#1b1e1c', '#ffffff', '#8b918d')}
+<rect x="220.5" y="30.5" width="189" height="73" rx="18" fill="none" stroke="#343936"/><rect x="720.5" y="30.5" width="169" height="73" rx="18" fill="none" stroke="#34d17a" stroke-dasharray="6 5"/>
+${[162, 412, 662].map((x) => `<path d="M${x} 67h50" stroke="#34d17a" stroke-width="2.5" marker-end="url(#ah)"/>`).join('')}
+<text x="437" y="58" text-anchor="middle" font-size="11.5" font-weight="700" fill="#34d17a">${esc(t.mcp)}</text>
+<text x="688" y="58" text-anchor="middle" font-size="11.5" font-weight="700" fill="#34d17a">${esc(t.api)}</text>
+${box(470, 190, 190, t.confirm, t.confirmSub, '#d9fbe6', '#04130b', '#1e4a33')}
+<path d="M565 106v78" stroke="#34d17a" stroke-width="2.5" marker-end="url(#ah)"/>
+<path d="M466 227H85V110" stroke="#8b918d" stroke-width="2.5" stroke-dasharray="7 6" fill="none" marker-end="url(#ah)"/>
+<rect x="190" y="212" width="170" height="30" rx="15" fill="#262a27"/><text x="275" y="232" text-anchor="middle" font-size="13" font-weight="800" fill="#b9f5d0">${esc(t.tap)}</text>
 </svg>`);
 }

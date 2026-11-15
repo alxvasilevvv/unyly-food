@@ -1,4 +1,4 @@
-import { icon } from './art.js';
+import { ariMark, icon } from './art.js';
 import { CONTACT, instagramUrl, whatsappUrl } from './contacts.js';
 import { LOCALE_CODES, LOCALE_NATIVE } from '../domain/locales.js';
 import { ASSET_VERSION } from './assets.js';
@@ -71,9 +71,9 @@ export function page(o: PageOpts): string {
     th: 'Ari × Grab: ข้อเสนอความร่วมมือจาก CSA PROJECT - FZCO เพื่อนำ Grab เข้าสู่ผู้ช่วย Ari เดโมใช้ข้อมูลสมมติ',
   });
   const ogAlt = tr(l, {
-    en: 'Ari mark, a white letter A on a violet to pink gradient. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.',
-    ru: 'Знак Ari: белая буква A на градиенте от фиолетового к розовому. Ari × Grab: скажите один раз, и Ari закажет Grab. Предложение о партнёрстве от CSA PROJECT - FZCO. Проект не связан с Grab.',
-    th: 'สัญลักษณ์ Ari ตัวอักษร A สีขาวบนพื้นไล่สีจากม่วงไปชมพู Ari × Grab: พูดครั้งเดียว Ari สั่ง Grab ให้ ข้อเสนอความร่วมมือจาก CSA PROJECT - FZCO ไม่มีส่วนเกี่ยวข้องกับ Grab',
+    en: 'The Ari face: two glowing mint dot-matrix eyes on black. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.',
+    ru: 'Лицо Ari: два светящихся мятных глаза из точек на чёрном фоне. Ari × Grab: скажите один раз, и Ari закажет Grab. Предложение о партнёрстве от CSA PROJECT - FZCO. Проект не связан с Grab.',
+    th: 'ใบหน้าของ Ari ดวงตาสองข้างเป็นจุดเรืองแสงสีเขียวมินต์บนพื้นดำ Ari × Grab: พูดครั้งเดียว Ari สั่ง Grab ให้ ข้อเสนอความร่วมมือจาก CSA PROJECT - FZCO ไม่มีส่วนเกี่ยวข้องกับ Grab',
   });
   const navLinks: [string, string][] = [
     ['/#how', m.navHow],
@@ -90,7 +90,8 @@ export function page(o: PageOpts): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${o.title} · Ari × Grab</title>
 <meta name="description" content="${desc}">
-<meta name="theme-color" content="#6b4ef6">
+<meta name="theme-color" content="#050806">
+<meta name="color-scheme" content="dark">
 <meta property="og:title" content="${o.title} · Ari × Grab">
 <meta property="og:description" content="${desc}">
 ${noindex ? html`<meta name="robots" content="noindex">` : ''}
@@ -108,7 +109,6 @@ ${path ? html`<meta property="og:url" content="${abs(`${path}?lang=${l}`)}">` : 
 <meta name="twitter:title" content="${o.title} · Ari × Grab">
 <meta name="twitter:description" content="${desc}">
 <meta name="twitter:image" content="${abs(OG_IMAGE_PATH)}">
-<link rel="preload" href="/static/fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 ${LOCALE_FONT[l] ? html`<link rel="preload" href="/static/fonts/${LOCALE_FONT[l]}" as="font" type="font/woff2" crossorigin>` : ''}
 <link rel="stylesheet" href="/static/app.css?v=${ASSET_VERSION}">
@@ -130,7 +130,7 @@ ${(o.scripts ?? []).map((x) => html`<script src="/static/${x}?v=${ASSET_VERSION}
   })} <a href="/for-grab#disclaimer">${tr(l, { ru: 'Подробнее', en: 'Details', th: 'รายละเอียด' })}</a></span>
 </div></aside>
 <header class="site"><div class="wrap">
-  <a class="logo" href="/" aria-label="${tr(l, { ru: 'Ari × Grab, на главную', en: 'Ari × Grab, home', th: 'Ari × Grab หน้าแรก' })}"><span class="ari-mark" aria-hidden="true">A</span><span class="logo-text"><span class="logo-word">Ari <span class="x">×</span> Grab</span><span class="logo-sub">${tr(l, { ru: 'на движке Unyly', en: 'powered by Unyly', th: 'ขับเคลื่อนโดย Unyly' })}</span></span></a>
+  <a class="logo" href="/" aria-label="${tr(l, { ru: 'Ari × Grab, на главную', en: 'Ari × Grab, home', th: 'Ari × Grab หน้าแรก' })}">${ariMark()}<span class="logo-text"><span class="logo-word">Ari <span class="x">×</span> Grab</span><span class="logo-sub">${tr(l, { ru: 'на движке Unyly', en: 'powered by Unyly', th: 'ขับเคลื่อนโดย Unyly' })}</span></span></a>
   <nav class="main" aria-label="${tr(l, { ru: 'Основная навигация', en: 'Main', th: 'เมนูหลัก' })}">
     ${navLinks.map(([href, label]) => html`<a href="${href}" class="hide-md" ${cur(href)}>${label}</a>`)}
     ${o.loggedIn && !o.guest ? html`<a href="/app" class="hide-sm" ${cur('/app')}>${m.navApp}</a>` : ''}
@@ -156,7 +156,7 @@ ${!o.noBanner && o.mode === 'handoff' ? html`<div class="banner handoff" role="s
 <footer class="site"><div class="wrap">
   <div class="cols">
     <div class="foot-brand">
-      <a class="logo" href="/"><span class="ari-mark" aria-hidden="true">A</span><span class="logo-text"><span class="logo-word">Ari <span class="x">×</span> Grab</span><span class="logo-sub">${tr(l, { ru: 'на движке Unyly', en: 'powered by Unyly', th: 'ขับเคลื่อนโดย Unyly' })}</span></span></a>
+      <a class="logo" href="/">${ariMark()}<span class="logo-text"><span class="logo-word">Ari <span class="x">×</span> Grab</span><span class="logo-sub">${tr(l, { ru: 'на движке Unyly', en: 'powered by Unyly', th: 'ขับเคลื่อนโดย Unyly' })}</span></span></a>
       <p>${m.footerDisclaimer}</p>
     </div>
     <div class="foot-col"><p class="foot-h">${tr(l, { ru: 'Продукт', en: 'Product', th: 'ผลิตภัณฑ์' })}</p>

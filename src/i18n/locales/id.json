@@ -1112,7 +1112,6 @@
  "Ari × Grab, home": "Ari × Grab, beranda",
  "Language": "Bahasa",
  "DEMO": "DEMO",
- "Ari mark, a white letter A on a violet to pink gradient. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "Logo Ari: huruf A putih di atas gradasi ungu ke merah muda. Ari × Grab: Cukup ucapkan sekali. Ari memesan Grab. Proposal kemitraan dari CSA PROJECT - FZCO. Tidak berafiliasi dengan Grab.",
  "\"Dinner for two under 600 baht, no nuts\": Ari turns the request into a short checklist (dishes, budget, allergy note) and opens Grab; the user chooses and orders in the Grab app.": "\"Makan malam untuk dua orang di bawah 600 baht, tanpa kacang\": Ari mengubah permintaan menjadi daftar singkat (hidangan, anggaran, catatan alergi) lalu membuka Grab; pengguna memilih dan memesan di aplikasi Grab.",
  "\"Send Mai a lunch voucher for her birthday\": Ari issues a Grab gift and sends the redemption link.": "\"Kirim voucher makan siang untuk ulang tahun Mai\": Ari menerbitkan hadiah Grab dan mengirim tautan penukarannya.",
  "\"Taxi to the airport\": fare range, pickup time and surge notice for each ride type Farefeed returns; one tap opens the Grab app with the trip filled in, and the user books there.": "\"Taksi ke bandara\": kisaran tarif, waktu jemput, dan pemberitahuan tarif ramai untuk tiap jenis kendaraan yang dikembalikan Farefeed; satu ketukan membuka aplikasi Grab dengan perjalanan yang sudah terisi, dan pengguna memesan di sana.",
@@ -1350,5 +1349,12 @@
  "Up to {kg} kg only": "Maksimal {kg} kg saja",
  "Your latest order: {status}.": "Pesanan terakhirmu: {status}.",
  "Metered: the final fare may differ from the estimate.": "Pakai argo: tarif akhir bisa berbeda dari perkiraan.",
- "Airport pickup fee": "Biaya jemput bandara"
+ "Airport pickup fee": "Biaya jemput bandara",
+ "The Ari face: two glowing mint dot-matrix eyes on black. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "Wajah Ari: dua mata matriks titik hijau mint yang bercahaya di atas latar hitam. Ari × Grab: Cukup ucapkan sekali. Ari memesan Grab. Proposal kemitraan dari CSA PROJECT - FZCO. Tidak berafiliasi dengan Grab.",
+ "Chat": "Obrolan",
+ "Settings": "Pengaturan",
+ "Speaker": "Speaker",
+ "Mute": "Bisukan",
+ "Captions": "Teks",
+ "Listening": "Mendengarkan"
 }

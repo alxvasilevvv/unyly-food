@@ -70,6 +70,8 @@
       arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>', faceid: '<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2M9 9v1M15 9v1M12 9v4h-1M9 15.5a4 4 0 0 0 6 0"/>',
       car: '<path d="M5 16V11l2-5h10l2 5v5M5 16h14M7 19v-3M17 19v-3M7.5 13h.01M16.5 13h.01"/>', bike: '<circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M6 17l4-7h5l3 7M10 10l-1-3H7"/>',
       x: '<path d="M6 6l12 12M18 6 6 18"/>', check: '<path d="M5 12l5 5 9-10"/>',
+      box: '<path d="M3 7.5L12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5l9 4.5 9-4.5M12 12v9"/>', bowl: '<path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M8 20h8M9 7c0-2 2-2 2-4M13 7c0-2 2-2 2-4"/>',
+      basket: '<path d="M3 10h18l-2 10H5z"/><path d="M8 10l3-6M16 10l-3-6M9 14v3M12 14v3M15 14v3"/>', gift: '<rect x="3" y="8" width="18" height="5" rx="1"/><path d="M5 13v8h14v-8M12 8v13M12 8S10 3 7.5 4.5 9 8 12 8Zm0 0s2-5 4.5-3.5S15 8 12 8Z"/>',
     };
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     s.setAttribute('viewBox', '0 0 24 24');
@@ -81,6 +83,47 @@
     s.setAttribute('aria-hidden', 'true');
     s.innerHTML = P[name] || P.check;
     return s;
+  };
+  // Times and timers are drawn as LED dots, like in the Ari app. The text itself stays in the page
+  // for screen readers; the dots are decoration.
+  const DM = {
+    0: ['01110', '10001', '10001', '10001', '10001', '10001', '01110'], 1: ['00100', '01100', '00100', '00100', '00100', '00100', '01110'],
+    2: ['01110', '10001', '00001', '00010', '00100', '01000', '11111'], 3: ['01110', '10001', '00001', '00110', '00001', '10001', '01110'],
+    4: ['00010', '00110', '01010', '10010', '11111', '00010', '00010'], 5: ['11111', '10000', '11110', '00001', '00001', '10001', '01110'],
+    6: ['00110', '01000', '10000', '11110', '10001', '10001', '01110'], 7: ['11111', '00001', '00010', '00100', '01000', '01000', '01000'],
+    8: ['01110', '10001', '10001', '01110', '10001', '10001', '01110'], 9: ['01110', '10001', '10001', '01111', '00001', '00010', '01100'],
+    ':': ['0', '0', '1', '0', '1', '0', '0'], '-': ['000', '000', '000', '111', '000', '000', '000'],
+    '~': ['00000', '00000', '01000', '10101', '00010', '00000', '00000'], ' ': ['00', '00', '00', '00', '00', '00', '00'],
+  };
+  const NS = 'http://www.w3.org/2000/svg';
+  const dm = (text) => {
+    const w = el('span', 'dm');
+    w.appendChild(el('span', 'sr-only', text));
+    const s = document.createElementNS(NS, 'svg');
+    let x = 0;
+    for (const ch of String(text)) {
+      const g = DM[ch];
+      if (!g) continue;
+      g.forEach((row, y) => {
+        for (let c = 0; c < row.length; c++) {
+          if (row[c] !== '1') continue;
+          const dot = document.createElementNS(NS, 'circle');
+          dot.setAttribute('cx', String((x + c) * 2 + 1));
+          dot.setAttribute('cy', String(y * 2 + 1));
+          dot.setAttribute('r', '.8');
+          s.appendChild(dot);
+        }
+      });
+      x += g[0].length + 1;
+    }
+    const width = Math.max(2, (x - 1) * 2);
+    s.setAttribute('viewBox', `0 0 ${width} 14`);
+    s.setAttribute('width', String(width));
+    s.setAttribute('height', '14');
+    s.setAttribute('fill', 'currentColor');
+    s.setAttribute('aria-hidden', 'true');
+    w.appendChild(s);
+    return w;
   };
   // Distance with the unit as this language writes it ("32.5 km", "32,5 км", "32.5 กม.").
   const km = (n) => {
@@ -180,6 +223,26 @@
     scroll();
     return m;
   };
+  // Centred date stamp at the top of a chat, as in the app: "Today, 09:31" in the page language.
+  const stamp = () => {
+    let day = '';
+    let time = '';
+    const d = new Date();
+    try {
+      // Only when the browser knows this language: otherwise the stamp is the time alone.
+      const rtf = new Intl.RelativeTimeFormat(lang, { numeric: 'auto' });
+      if (rtf.resolvedOptions().locale.split('-')[0] === lang) {
+        day = rtf.format(0, 'day');
+        day = day.charAt(0).toLocaleUpperCase(lang) + day.slice(1);
+      }
+    } catch (e) { /* older browsers: time only */ }
+    try {
+      time = d.toLocaleTimeString(lang, { hour: '2-digit', minute: '2-digit', hour12: false, numberingSystem: 'latn' });
+    } catch (e) {
+      time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+    chat.appendChild(el('div', 'ari-stamp', day ? `${day}, ${time}` : time));
+  };
   const typing = () => {
     const t = el('div', 'ari-typing');
     t.setAttribute('aria-label', S.typing);
@@ -244,9 +307,18 @@
     if (card.route.distance_km) r.appendChild(el('small', '', km(card.route.distance_km)));
     return r;
   };
+  // Small gray label row on top of every card (icon and source), as on the app's result cards.
+  const SERVICE_ICON = { ride: 'car', transport: 'car', express: 'box', parcel: 'box', food: 'bowl', groceries: 'basket', mart: 'basket', flowers: 'gift', cakes: 'gift', pharmacy: 'basket' };
+  const cardLabel = (card) => {
+    const row = el('div', 'ac-label');
+    row.append(svg(SERVICE_ICON[card.service] || 'check'), el('span', '', 'Grab'));
+    if (card.demo && S.demoBadge && !(card.badges && card.badges.length)) row.append(el('em', '', S.demoBadge));
+    return row;
+  };
   function renderCard(card, opts = {}) {
     const c = el('div', 'ari-card');
     c.dataset.type = card.type;
+    if (card.type !== 'order') c.append(cardLabel(card));
     if (card.type === 'options') {
       c.append(el('h4', '', card.title));
       if (card.subtitle) c.append(el('div', 'sub', card.subtitle));
@@ -359,7 +431,7 @@
     const hadFocus = c.contains(document.activeElement);
     c.textContent = '';
     c.className = `ari-card${card.status && card.status.is_final ? ' final' : ''}${card.status && /cancel|fail/.test(card.status.code) ? ' cancelled' : ''}`;
-    c.append(el('h4', '', card.title));
+    c.append(cardLabel(card), el('h4', '', card.title));
     if (card.subtitle) c.append(el('div', 'sub', card.subtitle));
     const st = card.status;
     if (st) {
@@ -373,7 +445,11 @@
       }
       head.append(title);
       const eta = st.eta_at && !st.is_final ? Math.max(1, Math.round((new Date(st.eta_at) - Date.now()) / 60000)) : null;
-      if (eta) head.append(el('small', '', `${S.eta} ~${eta} ${S.min || 'min'}`));
+      if (eta) {
+        const when = el('small');
+        when.append(el('span', 'eta-l', S.eta), dm(String(eta)), document.createTextNode(` ${S.min || 'min'}`));
+        head.append(when);
+      }
       c.append(head);
       const bar = el('div', 'ac-steps');
       const idx = st.steps.findIndex((x) => x.code === st.code);
@@ -619,7 +695,10 @@
     $('la-title').textContent = st.label;
     const eta = st.eta_at && !st.is_final ? Math.max(1, Math.round((new Date(st.eta_at) - Date.now()) / 60000)) : null;
     const ended = /cancel|fail/.test(st.code);
-    $('la-eta').textContent = eta ? `${eta} ${S.min || 'min'}` : st.is_final && !ended ? '✓' : '';
+    const laEta = $('la-eta');
+    laEta.textContent = '';
+    if (eta) laEta.append(dm(String(eta)), document.createTextNode(` ${S.min || 'min'}`));
+    else if (st.is_final && !ended) laEta.textContent = '✓';
     island.classList.toggle('ended', ended);
     island.classList.toggle('done', !!st.is_final && !ended);
     island.classList.add('live');
@@ -650,7 +729,8 @@
       .replace('{vehicle}', courier ? courier.vehicle : '')
       .replace('{plate}', courier ? courier.plate : '');
     $('call-line').textContent = '';
-    $('call-state').textContent = S.calling;
+    // Incoming: the reason for the call sits under the name.
+    $('call-state').textContent = notify.title || S.calling;
     call.className = 'ari-call';
     call.hidden = false;
     const before = document.activeElement;
@@ -681,9 +761,13 @@
       $('call-no').focus({ preventScroll: true });
       // Call timer counts up while the call is connected.
       const t0 = Date.now();
+      let shown = '';
       const show = () => {
         const s = Math.floor((Date.now() - t0) / 1000);
-        $('call-state').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+        const now = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+        if (now === shown) return;
+        shown = now;
+        $('call-state').replaceChildren(dm(now));
       };
       show();
       timer = setInterval(show, 500);
@@ -906,6 +990,7 @@
       if (g !== gen) { t.remove(); return; }
       lastEvent = r.last_event || 0;
       t.remove();
+      stamp();
       say('ari', r.greeting);
       setChips(r.examples || EX);
       if (r.grab && r.grab.linked) {

@@ -1112,7 +1112,6 @@
  "Ari × Grab, home": "Ari × Grab，首页",
  "Language": "语言",
  "DEMO": "演示",
- "Ari mark, a white letter A on a violet to pink gradient. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "Ari 标志：紫色到粉色渐变上的白色字母 A。Ari × Grab：只需说一次。Ari 帮你下单 Grab。CSA PROJECT - FZCO 提出的合作提案。与 Grab 无隶属关系。",
  "\"Dinner for two under 600 baht, no nuts\": Ari turns the request into a short checklist (dishes, budget, allergy note) and opens Grab; the user chooses and orders in the Grab app.": "“两人晚餐，600 泰铢以内，不要坚果”：Ari 把请求整理成一份简短清单（菜品、预算、过敏提示）并打开 Grab；用户在 Grab 应用内选择并下单。",
  "\"Send Mai a lunch voucher for her birthday\": Ari issues a Grab gift and sends the redemption link.": "“给 Mai 送一张生日午餐券”：Ari 发出一份 Grab 礼品，并发送兑换链接。",
  "\"Taxi to the airport\": fare range, pickup time and surge notice for each ride type Farefeed returns; one tap opens the Grab app with the trip filled in, and the user books there.": "“打车去机场”：显示 Farefeed 返回的每种车型的车费区间、上车时间和加价提示；轻点一下即可打开已填好行程的 Grab 应用，由用户在那里叫车。",
@@ -1350,5 +1349,12 @@
  "Up to {kg} kg only": "最多 {kg} 公斤",
  "Your latest order: {status}.": "你最近的订单：{status}。",
  "Metered: the final fare may differ from the estimate.": "打表计费：最终车费可能与预估不同。",
- "Airport pickup fee": "机场接客费"
+ "Airport pickup fee": "机场接客费",
+ "The Ari face: two glowing mint dot-matrix eyes on black. Ari × Grab: Say it once. Ari orders Grab. Partnership proposal by CSA PROJECT - FZCO. Not affiliated with Grab.": "Ari 的面孔：黑色背景上两只发光的薄荷绿点阵眼睛。Ari × Grab：只需说一次。Ari 帮你下单 Grab。CSA PROJECT - FZCO 提出的合作提案。与 Grab 无隶属关系。",
+ "Chat": "聊天",
+ "Settings": "设置",
+ "Speaker": "扬声器",
+ "Mute": "静音",
+ "Captions": "字幕",
+ "Listening": "正在聆听"
 }
