@@ -33,11 +33,32 @@ function collectGarbage() {
 
 const rssMb = () => Math.round(process.memoryUsage().rss / (1024 * 1024));
 
+/** The memory limit of the container in MB, or null when there is none (or the platform does not report one). */
+export function memoryLimitMb(): number | null {
+  try {
+    const n = Number((process as any).constrainedMemory?.() ?? 0);
+    // No limit is reported as 0 or as a number close to 2^63.
+    return n > 0 && n < 2 ** 50 ? Math.round(n / (1024 * 1024)) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** What the embedded database needs on top of the running process while it starts (measured peak: about 250 MB from the build snapshot, 600 MB without). */
+const MEMORY_DB_HEADROOM_MB = 650;
+
 /**
  * The context of the web demo on an embedded database, or null when it cannot be used (PGlite fails to start,
  * or the process is above DEMO_DB_MAX_RSS_MB afterwards). Null means: use the shared database; never throws.
  */
 export async function createMemoryDemoCtx(cfg: Config, clock: Clock, log: (m: string) => void = (m) => console.log(m)): Promise<DemoCtxHandle | null> {
+  // A container with too little memory would be killed by the host while the database starts, before the
+  // check further down could run. Decide from the container limit first.
+  const limit = memoryLimitMb();
+  if (limit !== null && limit - rssMb() < MEMORY_DB_HEADROOM_MB) {
+    log(`[demo-db] embedded database not started: the container has ${limit} MB, ${rssMb()} MB in use, and the database needs ${MEMORY_DB_HEADROOM_MB} MB of headroom; the web demo uses the shared database`);
+    return null;
+  }
   let db;
   try {
     const t0 = Date.now();

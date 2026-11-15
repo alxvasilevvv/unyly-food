@@ -1,3 +1,4 @@
+import { memoryLimitMb } from './demo-ctx.js';
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
 import compress from '@fastify/compress';
@@ -246,7 +247,11 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     const db = await ctx.db.ping();
     const mig = db ? (await ctx.db.query('SELECT count(*)::int n FROM schema_migrations').catch(() => ({ rows: [{ n: 0 }] }))).rows[0].n : 0;
     const ok = db && mig > 0;
-    return reply.code(ok ? 200 : 503).send({ status: ok ? 'ready' : 'not_ready', db, migrations: mig });
+    return reply.code(ok ? 200 : 503).send({
+      status: ok ? 'ready' : 'not_ready', db, migrations: mig,
+      demo_db: ctx.demoCtx ? 'memory' : 'shared',
+      memory: { rss_mb: Math.round(process.memoryUsage().rss / (1024 * 1024)), limit_mb: memoryLimitMb() },
+    });
   });
 
   // ---------------- OAuth metadata ----------------
