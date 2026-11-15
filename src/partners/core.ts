@@ -344,8 +344,11 @@ export async function confirmCheckout(ctx: Ctx, p: PartnerConfig, u: PartnerUser
     const { confirm_url: _c, user_action: _ua, ...status } = adaptForPartner(st) as any;
     return { checkout: status, order: { id: stored.order.id, card: await orderCard(ctx, p, u, stored.order.id, { row: stored.order }) } };
   }
-  // Anything else (a parallel confirmation got there first, the outcome is still unknown): read the state, then store the event.
-  const res = await confirmResult(ctx, p, u, c.id);
+  // Anything else (a parallel confirmation got there first, the outcome is still unknown, or the order was stored
+  // another way: the provider's answer was lost and the reconciliation found it): read the state, then store the
+  // event. A demo order that was stored without the speed-up gets it here, as every Confirm did before
+  // (speedUpDemo leaves an order alone that already runs at presentation speed).
+  const res = await resultAfterSubmit(ctx, p, u, c);
   const ev = confirmedEvent(res.order?.id ?? null);
   await enqueuePartnerEvent(ctx.db, u.user_id, ev.type, ev.data, { dedupeKey: ev.dedupeKey });
   return res;

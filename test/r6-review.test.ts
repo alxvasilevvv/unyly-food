@@ -236,14 +236,16 @@ describe('exactly once', () => {
 
   it('confirm racing a cart update: an order only for the cart version the user saw', async () => {
     const r = await rig(10, {}, 8);
+    const outcomes = new Set<string>();
     try {
       for (let i = 0; i < 12; i++) {
         const v = await new Visitor(r).start();
         const card = await v.checkout(EX[1]);
         const c = (await r.raw.query('SELECT c.user_id, c.cart_id, c.cart_version, v.items FROM checkouts c JOIN cart_versions v ON v.cart_id = c.cart_id AND v.version = c.cart_version WHERE c.id = $1', [card.id])).rows[0];
         const line = c.items[0];
-        const upd = settle(sleep(Math.random() * 25).then(() => updateCart(r.ctx, partnerActor(WEB_DEMO_PARTNER, c.user_id), c.cart_id, c.cart_version, [{ op: 'set_quantity', line_id: line.line_id, quantity: line.quantity + 1 }])));
-        const [a, b, u] = await within(Promise.all([sleep(Math.random() * 25).then(() => v.confirm(card)), v.confirm(card), upd]), 25_000, 'confirm/update');
+        const upd = settle(sleep(i % 2 ? 0 : Math.random() * 25).then(() => updateCart(r.ctx, partnerActor(WEB_DEMO_PARTNER, c.user_id), c.cart_id, c.cart_version, [{ op: 'set_quantity', line_id: line.line_id, quantity: line.quantity + 1 }])));
+        const [a, b, u] = await within(Promise.all([sleep(Math.random() * 25).then(() => v.confirm(card)), sleep(i % 2 ? 5 + Math.random() * 30 : 0).then(() => v.confirm(card)), upd]), 25_000, 'confirm/update');
+        outcomes.add(u.ok ? 'update' : 'order');
         const f = await facts(r.raw, card.id);
         expect(a.status).toBeLessThan(500);
         expect(b.status).toBeLessThan(500);
@@ -261,6 +263,8 @@ describe('exactly once', () => {
           expect(a.status).not.toBe(200);
         }
       }
+      // Both orders of arrival happened in this run.
+      expect([...outcomes].sort()).toEqual(['order', 'update']);
     } finally {
       await r.close();
     }
@@ -567,4 +571,35 @@ describe('guards before anything is approved', () => {
       await r.close();
     }
   }, 60_000);
+});
+
+describe('polls as single guarded statements', () => {
+  it('parallel polls, the events job and a clock that moves: every status is written once, in order', async () => {
+    const r = await rig(10, {}, 6);
+    try {
+      const v = await new Visitor(r).start();
+      const card = await v.checkout(EX[1]);
+      const c = await v.confirm(card);
+      expect(c.status).toBe(200);
+      const id = c.body.order_id as string;
+      for (let step = 0; step < 30; step++) {
+        const out = await within(Promise.all([
+          ...Array.from({ length: 6 }, (_, i) => v.get(`/ari/api/orders/${id}${i % 2 ? '?after=0' : ''}`)),
+          runJobsOnce(r.ctx),
+        ]), 25_000, 'parallel polls');
+        for (const o of out.slice(0, 6) as any[]) expect(o.status).toBe(200);
+        if ((out[0] as any).body.card.status.is_final) break;
+        r.clock.advance(20_000);
+      }
+      const o = (await r.raw.query('SELECT fulfillment_status, status_version FROM orders WHERE id = $1', [id])).rows[0];
+      expect(o.fulfillment_status).toBe('delivered');
+      const audit = (await r.raw.query(`SELECT details ->> 'status' AS s FROM audit_log WHERE action = 'order.status_changed' AND entity_id = $1 ORDER BY id`, [id])).rows.map((x: any) => x.s);
+      // The first poll stores the provider's sequence for "accepted" (an audit row, no event: the status did not change).
+      expect(audit).toEqual(['accepted', 'preparing', 'picked_up', 'delivered']);
+      const ev = (await r.raw.query(`SELECT payload #>> '{data,status}' AS s FROM partner_webhooks WHERE event_type = 'order.status_changed' AND payload #>> '{data,order_id}' = $1 ORDER BY id`, [id])).rows.map((x: any) => x.s);
+      expect(ev).toEqual(['preparing', 'picked_up', 'delivered']);
+    } finally {
+      await r.close();
+    }
+  }, 90_000);
 });

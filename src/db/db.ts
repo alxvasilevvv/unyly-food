@@ -101,6 +101,15 @@ export function createDb(connectionString: string, max = poolMax()): Db {
     async tx<T>(fn: (q: Queryable, lead?: any[]) => Promise<T>, opts: { lead?: string } = {}): Promise<T> {
       for (let attempt = 0; ; attempt++) {
         const client = await pool.connect();
+        // A checked-out client has no 'error' listener of its own: a connection that dies while the transaction
+        // holds it would otherwise be an unhandled 'error' event (the process exits). The statements still reject
+        // with the error; the listener only keeps it from being fatal and marks the client as not reusable.
+        let broken: Error | undefined;
+        const onClientError = (err: Error) => { broken = err; };
+        client.on('error', onClientError);
+        // Set when the one-message form failed and the connection did not survive it: nothing has run yet, so the
+        // transaction starts again the plain way on another connection.
+        let startOver = false;
         try {
           let lead: any[] | undefined;
           if (opts.lead && leadOk) {
@@ -116,7 +125,14 @@ export function createDb(connectionString: string, max = poolMax()): Db {
               leadOk = false;
               console.warn('[db] "BEGIN; <lock>" in one message is not available here, using separate statements:', e?.message ?? e);
               await client.query('ROLLBACK').catch(() => {});
-              await client.query('BEGIN');
+              try {
+                await client.query('BEGIN');
+              } catch (e2: any) {
+                // The connection went away with the refused message (a pooler that closes it): take a new one.
+                startOver = true;
+                broken ??= e2 instanceof Error ? e2 : new Error(String(e2));
+                throw e2;
+              }
             }
           } else {
             await client.query('BEGIN');
@@ -131,12 +147,15 @@ export function createDb(connectionString: string, max = poolMax()): Db {
           await client.query('COMMIT');
           return out;
         } catch (e: any) {
+          if (startOver) continue; // happens at most once per process: the one-message form is switched off by now
           await client.query('ROLLBACK').catch(() => {});
           // 40001 serialization_failure, 40P01 deadlock_detected
           if ((e?.code === '40001' || e?.code === '40P01') && attempt < 3) continue;
           throw e;
         } finally {
-          client.release();
+          client.removeListener('error', onClientError);
+          // A client whose connection failed is closed, never handed to the next request.
+          client.release(broken);
         }
       }
     },
