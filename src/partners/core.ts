@@ -141,7 +141,6 @@ function optionsFromTrip(env: ToolEnvelope, args: Record<string, unknown>, l: Lo
             service, pickup: args.pickup, dropoff: args.dropoff, items: [{ item_id: o.item_id, quantity: 1 }],
             ...(args.parcel_weight_kg !== undefined ? { parcel_weight_kg: args.parcel_weight_kg } : {}),
             ...(typeof args.parcel_description === 'string' && args.parcel_description ? { parcel_description: args.parcel_description } : {}),
-            ...(args.passengers !== undefined ? { passengers: args.passengers } : {}),
           },
         },
       },
@@ -174,7 +173,9 @@ export async function cardForTool(ctx: Ctx, p: PartnerConfig, u: PartnerUser, to
   if (tool === 'estimate_trip') return optionsFromTrip(env, args, l);
   if (r.checkout?.checkout_id) return checkoutCard(ctx, p, u, r.checkout.checkout_id);
   if (['create_cart', 'update_cart', 'quote_cart'].includes(tool)) return issuesCard(env, l);
-  if (tool === 'get_order_status' && r.order?.order_id) return orderCard(ctx, p, u, r.order.order_id);
+  // Both results are flat: the id sits at the top level.
+  if (tool === 'get_order_status' && (r.order_id ?? r.order?.order_id)) return orderCard(ctx, p, u, r.order_id ?? r.order.order_id);
+  if (tool === 'prepare_checkout' && r.checkout_id) return checkoutCard(ctx, p, u, r.checkout_id);
   if (tool === 'prepare_cancellation' && r.cancellation_id) return cancellationCard(ctx, p, u, r.cancellation_id);
   if (tool === 'create_handoff' && r.open_url) {
     return {
@@ -382,7 +383,8 @@ async function confirmResult(ctx: Ctx, p: PartnerConfig, u: PartnerUser, checkou
       confirmWaiters--;
     }
   }
-  const { confirm_url: _c, user_action: _ua, ...status } = st as any;
+  // Partner wording: the user confirms in the app, not on a web page.
+  const { confirm_url: _c, user_action: _ua, ...status } = adaptForPartner(st) as any;
   const order = st.order_id ? { id: st.order_id, card: await orderCard(ctx, p, u, st.order_id) } : null;
   return { checkout: status, order };
 }
@@ -390,7 +392,7 @@ async function confirmResult(ctx: Ctx, p: PartnerConfig, u: PartnerUser, checkou
 export async function declineCheckoutPartner(ctx: Ctx, p: PartnerConfig, u: PartnerUser, checkoutId: string) {
   await declineCheckout(ctx, u.user_id, checkoutId, `partner:${p.id}`);
   const st = await checkoutStatus(ctx, partnerActor(p, u.user_id), checkoutId);
-  const { confirm_url: _c, ...status } = st as any;
+  const { confirm_url: _c, ...status } = adaptForPartner(st) as any;
   return { checkout: status };
 }
 

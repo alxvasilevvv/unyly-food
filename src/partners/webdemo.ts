@@ -62,11 +62,11 @@ const EXAMPLES: Record<'en' | 'ru' | 'th', string[]> = {
 };
 export const ariExamples = (l: Locale) => (EXAMPLES as Record<string, string[]>)[l] ?? EXAMPLES.en;
 
-const GREET = /^(hi|hello|hey|good (?:morning|afternoon|evening)|привет|здравств|добр|สวัสดี|หวัดดี|👋)(?![a-z])/iu;
+const GREET = /^(hi|hello|hey|good (?:morning|afternoon|evening)|привет|здравств|добр|สวัสดี|อรุณสวัสดิ์|หวัดดี|ดีครับ|ดีค่ะ|👋)(?![a-z])/iu;
 const THANKS = /^(?:ok(?:ay)?[,! ]*)?(?:thanks?|thank you|thx|cheers|great|perfect|awesome|спасибо|благодар|отлично|супер|ขอบคุณ|ขอบใจ|🙏|❤️)(?![a-zа-яё])/iu;
 const HELP = /what can you (?:do|order)|what do you do|^help\b|how does (?:this|it) work|what services|что (?:ты )?(?:умеешь|можешь)|что вы (?:умеете|можете)|^помо(?:щь|ги)|как это работает|ทำอะไรได้|ช่วยอะไร|ใช้งานยังไง/iu;
 const CANCEL = /\bcancel\b|отмен|ยกเลิก/iu;
-const TRACK = /where(?: i|')s (?:my|the)|\b(?:order|delivery|ride) status\b|\bstatus of my\b|\btrack\b|how long (?:until|till)|где (?:мой|моя|мое|моё|мои|сейчас|курьер|водитель|заказ)|что с (?:моим )?заказ|статус заказа|когда (?:приедет|привезут|доставят)|(?:ออเดอร์|คำสั่งซื้อ|รถ|ไรเดอร์|พัสดุ)(?:ของฉัน)?(?:อยู่|ถึง)(?:ที่)?ไหน|สถานะ(?:ออเดอร์|คำสั่งซื้อ)|ถึงไหนแล้ว/iu;
+const TRACK = /where(?: i|')s (?:my|the)|\b(?:order|delivery|ride) status\b|\bstatus of my\b|\btrack(?:ing)?\b|how long (?:until|till)|отслед|ติดตาม|где (?:мой|моя|мое|моё|мои|сейчас|курьер|водитель|заказ)|что с (?:моим )?заказ|статус заказа|когда (?:приедет|привезут|доставят)|(?:ออเดอร์|คำสั่งซื้อ|รถ|ไรเดอร์|พัสดุ)(?:ของฉัน)?(?:อยู่|ถึง)(?:ที่)?ไหน|สถานะ(?:ออเดอร์|คำสั่งซื้อ)|ถึงไหนแล้ว/iu;
 
 // ---- Requests Ari answers in words, without a tool call ----
 /** Prescription-only and controlled medicines: never ordered, whatever the wording. */
@@ -79,21 +79,34 @@ const NO_CONFIRM = /without (?:any |my |a )?confirm|no confirmation|skip (?:the 
 const REORDER = /\b(?:repeat|reorder|re-order)\b|\b(?:same|order) (?:it |that |thing )?again\b|same as (?:last|before)|\bthe usual\b|повтор|ещё раз|еще раз|как (?:в прошлый раз|обычно)|то же самое|เหมือนเดิม|สั่งซ้ำ|สั่งอีก|อีกครั้ง|อีกรอบ/iu;
 const OOS_TABLE = /\b(?:book|reserve|get)\b.{0,24}\btable\b|\btable for\b|\breservation\b|столик|бронь стол|จองโต๊ะ/iu;
 const OOS_FLIGHT = /\bflights?\b|\b(?:plane|air|airline) tickets?\b|(?<!\p{L})рейс|авиабилет|билет\S* на самол|ตั๋วเครื่องบิน|เที่ยวบิน/iu;
-const OOS = /\b(?:transfer|send|wire|lend|pay)\b.{0,24}\b(?:money|cash|baht|bills?)\b|\bhotels?\b|\btrain tickets?\b|\bmovie tickets?\b|\bweather\b|\bforecast\b|\bnews\b|\bjoke\b|\btranslate\b|\bremind me\b|\balarm\b|\bplay (?:music|a song)\b|\bbitcoin\b|exchange rate|отел[ьяе]|гостиниц|погод|перев\S* (?:деньги|денег)|(?<!\p{L})деньги(?!\p{L})|новост|анекдот|напомни|будильник|курс (?:валют|доллар|бат)|จองโรงแรม|ที่พัก|อากาศ|โอนเงิน|จ่ายบิล|ข่าว|เรื่องตลก|ตั้งปลุก|อัตราแลกเปลี่ยน/iu;
+const OOS = /\b(?:transfer|send|wire|lend|pay)\b.{0,24}\b(?:money|cash|baht|bills?)\b|\bhotels?\b|\btrain tickets?\b|\bmovie tickets?\b|\bweather\b|\bforecast\b|\bnews\b|\bjoke\b|\btranslate\b|\bremind me\b|\balarm\b|\bplay (?:music|a song)\b|\bbitcoin\b|exchange rate|what time|what day|today'?s date|который час|сколько (?:сейчас )?времени|какое сегодня|กี่โมง|วันนี้วันอะไร|отел[ьяе]|гостиниц|погод|перев\S* (?:деньги|денег)|(?<!\p{L})деньги(?!\p{L})|новост|анекдот|напомни|будильник|курс (?:валют|доллар|бат)|จองโรงแรม|ที่พัก|อากาศ|โอนเงิน|จ่ายบิล|ข่าว|เรื่องตลก|ตั้งปลุก|อัตราแลกเปลี่ยน/iu;
 const WHO = /who are you|what are you\b|what(?:'s| is) your name|are you (?:a |an )?(?:human|bot|robot|ai|real|person|machine)|кто ты|кто вы|ты кто|как (?:тебя|вас) зовут|(?:ты|вы) (?:человек|бот|робот|живая|настоящая)|คุณ(?:เป็น|คือ)ใคร|เธอ(?:เป็น|คือ)ใคร|ชื่ออะไร|เป็นคน(?:จริง)?(?:หรือ|ไหม|มั้ย|รึ)|เป็น(?:บอท|หุ่นยนต์|เอไอ|ai)/iu;
 const HOW_ARE_YOU = /^how are you|how(?:'s| is) it going|how do you do|^what'?s up|как дела|^как ты\??$|как поживае|สบายดีไหม|สบายดีมั้ย|เป็น(?:ยัง)?ไงบ้าง/iu;
 const BYE = /^(?:good ?bye|bye(?:[- ]bye)?|see you|see ya|good night|пока|до свидания|до встречи|спокойной ночи|บาย|บ๊ายบาย|ลาก่อน|ไปก่อนนะ|ฝันดี)(?![a-zа-яё])/iu;
 /** "Yes, confirm" typed into the chat. It is never a confirmation: only the button on the card is. */
 const YES = /^(?:yes|yeah|yep|yup|sure|ok(?:ay)?|k|fine|confirm(?:ed)?|go ahead|do it|order it|place (?:the|my) order|book it|buy it|proceed|let'?s go|sounds good|да|ага|угу|давай(?:те)?|подтвержда\S*|подтверди\S*|оформ\S*|заказывай\S*|хорошо|ок(?:ей)?|ладно|согласен|согласна|беру|ใช่|ตกลง|ยืนยัน|สั่งเลย|โอเค|ได้เลย|ได้|เอาเลย|เอา|จัดไป|ครับ|ค่ะ|👍|👌|✅)(?:[\s,.!]+(?:yes|please|and|confirm\S*|go ahead|order it|do it|it|that|the order|подтвержда\S*|подтверди\S*|заказывай|оформляй|пожалуйста|ยืนยัน|เลย|ครับ|ค่ะ|นะ))*[\s.!]*$/iu;
 const NO = /^(?:no|nope|nah|not now|never ?mind|нет|не надо|не нужно|не сейчас|передумал\S*|ไม่|ไม่เอา|ไม่ต้อง|ไม่เป็นไร|ไว้ก่อน)(?:[\s,.!]+(?:thanks|thank you|спасибо|ครับ|ค่ะ|ขอบคุณ))*[\s.!]*$/iu;
+const FEES = /how much (?:is|does|for) (?:the )?(?:delivery|shipping|service)|delivery (?:fee|cost|price)|service fee|сколько стоит доставк|стоимость доставки|цена доставки|сервисный сбор|ค่าส่ง|ค่าบริการ|ค่าธรรมเนียม/iu;
+const SUPPORT = /refund|complain|money back|lost (?:my|an?|the) |left my|talk to (?:a |an |the )?(?:human|person|agent|operator|manager|support)|human agent|customer (?:service|support|care)|\bsupport\b|возврат|верни\S* деньги|жалоб|потерял|забыл\S* в |оператор|поддержк|позови\S* (?:человека|менеджера)|живо\S* человек|คืนเงิน|ร้องเรียน|ลืมของ|ของหาย|คุยกับคน|คุยกับเจ้าหน้าที่|เจ้าหน้าที่|ติดต่อ/iu;
+const INSULT = /stupid|idiot|dumb|useless|\bsuck|fuck|shit|туп(?:ая|ой|ица)|дур[аы]|идиот|бесполезн|โง่|ห่วย|แย่มาก|ไร้ประโยชน์/iu;
 const CHEAPER = /cheap|expensive|pricey|lower price|дешев|дёшев|дорог|ถูกกว่า|ถูกๆ|ถูกที่สุด|ราคาถูก|แพง/iu;
 const ADDRESS = /(?:change|update|edit|new|another|different|other|wrong|my) (?:delivery |home )?address|поменя\S* адрес|смени\S* адрес|измени\S* адрес|друг\S* адрес|нов\S* адрес|не тот адрес|мой адрес|เปลี่ยนที่อยู่|แก้(?:ไข)?ที่อยู่|ที่อยู่ใหม่|ที่อยู่อื่น/iu;
 /** A clock time or another day: the demo orders for right now only. */
-const TIME = /\bat \d{1,2}(?::\d{2})?\s*(?:am|pm|o'?clock)?(?![\p{L}\d])|\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b|\btomorrow\b|\bin \d+ (?:min\w*|hours?)\b|\bin an hour\b|(?<!\p{L})в \d{1,2}[:.]\d{2}|(?<!\p{L})в \d{1,2} (?:час\S*|утра|вечера|дня)|послезавтра|завтра|через \d+ (?:мин\S*|час\S*)|через час|\d{1,2}\s*โมง(?:เช้า|เย็น)?|\d{1,2}[:.]\d{2}\s*น\.?|พรุ่งนี้|อีก \d+ (?:นาที|ชั่วโมง)|\d{1,2}\s*ทุ่ม|บ่าย\s*\d/giu;
+const TIME = /\bat \d{1,2}(?::\d{2})?\s*(?:am|pm|o'?clock)?(?![\p{L}\d])|\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b|\btomorrow\b|\bin \d+ (?:min\w*|hours?)\b|\bin an hour\b|(?<!\p{L})в \d{1,2}[:.]\d{2}|(?<!\p{L})в \d{1,2} (?:час\S*|утра|вечера|дня)|послезавтра|завтра(?!к)|через \d+ (?:мин\S*|час\S*)|через час|\d{1,2}\s*โมง(?:เช้า|เย็น)?|\d{1,2}[:.]\d{2}\s*น\.?|พรุ่งนี้|อีก \d+ (?:นาที|ชั่วโมง)|\d{1,2}\s*ทุ่ม|บ่าย\s*\d/giu;
 const FRAGILE = /fragile|breakable|\bglass\b|хрупк|стекл|แตกง่าย|ระวังแตก|แก้ว/iu;
-const GIFT = /\b(?:to|for) (?:my |our )?(?:mom|mum|mother|wife|husband|girlfriend|boyfriend|friend|dad|father|sister|brother|boss|colleague|grandma|grandmother|daughter|son)\b|(?<!\p{L})(?:маме|жене|мужу|девушке|подруге|другу|папе|сестре|брату|бабушке|коллеге|дочке|дочери|сыну|начальнику)(?!\p{L})|ให้(?:คุณ)?(?:แม่|พ่อ|แฟน|ภรรยา|สามี|เพื่อน|พี่|น้อง|ยาย|ย่า|ลูก|เจ้านาย)/iu;
+const GIFT = /\b(?:to|for) (?:my |our )?(?:mom|mum|mother|wife|husband|girlfriend|boyfriend|friend|dad|father|sister|brother|boss|colleague|grandma|grandmother|daughter|son)\b|(?<!\p{L})(?:маме|жене|мужу|девушке|подруге|другу|папе|сестре|брату|бабушке|коллеге|дочке|дочери|сыну|начальнику)(?!\p{L})|(?<!\p{L})для (?:мамы|жены|мужа|девушки|подруги|друга|папы|сестры|брата|бабушки|коллеги|дочки|дочери|сына|начальника)(?!\p{L})|ให้(?:คุณ)?(?:แม่|พ่อ|แฟน|ภรรยา|สามี|เพื่อน|พี่|น้อง|ยาย|ย่า|ลูก|เจ้านาย)/iu;
 /** Well-known places the Bangkok demo map does not reach. */
 const OUTSIDE = /singapore|phuket|pattaya|chiang ?mai|chiang ?rai|hua ?hin|krabi|samui|ayutthaya|kuala lumpur|malaysia|jakarta|\bbali\b|manila|hanoi|ho chi minh|saigon|vietnam|tokyo|japan|moscow|russia|london|paris|new york|dubai|hong kong|сингапур|пхукет|паттай|чианг ?ма|хуа ?хин|краби|самуи|москв|росси|токио|лондон|париж|дубай|малайзи|вьетнам|สิงคโปร์|ภูเก็ต|พัทยา|เชียงใหม่|เชียงราย|หัวหิน|กระบี่|สมุย|อยุธยา|มอสโก|โตเกียว|ลอนดอน|มาเลเซีย|ญี่ปุ่น/iu;
+
+/** Names the demo map does not list as spoken: Russian case endings and everyday Thai names. */
+const PLACE_ALIAS: [RegExp, string][] = [
+  [/гранд[- ]?палас\S*|королевск\S* двор\S*|больш\S* двор\S*|วัดพระแก้ว|พระบรมมหาราชวัง/iu, 'Grand Palace'],
+  [/эккама\S*/iu, 'Ekkamai'],
+  [/силом\S*/iu, 'Silom'],
+  [/чайнатаун\S*|китайск\S* квартал\S*/iu, 'Chinatown'],
+  [/терминал\S* 21/iu, 'Terminal 21'],
+];
+const placeAlias = (s: string | undefined) => (s ? PLACE_ALIAS.find(([re]) => re.test(s))?.[1] ?? s : s);
 
 /** Emoji stand in for the word they picture, so "🍕" or "🚕" alone is a request. */
 const EMOJI: [RegExp, string][] = [
@@ -102,9 +115,9 @@ const EMOJI: [RegExp, string][] = [
 ];
 
 const HELP_TEXT: Tri = {
-  en: 'I can order any Grab service for you: a ride, food, groceries, flowers, pharmacy items, a cake or a parcel. Say it in your own words, pick an option, then confirm on the card. Nothing is ordered until you confirm.',
-  ru: 'Я закажу любой сервис Grab: поездку, еду, продукты, цветы, товары из аптеки, торт или посылку. Скажите своими словами, выберите вариант и подтвердите на карточке. Без подтверждения ничего не заказывается.',
-  th: 'Ari สั่งบริการของ Grab ให้ได้ทุกอย่างค่ะ ทั้งเรียกรถ สั่งอาหาร ของชำ ดอกไม้ ยาสามัญ เค้ก หรือส่งพัสดุ บอก Ari ด้วยคำพูดของคุณเอง เลือกตัวเลือก แล้วแตะยืนยันบนการ์ด Ari จะยังไม่สั่งอะไรจนกว่าคุณจะยืนยันค่ะ',
+  en: 'In this demo I show how I would order from Grab for you: food, groceries, flowers, pharmacy items, cakes, rides and parcels. Say it in your own words, pick an option, then confirm on the card. Nothing is ordered until you confirm.',
+  ru: 'В этом демо я показываю, как заказываю для вас в Grab: еду, продукты, цветы, товары из аптеки, торты, поездки и посылки. Скажите своими словами, выберите вариант и подтвердите на карточке. Без подтверждения ничего не заказывается.',
+  th: 'ในเดโมนี้ Ari แสดงให้เห็นว่าจะสั่งบริการจาก Grab ให้คุณอย่างไรค่ะ ทั้งอาหาร ของชำ ดอกไม้ ยาสามัญ เค้ก เรียกรถ และส่งพัสดุ บอก Ari ด้วยคำพูดของคุณเอง เลือกตัวเลือก แล้วแตะยืนยันบนการ์ด Ari จะยังไม่สั่งอะไรจนกว่าคุณจะยืนยันค่ะ',
 };
 const UNKNOWN_TEXT: Tri = {
   en: 'I did not catch which Grab service you need. I can book a ride, order food, groceries, flowers or pharmacy items, or send a parcel. Try one of these:',
@@ -154,25 +167,43 @@ const DISHES: Dish[] = [
   { re: /curry|карри|แกง/iu, cat: /curry/i, name: { en: 'curry', ru: 'карри', th: 'แกง' } },
 ];
 
-/** The named dish on the demo menus, with the reason it cannot be offered when it does not fit the request. */
-function findDish(q: string, intent: { exclude_allergens: string[]; dietary: string[] }) {
-  const dish = DISHES.find((d) => d.re.test(q));
-  if (!dish) return null;
-  const all = dish.cat
-    ? DEMO_RESTAURANTS.filter((r) => r.service === 'food').flatMap((r) => r.items.filter((it) => it.available && dish.cat!.test(it.name)).map((item) => ({ store: r, item })))
-    : [];
-  const open = all.filter((h) => h.store.open);
-  const fits = open.filter(({ item }) => {
-    const declared: string[] = item.allergen_info?.declared ?? [];
-    if (intent.exclude_allergens.some((a) => declared.includes(a))) return false;
-    const tags: string[] = item.dietary_tags_declared ?? [];
-    if (intent.dietary.includes('vegan') && !tags.includes('vegan')) return false;
-    if (intent.dietary.includes('vegetarian') && !tags.includes('vegetarian') && !tags.includes('vegan')) return false;
-    if (intent.dietary.includes('halal') && !tags.includes('halal')) return false;
-    if (intent.dietary.includes('no_pork') && /pork/i.test(item.name)) return false;
-    return true;
+type DemoStore = (typeof DEMO_RESTAURANTS)[number];
+type DemoItem = DemoStore['items'][number];
+interface DishHit { dish: Dish; all: { store: DemoStore; item: DemoItem }[]; open: { store: DemoStore; item: DemoItem }[]; fits: { store: DemoStore; item: DemoItem }[]; quantity?: number }
+
+const DISH_COUNT: Record<string, number> = {
+  one: 1, two: 2, three: 3, four: 4, a: 1, 'один': 1, 'одну': 1, 'одна': 1, 'два': 2, 'две': 2, 'три': 3, 'четыре': 4, 'หนึ่ง': 1, 'สอง': 2, 'สาม': 3, 'สี่': 4,
+};
+const DISH_COUNT_ALT = Object.keys(DISH_COUNT).filter((k) => k !== 'a').join('|');
+
+/** Every named dish on the demo menus, with the reason it cannot be offered when it does not fit the request. */
+function findDishes(q: string, intent: { exclude_allergens: string[]; dietary: string[] }): DishHit[] {
+  const named = DISHES.filter((d) => d.re.test(q));
+  // "Green curry" is not also a second, general curry.
+  const dishes = named.filter((d) => !(d.name.en === 'curry' && named.some((x) => x !== d && /curry/.test(x.name.en))));
+  return dishes.map((dish) => {
+    const all = dish.cat
+      ? DEMO_RESTAURANTS.filter((r) => r.service === 'food').flatMap((r) => r.items.filter((it) => it.available && dish.cat!.test(it.name)).map((item) => ({ store: r, item })))
+      : [];
+    const open = all.filter((h) => h.store.open);
+    const fits = open.filter(({ item }) => {
+      const declared: string[] = item.allergen_info?.declared ?? [];
+      if (intent.exclude_allergens.some((a) => declared.includes(a))) return false;
+      const tags: string[] = item.dietary_tags_declared ?? [];
+      if (intent.dietary.includes('vegan') && !tags.includes('vegan')) return false;
+      if (intent.dietary.includes('vegetarian') && !tags.includes('vegetarian') && !tags.includes('vegan')) return false;
+      if (intent.dietary.includes('halal') && !tags.includes('halal')) return false;
+      if (intent.dietary.includes('no_pork') && /pork/i.test(item.name)) return false;
+      return true;
+    });
+    // "2 pad thai", "один том ям", "ผัดไทยหนึ่ง": a count right next to the dish is for that dish alone.
+    const m = dish.re.exec(q);
+    const before = m ? new RegExp(`(?<![\\p{L}\\d])(\\d{1,2}|${DISH_COUNT_ALT})\\s*(?:x\\s*|×\\s*)?$`, 'iu').exec(q.slice(0, m.index)) : null;
+    const after = m ? new RegExp(`^\\s*(\\d{1,2}|หนึ่ง|สอง|สาม|สี่)(?!\\s*(?:คน|บาท|\\d))`, 'u').exec(q.slice(m.index + m[0].length)) : null;
+    const k = (before?.[1] ?? (/[฀-๿]/.test(m?.[0] ?? '') ? after?.[1] : undefined))?.toLowerCase();
+    const n = k ? (/^\d+$/.test(k) ? Number(k) : DISH_COUNT[k]) : undefined;
+    return { dish, all, open, fits, quantity: n && n >= 1 && n <= 20 ? n : undefined };
   });
-  return { dish, all, open, fits };
 }
 
 /** "Where is my order" and "cancel my order" act on the latest order, like the buttons on its card. */
@@ -274,7 +305,7 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
   const ex = ariExamples(l);
   if (!q || (GREET.test(q) && q.split(' ').length <= 3)) {
     return {
-      reply: t(l, { en: 'Hi! I can order any Grab service for you: a ride, food, groceries, flowers, pharmacy or a parcel. What do you need?', ru: 'Здравствуйте! Я закажу любой сервис Grab: поездку, еду, продукты, цветы, товары из аптеки или посылку. Что нужно?', th: 'สวัสดีค่ะ Ari สั่งบริการของ Grab ให้ได้ทุกอย่าง ทั้งเรียกรถ สั่งอาหาร ของชำ ดอกไม้ ยาสามัญ หรือส่งพัสดุ ให้ Ari ช่วยอะไรดีคะ' }),
+      reply: t(l, { en: 'Hi! In this demo I can order from Grab for you: a ride, food, groceries, flowers, pharmacy items, a cake or a parcel. What do you need?', ru: 'Здравствуйте! В этом демо я могу заказать для вас в Grab поездку, еду, продукты, цветы, товары из аптеки, торт или посылку. Что нужно?', th: 'สวัสดีค่ะ ในเดโมนี้ Ari สั่งบริการจาก Grab ให้ได้ ทั้งเรียกรถ สั่งอาหาร ของชำ ดอกไม้ ยาสามัญ เค้ก หรือส่งพัสดุ ให้ Ari ช่วยอะไรดีคะ' }),
       chips: ex.slice(0, 4), trace,
     };
   }
@@ -323,6 +354,9 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
     : '';
   const lead = noConfirmNote + timeNote;
   const si = detectService(timed);
+  // A named dish is a food order even when it shares a word with the supermarket ("fried rice", "mango sticky rice").
+  const dishNamed = DISHES.some((d) => d.re.test(q));
+  if (dishNamed && si.service === 'groceries' && !/grocer|supermarket|продукт|супермаркет|ของชำ|ซูเปอร์/iu.test(q)) si.service = 'food';
   try {
     if (TRACK.test(q) || (CANCEL.test(q) && q.length < 60)) return await latestOrderTurn(ctx, u, l, !TRACK.test(q), trace);
     if (REORDER.test(q) && q.length < 60) return await reorderTurn(ctx, u, l, trace);
@@ -354,7 +388,7 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
         th: 'ในเดโมนี้จะจัดส่งไปยังที่อยู่บ้านที่บันทึกไว้ (88 Sukhumvit Soi 24) ค่ะ การเปลี่ยนที่อยู่ทำได้ในหน้าตั้งค่าของแอป ไม่ใช่ในแชต ส่วนการเรียกรถหรือส่งพัสดุ บอกชื่อสถานที่ได้เลยค่ะ',
       }, [ex[0], ex[2]], trace);
     }
-    if (!cues.length && !hasFoodCue(q)) {
+    if (!cues.length && !hasFoodCue(q) && !dishNamed) {
       // Small talk and follow-ups that name no service.
       if (WHO.test(q)) {
         return say(l, {
@@ -379,6 +413,27 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
       if (NO.test(q)) {
         return say(l, { en: 'No problem, nothing was ordered. Anything else from Grab?', ru: 'Хорошо, ничего не заказано. Нужно что-нибудь ещё из Grab?', th: 'ได้ค่ะ ยังไม่ได้สั่งอะไรนะคะ ต้องการอะไรจาก Grab อีกไหมคะ' }, ex.slice(0, 3), trace);
       }
+      if (SUPPORT.test(q)) {
+        return say(l, {
+          en: 'Refunds, lost items and complaints are handled by Grab support, not by me: open the Help Centre in the Grab app. Here I can show your latest order or place a new one.',
+          ru: 'Возвраты, забытые вещи и жалобы решает поддержка Grab, а не я: откройте Help Centre в приложении Grab. Здесь я могу показать ваш последний заказ или оформить новый.',
+          th: 'เรื่องขอเงินคืน ของหาย และการร้องเรียน ทีมซัพพอร์ตของ Grab เป็นผู้ดูแลค่ะ ไม่ใช่ Ari เปิดศูนย์ช่วยเหลือในแอป Grab ได้เลย ส่วนที่นี่ Ari ดูคำสั่งซื้อล่าสุดหรือสั่งรายการใหม่ให้ได้ค่ะ',
+        }, [t(l, { en: 'Where is my order', ru: 'Где мой заказ', th: 'ออเดอร์อยู่ไหน' }), ex[0]], trace);
+      }
+      if (FEES.test(q)) {
+        return say(l, {
+          en: 'It depends on the store and the distance. Before you confirm, the card lists the delivery fee, the service fee and the total, so there are no surprises. Try a request:',
+          ru: 'Зависит от магазина и расстояния. До подтверждения на карточке видны плата за доставку, сервисный сбор и итог, так что сюрпризов не будет. Попробуйте:',
+          th: 'ขึ้นอยู่กับร้านและระยะทางค่ะ ก่อนยืนยัน การ์ดจะแสดงค่าส่ง ค่าบริการ และยอดรวมให้เห็นครบ ไม่มีค่าใช้จ่ายแอบแฝง ลองสั่งดูได้เลยค่ะ',
+        }, ex.slice(1, 4), trace);
+      }
+      if (INSULT.test(q)) {
+        return say(l, {
+          en: 'Sorry I let you down. Tell me what you need from Grab and I will do my best:',
+          ru: 'Простите, что подвела. Скажите, что нужно от Grab, и я постараюсь:',
+          th: 'ขออภัยที่ทำให้ผิดหวังค่ะ บอกได้เลยว่าต้องการอะไรจาก Grab Ari จะทำให้ดีที่สุดค่ะ',
+        }, ex.slice(0, 3), trace);
+      }
       if (CHEAPER.test(q)) {
         return say(l, {
           en: 'On a ride or parcel card the cheapest option is listed first. For food, tell me your budget and I will stay within it:',
@@ -401,6 +456,8 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
       const places = await listAddresses(ctx.db, u.user_id);
       const addr = places.find((a) => a.is_default);
       // "Home" in any language is the saved default place, whatever language its label was saved in.
+      si.pickup = placeAlias(si.pickup);
+      si.dropoff = placeAlias(si.dropoff);
       const pickup = (si.pickup_home ? addr?.label : si.pickup) || addr?.label || '';
       if (si.dropoff_home && addr) si.dropoff = addr.label;
       if (si.dropoff_home && addr && pickup === addr.label) {
@@ -432,7 +489,10 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
       if (fragile) args.parcel_description = t(l, { en: 'Fragile', ru: 'Хрупкое', th: 'ของแตกง่าย' });
       if (si.passengers) args.passengers = si.passengers;
       const r = await traced(trace, `POST ${base}/tools/estimate_trip`, grabFor('estimate_trip', args), () => runTool(ctx, P, u, 'estimate_trip', args, { addresses: places }));
-      if (!r.ok) return errorTurn(l, r.error, trace, ask);
+      if (!r.ok) {
+        const e = errorTurn(l, r.error, trace, ask);
+        return { ...e, reply: lead + e.reply };
+      }
       const res = r.result;
       const from = res.trip?.pickup?.name;
       const to = res.trip?.dropoff?.name;
@@ -459,7 +519,7 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
     }
     if (si.service === 'food') {
       // Nothing in the sentence names a service or a meal: say what Ari can do instead of guessing restaurants.
-      if (!hasFoodCue(q)) return { reply: t(l, UNKNOWN_TEXT), chips: ex.slice(0, 4), trace };
+      if (!hasFoodCue(q) && !dishNamed) return { reply: t(l, UNKNOWN_TEXT), chips: ex.slice(0, 4), trace };
       return await foodTurn(ctx, u, l, q, typed, lead, trace);
     }
     // Shops: pick the items from the sentence, then build the cart (one step, like an assistant would).
@@ -485,6 +545,7 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
     for (const x of plan.lines) {
       if (x.limited_from) notes.push(t(l, { en: `The store sells at most ${x.quantity} of ${x.name} per order, so I set ${x.quantity} instead of ${x.limited_from}.`, ru: `Магазин продаёт не больше ${x.quantity} шт. «${x.name}» в одном заказе, поэтому вместо ${x.limited_from} я поставила ${x.quantity}.`, th: `ร้านขาย ${x.name} ได้ไม่เกิน ${x.quantity} ชิ้นต่อคำสั่งซื้อ Ari จึงใส่ ${x.quantity} แทน ${x.limited_from} ค่ะ` }));
     }
+    if (service === 'flowers' && /\d/.test(typed) && !/(?<!\d)12(?!\d)/.test(typed)) notes.push(t(l, { en: 'The florist sells set bouquets, so I could not change the number of stems: check it on the card.', ru: 'Флорист продаёт готовые букеты, поэтому число цветов я изменить не могу: проверьте его на карточке.', th: 'ร้านขายเป็นช่อสำเร็จ Ari จึงเปลี่ยนจำนวนดอกไม่ได้ ตรวจจำนวนบนการ์ดได้เลยค่ะ' }));
     if (service === 'groceries' && /\d/.test(typed)) notes.push(t(l, { en: 'Items come in store packs, one of each: check the sizes on the card.', ru: 'Товары идут упаковками магазина, по одной каждого: проверьте объёмы на карточке.', th: 'สินค้าเป็นแพ็กตามที่ร้านขาย อย่างละ 1 รายการ ตรวจขนาดบนการ์ดได้เลยค่ะ' }));
     if (GIFT.test(q)) {
       const home = r.card?.subtitle ?? '';
@@ -510,33 +571,48 @@ const MAX_SEATS = 10;
 const BADGE_BUDGET: Tri = { en: 'Within budget', ru: 'В бюджете', th: 'อยู่ในงบ' };
 const BADGE_ALLERGEN: Tri = { en: 'Excluded allergens not declared', ru: 'Исключённые аллергены не заявлены', th: 'ร้านไม่ได้ระบุสารก่อภูมิแพ้ที่ยกเว้น' };
 
-/** A food request: restaurants for the party and budget, or the named dish when the demo menus have it. */
+/** A food request: restaurants for the party and budget, or the named dishes when the demo menus have them. */
 async function foodTurn(ctx: Ctx, u: PartnerUser, l: Locale, q: string, typed: string, lead: string, trace: TraceEntry[]): Promise<AriTurn> {
   const base = `/partner/v1/users/${u.external_user_id}`;
   const intent = parseIntent(q);
-  const found = findDish(q, intent);
-  const dishFits = !!found?.fits.length;
+  const found = findDishes(q, intent);
+  // The dishes that can be offered, and the restaurants that have all of them (one order comes from one restaurant).
+  let offered = found.filter((f) => f.fits.length);
+  let stores = offered.length ? offered[0].fits.map((h) => h.store).filter((st) => offered.every((f) => f.fits.some((h) => h.store.id === st.id))) : [];
+  const elsewhere = offered.length > 1 && !stores.length ? offered.slice(1) : [];
+  if (elsewhere.length) {
+    offered = offered.slice(0, 1);
+    stores = offered[0].fits.map((h) => h.store);
+  }
+  const dishFits = stores.length > 0;
+  const counted = offered.some((f) => f.quantity);
   // A named dish is one portion unless the sentence says for how many; a general request assumes two and says so.
   const people = intent.party_size ?? (dishFits ? 1 : 2);
-  const dishName = found ? t(l, found.dish.name) : '';
-  // Why the named dish is not offered, when it is not.
-  let dishNote = '';
-  if (found && !found.all.length) {
-    dishNote = t(l, { en: `There is no ${dishName} in the demo catalog. `, ru: `В демо-каталоге нет позиции «${dishName}». `, th: `ในแคตตาล็อกเดโมยังไม่มี${dishName}ค่ะ ` });
-  } else if (found && !found.open.length) {
-    const s = found.all[0].store;
-    dishNote = t(l, { en: `${cap(dishName)} is on the menu at ${s.name}, but it is closed right now. `, ru: `${cap(dishName)} есть в ${s.name}, но сейчас там закрыто. `, th: `${s.name} มี${dishName} แต่ตอนนี้ร้านปิดอยู่ค่ะ ` });
-  } else if (found && !found.fits.length) {
-    const h = found.open[0];
-    dishNote = t(l, { en: `${h.item.name} at ${h.store.name} does not fit your restrictions, so I left it out. `, ru: `${h.item.name} из ${h.store.name} не подходит под ваши ограничения, поэтому я это блюдо не предлагаю. `, th: `${h.item.name} ของร้าน ${h.store.name} ไม่ตรงกับเงื่อนไขของคุณ Ari จึงไม่ได้เสนอเมนูนี้ค่ะ ` });
+  // Why a named dish is not offered, when it is not.
+  const notes: string[] = [];
+  for (const f of found) {
+    const dishName = t(l, f.dish.name);
+    if (!f.all.length) {
+      notes.push(t(l, { en: `There is no ${dishName} in the demo catalog.`, ru: `В демо-каталоге нет позиции «${dishName}».`, th: `ในแคตตาล็อกเดโมยังไม่มี${dishName}ค่ะ` }));
+    } else if (!f.open.length) {
+      const st = f.all[0].store;
+      notes.push(t(l, { en: `${cap(dishName)} is on the menu at ${st.name}, but it is closed right now.`, ru: `${cap(dishName)} есть в ${st.name}, но сейчас там закрыто.`, th: `${st.name} มี${dishName} แต่ตอนนี้ร้านปิดอยู่ค่ะ` }));
+    } else if (!f.fits.length) {
+      const h = f.open[0];
+      notes.push(t(l, { en: `${h.item.name} at ${h.store.name} does not fit your restrictions, so I left it out.`, ru: `${h.item.name} из ${h.store.name} не подходит под ваши ограничения, поэтому я это блюдо не предлагаю.`, th: `${h.item.name} ของร้าน ${h.store.name} ไม่ตรงกับเงื่อนไขของคุณ Ari จึงไม่ได้เสนอเมนูนี้ค่ะ` }));
+    } else if (elsewhere.includes(f)) {
+      const h = f.fits[0];
+      notes.push(t(l, { en: `${h.item.name} is at another restaurant (${h.store.name}): ask for it as a separate order.`, ru: `${h.item.name} готовят в другом ресторане (${h.store.name}): закажите это блюдо отдельно.`, th: `${h.item.name} อยู่อีกร้านหนึ่ง (${h.store.name}) สั่งแยกเป็นอีกรายการได้เลยค่ะ` }));
+    }
   }
+  const closedOnly = found.length > 0 && found.every((f) => f.all.length > 0 && !f.open.length);
   const args: Record<string, unknown> = {
     service: 'food', limit: dishFits ? 10 : 3, party_size: people,
     ...(intent.budget_total_major ? { budget_total_major: intent.budget_total_major } : {}),
     ...(intent.exclude_allergens.length ? { exclude_allergens: intent.exclude_allergens } : {}),
     ...(intent.dietary.length ? { dietary: intent.dietary } : {}),
     // A cuisine filter would hide everything when the only place for the named dish is closed.
-    ...(intent.cuisine && !(found && !found.open.length) ? { cuisine: intent.cuisine } : {}),
+    ...(intent.cuisine && !closedOnly ? { cuisine: intent.cuisine } : {}),
   };
   const r = await traced(trace, `POST ${base}/tools/search_stores`, grabFor('search_stores', args), () => runTool(ctx, P, u, 'search_stores', args));
   if (!r.ok) return errorTurn(l, r.error, trace);
@@ -544,33 +620,44 @@ async function foodTurn(ctx: Ctx, u: PartnerUser, l: Locale, q: string, typed: s
   const allergy = intent.exclude_allergens.length
     ? t(l, { en: ' Restaurants did not declare the allergens you excluded, but I never mark a dish as safe.', ru: ' Рестораны не заявили исключённые аллергены, но я никогда не называю блюдо безопасным.', th: ' ร้านไม่ได้ระบุว่ามีสารก่อภูมิแพ้ที่คุณยกเว้น แต่ Ari ไม่รับรองว่าเมนูใดปลอดภัยนะคะ' })
     : '';
+  const partyGuess = intent.party_size || counted ? undefined : partyChips(l, typed, people);
   if (dishFits && r.card?.options) {
-    // The named dish, priced with delivery and fees, at every open restaurant that has it.
+    // The named dishes, priced with delivery and fees, at every open restaurant that has them.
     const addr = (await listAddresses(ctx.db, u.user_id)).find((a) => a.is_default);
     const provider = ctx.provider('demo');
-    const hot = /spicy|extra hot|остр|เผ็ด/iu.test(q) && !/not (?:too )?spicy|no spic|mild|не остр|неостр|ไม่เผ็ด/iu.test(q);
     const mild = /not (?:too )?spicy|no spic|mild|не остр|неостр|ไม่เผ็ด/iu.test(q);
+    const hot = !mild && /spicy|extra hot|остр|เผ็ด/iu.test(q);
     const options: CardOption[] = [];
-    for (const { store, item } of found!.fits) {
+    let undeliverable: DemoStore | null = null;
+    for (const store of stores) {
       const opt = r.card.options.find((o) => o.id === store.id);
-      if (!opt?.action || !addr) continue;
-      // A required choice nobody named (spice level): the middle option, or what the sentence says.
-      const modifiers = item.modifier_groups.filter((g) => g.min_select > 0).map((g) => {
-        const free = g.options.filter((o) => o.available);
-        const pick = (g.id === 'spice' ? free.find((o) => o.id === (hot ? 'hot' : mild ? 'mild' : 'medium')) : undefined) ?? free[0];
-        return { group_id: g.id, option_ids: pick ? [pick.id] : [] };
+      if (!opt?.action || !addr) {
+        undeliverable = store;
+        continue;
+      }
+      const lines = offered.map((f) => {
+        const item = f.fits.find((h) => h.store.id === store.id)!.item;
+        // A required choice nobody named (spice level): the middle option, or what the sentence says.
+        const modifiers = item.modifier_groups.filter((g) => g.min_select > 0).map((g) => {
+          const free = g.options.filter((o) => o.available);
+          const pick = (g.id === 'spice' ? free.find((o) => o.id === (hot ? 'hot' : mild ? 'mild' : 'medium')) : undefined) ?? free[0];
+          return { group_id: g.id, option_ids: pick ? [pick.id] : [] };
+        });
+        return { item, quantity: f.quantity ?? people, modifiers };
       });
-      const items = [{ item_id: item.id, quantity: people, ...(modifiers.length ? { modifiers } : {}) }];
-      const quote = await callProvider(() => provider.quote({ restaurant_id: store.id, lines: [{ line_id: item.id, item_id: item.id, name: item.name, quantity: people, modifiers }], address: toDeliveryAddress(addr) }));
+      const quote = await callProvider(() => provider.quote({
+        restaurant_id: store.id, address: toDeliveryAddress(addr),
+        lines: lines.map((x) => ({ line_id: x.item.id, item_id: x.item.id, name: x.item.name, quantity: x.quantity, modifiers: x.modifiers })),
+      }));
       if (quote.issues.length) continue;
       const within = args.budget_total_major ? quote.total_minor <= Math.round(Number(args.budget_total_major) * 100) : null;
-      const declared = item.allergen_info?.status === 'declared_by_restaurant';
+      const declared = lines.every((x) => x.item.allergen_info?.status === 'declared_by_restaurant');
       options.push({
         ...opt,
-        subtitle: `${people}× ${item.name}`,
+        subtitle: lines.map((x) => `${x.quantity}× ${x.item.name}`).join(', '),
         price: money(quote.total_minor, quote.currency, l).formatted,
         badges: [...(within ? [t(l, BADGE_BUDGET)] : []), ...(intent.exclude_allergens.length && declared ? [t(l, BADGE_ALLERGEN)] : [])],
-        action: { ...opt.action, tool: { name: 'create_cart', arguments: { store_id: store.id, items } } },
+        action: { ...opt.action, tool: { name: 'create_cart', arguments: { store_id: store.id, items: lines.map((x) => ({ item_id: x.item.id, quantity: x.quantity, ...(x.modifiers.length ? { modifiers: x.modifiers } : {}) })) } } },
       });
     }
     if (options.length) {
@@ -578,17 +665,23 @@ async function foodTurn(ctx: Ctx, u: PartnerUser, l: Locale, q: string, typed: s
       const over = args.budget_total_major && !options.some((o) => o.badges?.includes(t(l, BADGE_BUDGET)))
         ? t(l, { en: ` That is above your ฿${args.budget_total_major} budget.`, ru: ` Это выше вашего бюджета ${args.budget_total_major} бат.`, th: ` ราคานี้เกินงบ ${args.budget_total_major} บาทของคุณค่ะ` })
         : '';
-      const portions = t(l, { en: `${people} ${people === 1 ? 'portion' : 'portions'}`, ru: `порций: ${people}`, th: `${people} ที่` });
+      const note = notes.length ? ` ${notes.join(' ')}` : '';
       const reply = t(l, {
-        en: `Found it: ${first.subtitle?.replace(/^\d+× /, '')} at ${first.title}, ${portions}, ${first.price} with delivery.${over}${allergy} Tap Choose to see every fee:`,
-        ru: `Нашла: ${first.subtitle?.replace(/^\d+× /, '')} в ${first.title}, ${portions}, ${first.price} с доставкой.${over}${allergy} Нажмите «Выбрать», чтобы увидеть все сборы:`,
-        th: `เจอแล้วค่ะ ${first.subtitle?.replace(/^\d+× /, '')} จากร้าน ${first.title} จำนวน ${portions} ราคา ${first.price} รวมค่าส่ง${over}${allergy} แตะเลือกเพื่อดูค่าธรรมเนียมทั้งหมดได้เลยค่ะ`,
+        en: `Found it: ${first.subtitle} at ${first.title}, ${first.price} with delivery.${over}${allergy}${note} Tap Choose to see every fee:`,
+        ru: `Нашла: ${first.subtitle} в ${first.title}, ${first.price} с доставкой.${over}${allergy}${note} Нажмите «Выбрать», чтобы увидеть все сборы:`,
+        th: `เจอแล้วค่ะ ${first.subtitle} จากร้าน ${first.title} ราคา ${first.price} รวมค่าส่ง${over}${allergy}${note} แตะเลือกเพื่อดูค่าธรรมเนียมทั้งหมดได้เลยค่ะ`,
       });
-      return { reply: lead + reply, card: { ...r.card, options }, chips: intent.party_size ? undefined : partyChips(l, typed, people), trace };
+      return { reply: lead + reply, card: { ...r.card, options }, chips: partyGuess, trace };
+    }
+    if (undeliverable) {
+      const dishName = t(l, offered[0].dish.name);
+      notes.push(t(l, { en: `${cap(dishName)} is on the menu at ${undeliverable.name}, but it does not deliver to your address right now.`, ru: `${cap(dishName)} есть в ${undeliverable.name}, но сейчас оттуда нет доставки на ваш адрес.`, th: `${undeliverable.name} มี${dishName} แต่ตอนนี้ยังไม่จัดส่งมายังที่อยู่ของคุณค่ะ` }));
     }
   }
-  const n = (r.card?.options ?? []).filter((o) => o.action).length;
-  const fits = (r.result?.stores ?? []).some((s: any) => s.suggestion?.within_budget === true);
+  // The general list: at most three restaurants, like any other food request.
+  const card = r.card?.options ? { ...r.card, options: r.card.options.slice(0, 3) } : r.card;
+  const n = (card?.options ?? []).filter((o) => o.action).length;
+  const fits = (r.result?.stores ?? []).slice(0, 3).some((s: any) => s.suggestion?.within_budget === true);
   // A diet nobody in the catalog declares (halal, pork-free): say that, not "try a bigger budget".
   const unmet = intent.dietary.filter((d) => d === 'halal' || d === 'no_pork').map((d) => t(l, DIET_NAME[d])).join(', ');
   const tail = n && args.budget_total_major && !fits
@@ -599,8 +692,9 @@ async function foodTurn(ctx: Ctx, u: PartnerUser, l: Locale, q: string, typed: s
     ? t(l, { en: `Nothing matches: no restaurant in the demo catalog declares its dishes as ${unmet}, and I never guess about that. Try the request without it.`, ru: `Ничего не подходит: ни один ресторан в демо-каталоге не заявляет блюда как «${unmet}», а гадать я не буду. Попробуйте без этого условия.`, th: `ยังไม่มีร้านที่ตรงเงื่อนไขค่ะ ในแคตตาล็อกเดโมไม่มีร้านไหนระบุว่าเมนูเป็น${unmet} และ Ari จะไม่เดาเรื่องนี้ ลองสั่งโดยไม่ใส่เงื่อนไขนี้ดูนะคะ` })
     : t(l, { en: 'Nothing matches right now. Try a bigger budget or fewer restrictions.', ru: 'Сейчас ничего не подходит. Попробуйте увеличить бюджет или убрать ограничения.', th: 'ตอนนี้ยังไม่มีร้านที่ตรงกับเงื่อนไขค่ะ ลองเพิ่มงบหรือลดเงื่อนไขดูนะคะ' });
   // No selectable restaurant: a card of greyed-out rows would only confuse.
-  const chips = !n ? ariExamples(l).slice(1, 2) : intent.party_size ? undefined : partyChips(l, typed, people);
-  return { reply: lead + (n ? dishNote : '') + tail, card: n ? r.card : null, chips, trace };
+  const chips = !n ? ariExamples(l).slice(1, 2) : partyGuess;
+  const dishNote = n && notes.length ? `${notes.join(' ')} ` : '';
+  return { reply: lead + dishNote + tail, card: n ? card : null, chips, trace };
 }
 
 /** The party size was a guess: one tap repeats the request for one or for four. */

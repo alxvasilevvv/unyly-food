@@ -1482,3 +1482,8 @@ nav.main .lang-menu > summary { min-width: 40px; justify-content: center; }
    and the driver's name wraps instead of losing the rating. */
 .ari-composer input, .ari-composer input::placeholder { text-overflow: ellipsis; }
 .ac-courier div b { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+
+/* Endpoint table: a path is never broken in the middle of a word on wide screens. */
+@media (min-width: 761px) { .ep-table .ep-p { white-space: nowrap; overflow-wrap: normal; word-break: normal; } }
+/* Step cards on phones: the heading lines up with the left-aligned text under it. */
+@media (max-width: 700px) { .step-card h3 { text-align: left; } }
