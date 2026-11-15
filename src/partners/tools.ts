@@ -8,6 +8,7 @@ import type { Ctx } from '../context.js';
 import { DomainError } from '../domain/errors.js';
 import { buildMcpServer } from '../mcp/tools.js';
 import type { PartnerConfig } from './config.js';
+import type { AddressRow, UserRow } from '../services/users.js';
 import { partnerActor } from './users.js';
 
 /** Tools a partner app does not call: submission and cancellation happen through the confirm endpoints. */
@@ -76,8 +77,11 @@ export interface ToolEnvelope {
   operation_id?: string;
 }
 
-async function withClient<T>(ctx: Ctx, p: PartnerConfig, userId: string, fn: (c: Client) => Promise<T>): Promise<T> {
-  const server = buildMcpServer(ctx, partnerActor(p, userId));
+/** Rows the request already read (the partner user is loaded to authorize the call). */
+export interface ToolSeed { user?: UserRow; addresses?: AddressRow[] }
+
+async function withClient<T>(ctx: Ctx, p: PartnerConfig, userId: string, fn: (c: Client) => Promise<T>, seed: ToolSeed = {}): Promise<T> {
+  const server = buildMcpServer(ctx, partnerActor(p, userId), seed.user && seed.user.id !== userId ? {} : seed);
   const [clientT, serverT] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: `partner-${p.id}`, version: '1.0.0' });
   await server.connect(serverT);
@@ -90,13 +94,23 @@ async function withClient<T>(ctx: Ctx, p: PartnerConfig, userId: string, fn: (c:
   }
 }
 
-export async function callPartnerTool(ctx: Ctx, p: PartnerConfig, userId: string, name: string, args: unknown): Promise<ToolEnvelope> {
+/** Names of the registered tools. The catalog is fixed for the life of the process, so it is listed once, not per call. */
+let toolNames: Promise<Set<string>> | null = null;
+function knownTools(ctx: Ctx, p: PartnerConfig): Promise<Set<string>> {
+  toolNames ??= withClient(ctx, p, '00000000-0000-0000-0000-000000000000', async (c) => new Set((await c.listTools()).tools.map((t) => t.name)))
+    .catch((e) => {
+      toolNames = null;
+      throw e;
+    });
+  return toolNames;
+}
+
+export async function callPartnerTool(ctx: Ctx, p: PartnerConfig, userId: string, name: string, args: unknown, seed: ToolSeed = {}): Promise<ToolEnvelope> {
   if (PARTNER_HIDDEN_TOOLS.has(name)) throw new DomainError('VALIDATION_FAILED', `${name} is not available to partner apps: use the confirm endpoints.`);
   if (!/^[a-z_]{3,40}$/.test(name)) throw new DomainError('NOT_FOUND', 'Unknown tool');
   if (args !== undefined && (typeof args !== 'object' || args === null || Array.isArray(args))) throw new DomainError('VALIDATION_FAILED', 'arguments must be an object');
+  if (!(await knownTools(ctx, p)).has(name)) throw new DomainError('NOT_FOUND', 'Unknown tool');
   return withClient(ctx, p, userId, async (c) => {
-    const tools = await c.listTools();
-    if (!tools.tools.some((t) => t.name === name)) throw new DomainError('NOT_FOUND', 'Unknown tool');
     const r = await c.callTool({ name, arguments: (args ?? {}) as Record<string, unknown> });
     const sc = (r.structuredContent ?? null) as ToolEnvelope | null;
     if (!sc) {
@@ -105,7 +119,7 @@ export async function callPartnerTool(ctx: Ctx, p: PartnerConfig, userId: string
       return { ok: false, mode: null, error: { code: 'VALIDATION_FAILED', message: text.slice(0, 800) || 'Invalid arguments' }, next_actions: [], notices: [] };
     }
     return adaptForPartner(sc) as ToolEnvelope;
-  });
+  }, seed);
 }
 
 export interface ToolDef {

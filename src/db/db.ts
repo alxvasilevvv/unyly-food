@@ -37,7 +37,16 @@ export function createDb(connectionString: string, max = Number(process.env.DATA
   // Transaction-mode poolers (e.g. Supabase Supavisor :6543) may not forward startup parameters;
   // there, set statement_timeout on the database role instead (see docs/operations.md).
   const pooled = process.env.DATABASE_POOLER === 'transaction';
-  const pool = new pg.Pool({ connectionString: cs, max, ssl, connectionTimeoutMillis: 10000, idleTimeoutMillis: 30000, ...(pooled ? {} : { statement_timeout: 15000 }) });
+  // Opening a connection to a remote database costs several round trips (TCP, TLS, authentication), far more
+  // than a query. Idle connections are therefore kept for 5 minutes (DATABASE_POOL_IDLE_MS) instead of 30 s, so
+  // a visitor who pauses between two steps of an order does not pay for a new connection on the next one, and
+  // TCP keep-alive stops NAT gateways and poolers from silently dropping them in the meantime.
+  const idleMs = Number(process.env.DATABASE_POOL_IDLE_MS || 300_000);
+  const pool = new pg.Pool({
+    connectionString: cs, max, ssl, connectionTimeoutMillis: 10000, idleTimeoutMillis: Number.isFinite(idleMs) && idleMs >= 1000 ? idleMs : 300_000,
+    keepAlive: true, keepAliveInitialDelayMillis: 30_000,
+    ...(pooled ? {} : { statement_timeout: 15000 }),
+  });
   pool.on('error', (err) => {
     // Idle client errors must not crash the process.
     console.error('[db] idle client error', err.message);

@@ -178,6 +178,22 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     if (isCorsPath(req.url)) reply.header('cross-origin-resource-policy', 'cross-origin');
     return payload;
   });
+  // Server-Timing on the JSON APIs behind the Ari demo and the Partner API: how long the app spent on the
+  // request (database round trips included), so slow steps can be told apart from network time in the browser.
+  const isTimedPath = (url: string) => url.startsWith('/ari/api/') || url.startsWith('/partner/v1/');
+  const startedAt = new WeakMap<FastifyRequest, bigint>();
+  app.addHook('onRequest', async (req) => {
+    if (isTimedPath(req.url)) startedAt.set(req, process.hrtime.bigint());
+  });
+  app.addHook('onSend', async (req, reply, payload) => {
+    const t0 = startedAt.get(req);
+    // Partner API: only on requests that passed the signature check, so an unsigned caller gets no precise
+    // measurement of how long a failed check took.
+    if (t0 !== undefined && (!req.url.startsWith('/partner/v1/') || (req as { partner?: unknown }).partner)) {
+      reply.header('server-timing', `app;dur=${(Number(process.hrtime.bigint() - t0) / 1e6).toFixed(1)}`);
+    }
+    return payload;
+  });
   const preflight = async (_req: FastifyRequest, reply: FastifyReply) => reply.code(204).headers(CORS_HEADERS).send();
   for (const p of ['/.well-known/*', '/oauth/register', '/oauth/token', '/oauth/revoke', ...mcpPaths]) app.options(p, preflight);
 
@@ -460,7 +476,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     });
   });
 
-  await registerPartnerRoutes(app, ctx); // Signed Partner API for Ari: /partner/v1/*
+  await registerPartnerRoutes(app, ctx, ipKey); // Signed Partner API for Ari: /partner/v1/*
   await registerGrabPayRoutes(app, ctx); // GrabPay OTC: every route 404 while GRABPAY=off
   // Captured payment -> submit the paid Live order; last check before the charge. Once per ctx.
   registerLiveExpressPayment(ctx);

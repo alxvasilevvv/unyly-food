@@ -195,7 +195,7 @@ describe('6. Mail', () => {
 describe('7. Config validation', () => {
   const prod = {
     env: 'production' as const, webOrigin: 'https://food.example', mcpResourceUrl: 'https://food.example/mcp', devEchoLoginCode: false,
-    databaseUrl: 'postgres://u:strongpassword@db/unyly', demoWebhookSecret: 'a'.repeat(64), mail: { mode: 'smtp' as const, smtpUrl: 'smtp://x', from: 'x' },
+    databaseUrl: 'postgres://u:strongpassword@db/unyly', demoWebhookSecret: `test-only-${'k9Qz7Lm2Xv4Bn6Tp'.repeat(3)}`, mail: { mode: 'smtp' as const, smtpUrl: 'smtp://x', from: 'x' },
   };
   it('accepts a sound production config', () => {
     expect(loadConfig(prod).env).toBe('production');

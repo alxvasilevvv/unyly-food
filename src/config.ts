@@ -4,7 +4,7 @@ import { isIP } from 'node:net';
 import { GrabPayConfig, loadGrabPayConfig } from './payments/grabpay-config.js';
 import { GrabIdConfig, loadGrabIdConfig } from './auth/grabid.js';
 import { GrabConfig, loadGrabConfig, validateExpressPayment, validateGrabConfig } from './providers/grab/config.js';
-import { loadPartners, PartnerConfig } from './partners/config.js';
+import { isWeakSecret, loadPartners, PartnerConfig } from './partners/config.js';
 
 // Local convenience: load ./.env if present. Variables already set in the environment win.
 if (process.env.NODE_ENV !== 'test' && !process.env.VITEST && existsSync('.env')) process.loadEnvFile('.env');
@@ -125,7 +125,6 @@ function stepUpThresholds(): Record<string, number> {
   return out;
 }
 
-const weakSecret = (s: string) => s.length < 32 || /change[_-]?me|dev-only/i.test(s);
 
 export function loadConfig(overrides: Partial<Config> = {}): Config {
   const env = (process.env.NODE_ENV as Config['env']) || 'development';
@@ -141,7 +140,7 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     webOrigin,
     mcpResourceUrl: (process.env.MCP_RESOURCE_URL || `${webOrigin}/mcp`).replace(/\/$/, ''),
     trustProxy: parseTrustProxy(process.env.TRUST_PROXY, env === 'production' ? 1 : false),
-    cookieSecure: bool(process.env.COOKIE_SECURE, webOrigin.startsWith('https://')),
+    cookieSecure: bool(process.env.COOKIE_SECURE, (overrides.webOrigin ?? webOrigin).startsWith('https://')),
     demoWebhookSecret: process.env.DEMO_WEBHOOK_SECRET || 'dev-only-demo-webhook-secret-change-me',
     mail: {
       mode: mailMode as Config['mail']['mode'],
@@ -173,11 +172,22 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
   }
   validateGrabConfig(cfg.grab);
   validateExpressPayment(cfg.grab, cfg.grabpay);
+  // The server's own HMAC key binds a partner confirmation to the card that was shown (confirm_hash). A partner
+  // that held the same value could compute that hash without ever fetching the card.
+  for (const p of cfg.partners) {
+    if (p.secret === cfg.demoWebhookSecret || p.webhookSecret === cfg.demoWebhookSecret) throw new Error(`Partner "${p.id}": the signing secrets must differ from DEMO_WEBHOOK_SECRET`);
+  }
   if (cfg.env === 'production') {
     if (!process.env.DATABASE_URL && !overrides.databaseUrl) throw new Error('DATABASE_URL must be set in production');
     if (/CHANGE_ME/i.test(cfg.databaseUrl)) throw new Error('DATABASE_URL still contains a placeholder password');
     if (cfg.devEchoLoginCode) throw new Error('DEV_ECHO_LOGIN_CODE must be false in production');
-    if (weakSecret(cfg.demoWebhookSecret)) throw new Error('DEMO_WEBHOOK_SECRET must be a random secret of at least 32 characters in production (openssl rand -hex 32)');
+    // This secret also keys the confirm_hash of partner cards and the cookie of the website Ari demo.
+    if (isWeakSecret(cfg.demoWebhookSecret)) throw new Error('DEMO_WEBHOOK_SECRET must be a random secret of at least 32 characters in production (openssl rand -hex 32)');
+    for (const p of cfg.partners) {
+      // Also for partners passed in directly (the environment loader checks its own).
+      if (isWeakSecret(p.secret) || (p.webhookUrl && isWeakSecret(p.webhookSecret))) throw new Error(`Partner "${p.id}": the signing secrets must be random values of at least 32 characters in production (openssl rand -hex 32)`);
+    }
+    if (!cfg.cookieSecure) throw new Error('COOKIE_SECURE must not be off in production: session and demo cookies are sent over HTTPS only');
     if (!cfg.webOrigin.startsWith('https://')) throw new Error('WEB_ORIGIN must be https in production');
     if (!cfg.mcpResourceUrl.startsWith('https://')) throw new Error('MCP_RESOURCE_URL must be https in production');
     if (cfg.mail.mode === 'console') throw new Error('MAIL_MODE must be smtp or disabled in production');

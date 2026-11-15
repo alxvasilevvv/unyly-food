@@ -66,33 +66,26 @@ export function orderNotify(o: OrderLike, status: FulfillmentStatus, l: Locale):
   return { title: label, body, level, suggest_call: suggestCall || undefined, live_activity: { state: status, progress: PROGRESS[status], eta_at: eta } };
 }
 
-/** Partner and locale of a user, or null for regular (non-partner) users. */
-async function partnerOf(q: Queryable, userId: string): Promise<{ partner_id: string; external_user_id: string; locale: Locale } | null> {
-  const r = (await q.query(
-    `SELECT pu.partner_id, pu.external_user_id, u.locale FROM partner_users pu JOIN users u ON u.id = pu.user_id WHERE pu.user_id = $1`,
-    [userId],
-  )).rows[0];
-  return r ?? null;
-}
-
 export async function enqueuePartnerEvent(
   q: Queryable, userId: string, type: PartnerEventType, data: Record<string, unknown>, opts: { dedupeKey?: string; notify?: (l: Locale) => Notify } = {},
 ): Promise<boolean> {
-  const pu = await partnerOf(q, userId);
-  if (!pu) return false;
-  const payload = {
-    type,
-    partner_id: pu.partner_id,
-    user_id: pu.external_user_id,
-    created_at: new Date().toISOString(),
-    data,
-    ...(opts.notify ? { notify: opts.notify(cardLocale(pu.locale)) } : {}),
-  };
-  await q.query(
-    `INSERT INTO partner_webhooks (partner_id, user_id, event_type, dedupe_key, payload) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
-    [pu.partner_id, userId, type, opts.dedupeKey ?? null, JSON.stringify(payload)],
+  // One statement: look the partner user up and store the event. The notify hint is prepared for each card
+  // language and the row picks the user's (cardLocale: ru and th, otherwise en). Regular users match no row.
+  const notify = opts.notify ? JSON.stringify({ en: opts.notify('en'), ru: opts.notify('ru'), th: opts.notify('th') }) : null;
+  const r = await q.query<{ n: number }>(
+    `WITH pu AS (SELECT pu.partner_id, pu.external_user_id, u.locale FROM partner_users pu JOIN users u ON u.id = pu.user_id WHERE pu.user_id = $1),
+          ins AS (
+            INSERT INTO partner_webhooks (partner_id, user_id, event_type, dedupe_key, payload)
+            SELECT pu.partner_id, $1, $2, $3,
+                   jsonb_build_object('type', $2::text, 'partner_id', pu.partner_id, 'user_id', pu.external_user_id, 'created_at', $4::text, 'data', $5::jsonb)
+                   || CASE WHEN $6::jsonb IS NULL THEN '{}'::jsonb
+                           ELSE jsonb_build_object('notify', $6::jsonb -> (CASE WHEN pu.locale IN ('ru','th') THEN pu.locale ELSE 'en' END)) END
+              FROM pu
+            ON CONFLICT DO NOTHING)
+     SELECT count(*)::int AS n FROM pu`,
+    [userId, type, opts.dedupeKey ?? null, new Date().toISOString(), JSON.stringify(data), notify],
   );
-  return true;
+  return (r.rows[0]?.n ?? 0) > 0;
 }
 
 export async function enqueueOrderStatus(q: Queryable, o: OrderLike, status: FulfillmentStatus, isFinal: boolean, labelLocale?: Locale) {
@@ -119,16 +112,39 @@ export async function lastPartnerEventSeq(ctx: Ctx, userId: string): Promise<num
   return Number(r.rows[0]?.seq ?? 0);
 }
 
+/**
+ * Events of a partner user by its external id, in one statement (the polling path: no separate user lookup).
+ * Returns null when the user does not exist, an empty list when there is nothing after `after`.
+ */
+export async function listPartnerEventsFor(ctx: Ctx, partnerId: string, externalUserId: string, after = 0, limit = 50): Promise<StoredEvent[] | null> {
+  const r = await ctx.db.query(
+    `SELECT w.id, w.event_id, w.event_type, w.payload, w.created_at
+       FROM partner_users pu JOIN users u ON u.id = pu.user_id AND u.deleted_at IS NULL
+       LEFT JOIN LATERAL (
+         SELECT id, event_id, event_type, payload, created_at FROM partner_webhooks WHERE user_id = pu.user_id AND id > $3 ORDER BY id LIMIT $4
+       ) w ON true
+      WHERE pu.partner_id = $1 AND pu.external_user_id = $2
+      ORDER BY w.id`,
+    [partnerId, externalUserId, after, Math.min(Math.max(limit, 1), 100)],
+  );
+  if (!r.rows.length) return null;
+  return r.rows.filter((x) => x.id != null).map(storedEvent);
+}
+
 export async function listPartnerEvents(ctx: Ctx, userId: string, after = 0, limit = 50): Promise<StoredEvent[]> {
   const r = await ctx.db.query(
     `SELECT id, event_id, event_type, payload, created_at FROM partner_webhooks WHERE user_id = $1 AND id > $2 ORDER BY id LIMIT $3`,
     [userId, after, Math.min(Math.max(limit, 1), 100)],
   );
-  return r.rows.map((x) => ({
+  return r.rows.map(storedEvent);
+}
+
+function storedEvent(x: any): StoredEvent {
+  return ({
     // Same shape as the webhook body: event_id, seq, then the stored payload fields.
     event_id: x.event_id, seq: Number(x.id), type: x.event_type, partner_id: x.payload.partner_id, user_id: x.payload.user_id,
     created_at: new Date(x.created_at).toISOString(), data: x.payload.data, notify: x.payload.notify,
-  }));
+  });
 }
 
 const MAX_ATTEMPTS = 12;

@@ -1434,12 +1434,14 @@ nav.main .lang-menu > summary { min-height: 40px; box-sizing: border-box; }
   .ari-demo-page { padding-top: 8px; }
   .ari-phone.big { width: 100%; max-width: 100%; padding: 0; border-radius: 20px; box-shadow: 0 0 0 1px var(--line); scroll-margin-top: 0; }
   .ari-phone.big .ari-screen { height: 100svh; min-height: 260px; border-radius: 20px; }
+  .ari-phone.big::before, .ari-phone.big::after, .ari-phone.big .ari-screen::after { display: none; }
   .ari-phone.big .ari-status { padding: 8px 18px 2px; }
   .ari-phone.big .ari-head { padding: 4px 14px 6px; }
   .ari-phone.big .ari-chips { padding: 4px 14px; }
   .ari-phone.big .ari-composer { padding: 4px 12px 8px; }
   .ari-phone.big .ari-push { top: 8px; }
-  .ari-phone.big .ari-msg, .ari-phone.big .ari-card { max-width: min(100%, 560px); }
+  .ari-phone.big .ari-msg { max-width: min(82%, 560px); }
+  .ari-phone.big .ari-card { max-width: 560px; width: 100%; align-self: flex-start; box-sizing: border-box; }
   .ari-phone.big .ari-sheet { gap: 10px; }
   .ari-phone.big .ari-sheet .fid { width: 76px; height: 76px; border-radius: 22px; }
   .ari-phone.big .ari-sheet .fid svg { width: 44px; height: 44px; }
@@ -1453,3 +1455,20 @@ nav.main .lang-menu > summary { min-height: 40px; box-sizing: border-box; }
   .ari-phone.big .call-btns { gap: 44px; }
   .ari-phone.big .call-btns button svg { width: 52px; height: 52px; padding: 14px; }
 }
+/* The call screen adapts to the height of the phone screen itself (small phones in portrait). */
+.ari-phone.big .ari-screen { container: ariscreen / size; }
+@container ariscreen (max-height: 560px) {
+  .ari-call { padding: 34px 20px 22px; }
+  .ari-call .ari-avatar.xl { width: 72px; height: 72px; font-size: 34px; }
+  .ari-call .call-ring { margin-bottom: 8px; }
+  .ari-call .call-top { gap: 8px; }
+  .ari-call .call-top b { font-size: 24px; }
+  .ari-call .call-wave { height: 22px; margin-top: 2px; }
+  .ari-call .call-line { min-height: 0; margin: 0; font-size: 15px; line-height: 1.4; }
+  .ari-call .call-btns button svg { width: 56px; height: 56px; padding: 15px; }
+}
+/* Route row: long place names wrap inside the card, the distance never leaves it. */
+.ac-route { flex-wrap: wrap; row-gap: 2px; }
+.ac-route span { min-width: 0; flex: 0 1 auto; overflow-wrap: anywhere; }
+.ac-route small { flex: none; }
+@media (max-width: 380px) { .ari-phone.big .ari-head small { display: none; } }

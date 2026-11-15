@@ -221,6 +221,23 @@ export async function addAddress(ctx: Ctx, userId: string, input: Parameters<typ
 }
 
 /**
+ * The first (default) address of a user that was created in this same transaction: there is nothing to
+ * count and no earlier default to clear, so the row and its audit entry go in with one statement.
+ */
+export async function addFirstAddress(q: Queryable, userId: string, input: Parameters<typeof validateAddressInput>[0]): Promise<AddressRow> {
+  const a = validateAddressInput(input);
+  const r = await q.query<AddressRow>(
+    `WITH ins AS (
+       INSERT INTO addresses (user_id, label, line1, district, city, country, instructions, is_default, latitude, longitude, contact_name, contact_phone)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8,$9,$10,$11) RETURNING *),
+     au AS (INSERT INTO audit_log (user_id, actor, action, entity, entity_id, details) SELECT ins.user_id, 'web', 'address.added', 'address', ins.id::text, '{}'::jsonb FROM ins)
+     SELECT * FROM ins`,
+    [userId, a.label, a.line1, a.district, a.city, a.country, a.instructions, a.latitude, a.longitude, a.contact_name, a.contact_phone],
+  );
+  return r.rows[0];
+}
+
+/**
  * Addresses are immutable once created (carts and checkouts reference them); deleting soft-deletes and scrubs
  * every free-text field: label, street, district, city and instructions become '[deleted]' / NULL. Only country
  * is kept (NOT NULL, two-letter region code). This is safe for history: cart_versions.address_id is ON DELETE

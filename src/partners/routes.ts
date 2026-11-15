@@ -13,8 +13,8 @@ import {
 } from './core.js';
 import { openApiDocument } from './openapi.js';
 import { PARTNER_INSTRUCTIONS, partnerToolDefs } from './tools.js';
-import { deletePartnerUser, loadPartnerUser, PartnerUser, upsertPartnerUser } from './users.js';
-import { listPartnerEvents } from './webhooks.js';
+import { checkExternalId, deletePartnerUser, loadPartnerUser, PartnerUser, upsertPartnerUser } from './users.js';
+import { listPartnerEventsFor } from './webhooks.js';
 
 type Req = FastifyRequest & { partner?: PartnerConfig; jsonBody?: any };
 
@@ -34,25 +34,53 @@ const sendHttpError = (reply: FastifyReply, status: number, code: string, messag
 
 const AUTH_FAIL_MAX = 300;
 const AUTH_FAIL_WINDOW_MS = 60_000;
+const AUTH_FAIL_KEYS = 20_000;
 
 /**
- * Failed signature checks per client IP (fixed one-minute window, in memory, no database work). The per-user
- * limits only start after a valid signature, so without this an unsigned flood would never be limited at all.
+ * Failed signature checks per client address (fixed one-minute window, in memory, no database work). The
+ * per-user limits only start after a valid signature, so without this an unsigned flood would never be
+ * limited at all.
+ *
+ * Only failures are stored and only failures are refused: a request with a valid signature is never turned
+ * away here, so a flood of bad signatures that shares an address with the partner's servers (a NAT, a proxy
+ * that is not in TRUST_PROXY) cannot lock the partner out. Memory is bounded: at most `maxKeys` addresses are
+ * remembered; when full, expired entries go first, then addresses that are not blocked, then the oldest.
  */
-function authFailureLimiter() {
+export function authFailureLimiter(max = AUTH_FAIL_MAX, windowMs = AUTH_FAIL_WINDOW_MS, maxKeys = AUTH_FAIL_KEYS) {
   const seen = new Map<string, { n: number; reset: number }>();
-  const entry = (ip: string, now: number) => {
-    const e = seen.get(ip);
-    if (e && e.reset > now) return e;
-    if (seen.size > 20_000) for (const [k, v] of seen) if (v.reset <= now) seen.delete(k);
-    if (seen.size > 20_000) seen.clear();
-    const fresh = { n: 0, reset: now + AUTH_FAIL_WINDOW_MS };
-    seen.set(ip, fresh);
-    return fresh;
+  const live = (key: string, now: number) => {
+    const e = seen.get(key);
+    if (e && e.reset <= now) {
+      seen.delete(key);
+      return undefined;
+    }
+    return e;
+  };
+  const makeRoom = (now: number) => {
+    for (const [k, v] of seen) if (v.reset <= now) seen.delete(k);
+    const target = Math.floor(maxKeys * 0.9);
+    if (seen.size >= maxKeys) for (const [k, v] of seen) {
+      if (seen.size <= target) break;
+      if (v.n < max) seen.delete(k);
+    }
+    if (seen.size >= maxKeys) for (const k of seen.keys()) {
+      if (seen.size <= target) break;
+      seen.delete(k);
+    }
   };
   return {
-    blocked: (ip: string) => entry(ip, Date.now()).n >= AUTH_FAIL_MAX,
-    hit: (ip: string) => { entry(ip, Date.now()).n += 1; },
+    /** Records one failed check; true when this address is over the limit (answer 429 instead of 401). */
+    fail(key: string, now = Date.now()): boolean {
+      let e = live(key, now);
+      if (!e) {
+        if (seen.size >= maxKeys) makeRoom(now);
+        e = { n: 0, reset: now + windowMs };
+        seen.set(key, e);
+      }
+      e.n += 1;
+      return e.n > max;
+    },
+    size: () => seen.size,
   };
 }
 
@@ -62,7 +90,8 @@ function uuidParam(v: unknown, name: string): string {
   return s;
 }
 
-export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx) {
+/** `ipKeyOf`: how a client address becomes a limiter key (the app groups IPv6 by /64, like its other limits). */
+export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx, ipKeyOf: (ip: string) => string = (ip) => ip) {
   // Public: the API description (no secrets in it).
   app.get('/partner/v1/openapi.json', async (_req, reply) => reply.header('cache-control', 'public, max-age=300').send(openApiDocument(ctx)));
 
@@ -74,13 +103,15 @@ export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx) {
     const authFailures = authFailureLimiter();
     scope.addHook('preHandler', async (req: Req, reply) => {
       try {
-        // Too many bad signatures from this address: refuse before any signature or database work.
-        if (authFailures.blocked(req.ip)) throw new DomainError('RATE_LIMITED', 'Too many requests with a missing or invalid signature. Retry in a minute.');
         const raw = typeof req.body === 'string' ? req.body : '';
         try {
           req.partner = await verifyPartnerRequest(ctx, { method: req.method, url: req.url, headers: req.headers as any, rawBody: raw });
         } catch (e) {
-          if (isDomainError(e) && e.code === 'PARTNER_AUTH_FAILED') authFailures.hit(req.ip);
+          // A failed check costs no database work. Too many of them from one address: 429 instead of 401.
+          // A valid signature is never refused here, whatever else arrives from the same address.
+          if (isDomainError(e) && e.code === 'PARTNER_AUTH_FAILED' && authFailures.fail(ipKeyOf(req.ip))) {
+            throw new DomainError('RATE_LIMITED', 'Too many requests with a missing or invalid signature. Retry in a minute.');
+          }
           throw e;
         }
         if (raw) {
@@ -129,7 +160,9 @@ export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx) {
     // ---- users
     scope.put('/partner/v1/users/:uid', rl, route(async (req, reply) => {
       const u = await upsertPartnerUser(ctx, req.partner!, String((req.params as any).uid), req.jsonBody ?? {});
-      return ok(reply, { user: publicUser(u), grab: await grabLinkStatus(ctx, u) }, u.created ? 201 : 200);
+      // A user created by this request cannot have a Grab link yet.
+      const grab = u.created ? { linked: false, linked_at: null, simulated: false } : await grabLinkStatus(ctx, u);
+      return ok(reply, { user: publicUser(u), grab }, u.created ? 201 : 200);
     }));
     scope.get('/partner/v1/users/:uid', rl, route(async (req, reply) => {
       const u = await user(req);
@@ -223,9 +256,13 @@ export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx) {
 
     // ---- events (the same events that are sent by webhook; for polling or recovery)
     scope.get('/partner/v1/users/:uid/events', rl, route(async (req, reply) => {
-      const u = await user(req);
+      // The polling path: the user check and the events in one statement.
+      const ext = String((req.params as any).uid ?? '');
+      checkExternalId(ext);
       const after = Math.max(Number((req.query as any)?.after ?? 0) || 0, 0);
-      return ok(reply, { events: await listPartnerEvents(ctx, u.user_id, after) });
+      const events = await listPartnerEventsFor(ctx, req.partner!.id, ext, after);
+      if (!events) throw new DomainError('NOT_FOUND', 'Unknown user. Create it first with PUT /partner/v1/users/{user_id}.');
+      return ok(reply, { events });
     }));
 
     // ---- Grab account link

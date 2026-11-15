@@ -154,7 +154,9 @@ Every error from `/partner/v1/*` has one shape:
 
 Unknown paths, wrong methods and trailing slashes under `/partner/v1` answer the JSON `404 NOT_FOUND` after the signature check; without a valid signature they answer `401` like everything else. One exception is outside the API's control: a URL with a broken percent escape (`%ZZ`) is refused by the HTTP layer with its own 400 body before routing.
 
-Rate limits: 600 requests per minute per user, 120 per minute per user for tool calls. More than 300 requests per minute with a bad signature from one IP address are answered `429` for the rest of that minute.
+Rate limits: 600 requests per minute per user, 120 per minute per user for tool calls. More than 300 requests per minute with a missing or bad signature from one IP address (one /64 for IPv6) get `429` instead of `401` for the rest of that minute. Correctly signed requests are never refused by this limit.
+
+Every signed response carries `Server-Timing: app;dur=<ms>`: the time Unyly spent on the request, which helps to tell server time from network time.
 
 ## Demo and live
 

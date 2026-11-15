@@ -12,11 +12,12 @@ import { statusLabel } from '../domain/labels.js';
 import type { FulfillmentStatus } from '../providers/types.js';
 import { TERMINAL } from '../providers/types.js';
 import {
-  approveCheckout, CheckoutRow, checkoutStatus, checkoutView, declineCheckout, loadCheckout, paymentRequired, stepUpPolicy, submitOrder,
+  approveCheckout, CheckoutRow, checkoutStatus, checkoutView, declineCheckout, loadCheckoutWithQuoteExpiry, paymentRequired, stepUpPolicy, submitOrder,
 } from '../services/checkout.js';
 import {
-  approveCancellation, cancelOrder, describeCancellation, getOrderStatus, listOrders, loadCancellation, loadOrder, prepareCancellation, OrderRow,
+  approveCancellation, cancelOrder, CancellationRow, describeCancellation, listOrders, loadCancellation, loadOrder, prepareCancellation, OrderRow, refreshOrder,
 } from '../services/orders.js';
+import type { AddressRow } from '../services/users.js';
 import { tr } from '../web/messages.js';
 import { Card, CardAction, CardOption, cardLocale, demoCourier, localText, minutes, seatsBadge, statusBlock, T } from './cards.js';
 import type { PartnerConfig } from './config.js';
@@ -184,8 +185,9 @@ export async function cardForTool(ctx: Ctx, p: PartnerConfig, u: PartnerUser, to
   return null;
 }
 
-export async function runTool(ctx: Ctx, p: PartnerConfig, u: PartnerUser, tool: string, args: Record<string, unknown>) {
-  const env = await callPartnerTool(ctx, p, u.user_id, tool, args);
+export async function runTool(ctx: Ctx, p: PartnerConfig, u: PartnerUser, tool: string, args: Record<string, unknown>, known: { addresses?: AddressRow[] } = {}) {
+  // The user row came with the partner user; `known.addresses` is the address list when this request already read it.
+  const env = await callPartnerTool(ctx, p, u.user_id, tool, args, { user: u.row, addresses: known.addresses });
   let card: Card | null = null;
   try {
     card = await cardForTool(ctx, p, u, tool, args, env);
@@ -273,7 +275,7 @@ function parseConfirm(ctx: Ctx, b: ConfirmBody) {
 export async function confirmCheckout(ctx: Ctx, p: PartnerConfig, u: PartnerUser, checkoutId: string, body: ConfirmBody) {
   const actor = partnerActor(p, u.user_id);
   const via = `partner:${p.id}`;
-  const c = await loadCheckout(ctx.db, u.user_id, checkoutId);
+  const c = await loadCheckoutWithQuoteExpiry(ctx.db, u.user_id, checkoutId);
   // Replay of a confirmation that already went through: report the current state.
   if (c.status === 'consumed' || c.status === 'approved') {
     const prior = (await ctx.db.query('SELECT 1 FROM partner_confirmations WHERE entity = $1 AND entity_id = $2', ['checkout', c.id])).rows[0];
@@ -312,9 +314,10 @@ export async function confirmCheckout(ctx: Ctx, p: PartnerConfig, u: PartnerUser
      VALUES ($1,$2,'checkout',$3,$4,$5,$6,$7) ON CONFLICT (entity, entity_id) DO NOTHING`,
     [p.id, u.user_id, c.id, hash, ver, device, at],
   );
-  await approveCheckout(ctx, u.user_id, c.id, { via, partnerVerification: ver });
+  // `c` was read a moment ago in this request: both steps re-read the checkout under its row lock before acting.
+  await approveCheckout(ctx, u.user_id, c.id, { via, partnerVerification: ver, pre: c });
   try {
-    await submitOrder(ctx, actor, c.id);
+    await submitOrder(ctx, actor, c.id, { pre: c });
   } catch (e) {
     if (!(isDomainError(e) && e.code === 'SUBMISSION_UNKNOWN')) throw e;
   }
@@ -323,42 +326,55 @@ export async function confirmCheckout(ctx: Ctx, p: PartnerConfig, u: PartnerUser
   return res;
 }
 
-/** Demo orders from partner apps move at presentation speed (the whole trip in a couple of minutes). */
-async function speedUpDemo(ctx: Ctx, orderId: string) {
+/**
+ * Demo orders from partner apps move at presentation speed (the whole trip in a couple of minutes).
+ * One statement: speed the simulation up, shorten the ETA shown in the app by the same factor (never
+ * under 30 seconds) and keep the Live Activity hint of the stored order.created event in step with it.
+ */
+async function speedUpDemo(ctx: Ctx, checkoutId: string) {
   const speed = Math.max(ctx.cfg.demoGuestSpeed * 2, 1);
-  const o = (await ctx.db.query('SELECT provider_order_ref, eta_at, created_at FROM orders WHERE id = $1', [orderId])).rows[0];
-  if (!o) return;
-  await ctx.db.query('UPDATE demo_sim_orders SET speed = GREATEST(speed, $2) WHERE ref = $1', [o.provider_order_ref, speed]).catch(() => undefined);
-  if (o.eta_at) {
-    // The ETA shown in the app follows the same clock as the faster simulation.
-    const secs = Math.max(30, Math.round((new Date(o.eta_at).getTime() - new Date(o.created_at).getTime()) / 1000 / speed));
-    const eta = (await ctx.db.query(`UPDATE orders SET eta_at = created_at + make_interval(secs => $2) WHERE id = $1 AND mode = 'demo' RETURNING eta_at`, [orderId, secs])).rows[0]?.eta_at;
-    // order.created was stored a moment ago with the slower ETA: keep its Live Activity hint in step.
-    if (eta) {
-      await ctx.db.query(
-        `UPDATE partner_webhooks SET payload = jsonb_set(payload, '{notify,live_activity,eta_at}', to_jsonb($2::text)) WHERE dedupe_key = $1 AND payload #> '{notify,live_activity}' IS NOT NULL`,
-        [`order:${orderId}:created`, new Date(eta).toISOString()],
-      );
-    }
-  }
+  await ctx.db.query(
+    `WITH o AS (SELECT id, provider_order_ref FROM orders WHERE checkout_id = $1 AND mode = 'demo'),
+          sim AS (UPDATE demo_sim_orders d SET speed = GREATEST(d.speed, $2::real) FROM o WHERE d.ref = o.provider_order_ref),
+          eta AS (
+            UPDATE orders x SET eta_at = x.created_at + make_interval(secs => GREATEST(30, round(extract(epoch FROM (x.eta_at - x.created_at)) / $2::numeric)))
+              FROM o WHERE x.id = o.id AND x.eta_at IS NOT NULL
+            RETURNING x.id, x.eta_at)
+     UPDATE partner_webhooks w
+        SET payload = jsonb_set(w.payload, '{notify,live_activity,eta_at}', to_jsonb(to_char(eta.eta_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')))
+       FROM eta
+      WHERE w.dedupe_key = 'order:' || eta.id || ':created' AND w.payload #> '{notify,live_activity}' IS NOT NULL`,
+    [checkoutId, speed],
+  );
 }
 
 /** The confirm result right after a submission. The demo speed-up runs first so the first order card already shows the ETA the app will keep seeing. */
 async function resultAfterSubmit(ctx: Ctx, p: PartnerConfig, u: PartnerUser, c: Pick<CheckoutRow, 'id' | 'mode'>) {
-  if (c.mode === 'demo') {
-    const o = (await ctx.db.query('SELECT id FROM orders WHERE checkout_id = $1', [c.id])).rows[0];
-    if (o) await speedUpDemo(ctx, o.id);
-  }
+  if (c.mode === 'demo') await speedUpDemo(ctx, c.id);
   return confirmResult(ctx, p, u, c.id);
 }
+
+const CONFIRM_WAIT_STEPS_MS = [100, 150, 250, 400, 500, 600];
+const CONFIRM_WAITERS_MAX = 50;
+let confirmWaiters = 0;
 
 async function confirmResult(ctx: Ctx, p: PartnerConfig, u: PartnerUser, checkoutId: string) {
   let st = await checkoutStatus(ctx, partnerActor(p, u.user_id), checkoutId);
   // A parallel confirmation of the same checkout is sending the order right now: wait a moment for it so
   // every caller gets the same order. If the provider is slow the answer stays "in_flight" with order null.
-  for (let i = 0; i < 20 && !st.order_id && (st as any).submission?.status === 'in_flight'; i++) {
-    await new Promise((r) => setTimeout(r, 100));
-    st = await checkoutStatus(ctx, partnerActor(p, u.user_id), checkoutId);
+  // Bounded: at most two seconds and six status reads per request (growing pauses, no connection is held while
+  // waiting), and at most CONFIRM_WAITERS_MAX requests wait at once; beyond that the "in_flight" answer goes out at once.
+  if (!st.order_id && (st as any).submission?.status === 'in_flight' && confirmWaiters < CONFIRM_WAITERS_MAX) {
+    confirmWaiters++;
+    try {
+      for (const ms of CONFIRM_WAIT_STEPS_MS) {
+        await new Promise((r) => setTimeout(r, ms));
+        st = await checkoutStatus(ctx, partnerActor(p, u.user_id), checkoutId);
+        if (st.order_id || (st as any).submission?.status !== 'in_flight') break;
+      }
+    } finally {
+      confirmWaiters--;
+    }
   }
   const { confirm_url: _c, user_action: _ua, ...status } = st as any;
   const order = st.order_id ? { id: st.order_id, card: await orderCard(ctx, p, u, st.order_id) } : null;
@@ -376,8 +392,9 @@ export async function declineCheckoutPartner(ctx: Ctx, p: PartnerConfig, u: Part
 
 export async function orderCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, orderId: string, opts: { refresh?: boolean } = {}): Promise<Card> {
   const l = cardLocale(u.locale);
-  if (opts.refresh) await getOrderStatus(ctx, partnerActor(p, u.user_id), orderId).catch(() => undefined);
-  const o: OrderRow = await loadOrder(ctx.db, u.user_id, orderId);
+  // With refresh the provider is asked first; the row it leaves behind is the one shown (no second read).
+  const fresh = opts.refresh ? await refreshOrder(ctx, partnerActor(p, u.user_id), orderId).catch(() => undefined) : undefined;
+  const o: OrderRow = fresh?.row ?? (await loadOrder(ctx.db, u.user_id, orderId));
   const trip = isTripService(o.service);
   const isFinal = TERMINAL.includes(o.fulfillment_status);
   const eta = o.eta_at ? new Date(o.eta_at).toISOString() : null;
@@ -417,12 +434,13 @@ export async function prepareCancelPartner(ctx: Ctx, p: PartnerConfig, u: Partne
     if (isDomainError(e) && e.code === 'CANCELLATION_NOT_ALLOWED') throw new DomainError(e.code, localText(e.message, cardLocale(u.locale)) ?? e.message, e.details, e.userAction);
     throw e;
   }
-  return { cancellation: adaptForPartner(describeCancellation(c)), card: await cancellationCard(ctx, p, u, c.id) };
+  return { cancellation: adaptForPartner(describeCancellation(c)), card: await cancellationCard(ctx, p, u, c.id, c) };
 }
 
-export async function cancellationCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, cancellationId: string): Promise<Card> {
+export async function cancellationCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, cancellationId: string, known?: CancellationRow): Promise<Card> {
   const l = cardLocale(u.locale);
-  const c = await loadCancellation(ctx.db, u.user_id, cancellationId);
+  // `known`: the request this call just created for this user (no need to read it back).
+  const c = known && known.id === cancellationId && known.user_id === u.user_id ? known : await loadCancellation(ctx.db, u.user_id, cancellationId);
   const o = await loadOrder(ctx.db, u.user_id, c.order_id);
   const open = c.status === 'awaiting_user';
   const fee = money(Number(c.fee_minor), c.currency, l).formatted;

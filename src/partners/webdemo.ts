@@ -7,7 +7,7 @@ import type { Ctx } from '../context.js';
 import { hmac, safeEqual, UUID_RE } from '../domain/crypto.js';
 import { DomainError, isDomainError } from '../domain/errors.js';
 import type { Locale } from '../domain/locales.js';
-import { addAddress } from '../services/users.js';
+import { addFirstAddress, listAddresses } from '../services/users.js';
 import { detectService, hasFoodCue, parseIntent } from '../web/intent.js';
 import { SHOP_STORE, shopPlan } from '../web/try-services.js';
 import { tr } from '../web/messages.js';
@@ -17,7 +17,7 @@ import {
   cancellationCard, checkoutCard, confirmCancelPartner, confirmCheckout, declineCheckoutPartner, grabLinkStatus, orderCard, prepareCancelPartner, runTool, startGrabLink,
 } from './core.js';
 import { loadPartnerUser, partnerActor, PartnerUser, upsertPartnerUser } from './users.js';
-import { lastPartnerEventSeq, listPartnerEvents } from './webhooks.js';
+import { lastPartnerEventSeq, listPartnerEventsFor } from './webhooks.js';
 
 const P = WEB_DEMO_PARTNER;
 const COOKIE = 'ari_demo';
@@ -133,7 +133,9 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
   try {
     if (TRACK.test(q) || (CANCEL.test(q) && q.length < 60)) return await latestOrderTurn(ctx, u, l, !TRACK.test(q), trace);
     if (si.service === 'ride' || si.service === 'express') {
-      const addr = (await ctx.db.query(`SELECT label FROM addresses WHERE user_id = $1 AND is_default`, [u.user_id])).rows[0];
+      // The saved places are read once here and handed to the tool call below, which resolves pickup and drop-off against them.
+      const places = await listAddresses(ctx.db, u.user_id);
+      const addr = places.find((a) => a.is_default);
       // "Home" in any language is the saved default place, whatever language its label was saved in.
       const pickup = (si.pickup_home ? addr?.label : si.pickup) || addr?.label || '';
       if (si.dropoff_home && addr) si.dropoff = addr.label;
@@ -155,7 +157,7 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
       const ask: TripAsk = { service: si.service, pickup: si.pickup_home ? homeWord : si.pickup, dropoff: si.dropoff_home ? homeWord : si.dropoff, weight_kg: si.weight_kg };
       if (si.service === 'express') args.parcel_weight_kg = si.weight_kg ?? 2;
       if (si.passengers) args.passengers = Math.min(si.passengers, 10);
-      const r = await traced(trace, `POST ${base}/tools/estimate_trip`, grabFor('estimate_trip', args), () => runTool(ctx, P, u, 'estimate_trip', args));
+      const r = await traced(trace, `POST ${base}/tools/estimate_trip`, grabFor('estimate_trip', args), () => runTool(ctx, P, u, 'estimate_trip', args, { addresses: places }));
       if (!r.ok) return errorTurn(l, r.error, trace, ask);
       const res = r.result;
       const from = res.trip?.pickup?.name;
@@ -254,6 +256,7 @@ function openExt(ctx: Ctx, v: string | undefined): string | null {
 async function createDemoUser(ctx: Ctx, ip: string, locale: Locale): Promise<PartnerUser> {
   const ipHash = hmac(ctx.cfg.demoWebhookSecret, `guest-ip:${ip}`).slice(0, 32);
   // Count and create under one lock so parallel requests cannot exceed the per-IP and global caps.
+  // The user and the demo home address are written in the same transaction (one BEGIN/COMMIT).
   const u = await ctx.db.tx(async (q) => {
     await q.query("SELECT pg_advisory_xact_lock(hashtext('unyly.guest_create'))");
     const c = (await q.query(
@@ -262,13 +265,29 @@ async function createDemoUser(ctx: Ctx, ip: string, locale: Locale): Promise<Par
     )).rows[0];
     if (c.mine >= ctx.cfg.guestPerIpHourly || c.total >= ctx.cfg.guestHourlyLimit) return null;
     // Same lifetime as other demo guests: deleted after 24 hours by the job worker.
-    return upsertPartnerUser(ctx, P, `web-${randomUUID()}`, { locale }, { q, guestIpHash: ipHash });
+    // A new random id: nothing to look up or lock for it (the unique key still guards the insert).
+    const created = await upsertPartnerUser(ctx, P, `web-${randomUUID()}`, { locale }, { q, guestIpHash: ipHash, fresh: true });
+    await addFirstAddress(q, created.user_id, demoHome(locale));
+    return created;
   });
   if (!u) throw new DomainError('RATE_LIMITED', 'The demo is busy right now. Please try again in a few minutes.');
-  await addAddress(ctx, u.user_id, {
-    label: tr(locale, { ru: 'Дом', en: 'Home', th: 'บ้าน' }), line1: '88 Sukhumvit Soi 24 (demo)', district: 'Watthana', city: 'Bangkok', country: 'TH',
-  }, true);
   return u;
+}
+
+function demoHome(locale: Locale) {
+  return ({
+    label: tr(locale, { ru: 'Дом', en: 'Home', th: 'บ้าน' }), line1: '88 Sukhumvit Soi 24 (demo)', district: 'Watthana', city: 'Bangkok', country: 'TH',
+  });
+}
+
+/** The demo user of a sealed cookie value, or null when it no longer exists. Database errors are not "no user": they propagate. */
+async function demoUser(ctx: Ctx, ext: string): Promise<PartnerUser | null> {
+  try {
+    return await loadPartnerUser(ctx, P, ext);
+  } catch (e) {
+    if (isDomainError(e) && e.code === 'NOT_FOUND') return null;
+    throw e;
+  }
 }
 
 export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (req: FastifyRequest) => Locale) {
@@ -287,12 +306,13 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
   const current = async (req: FastifyRequest): Promise<PartnerUser> => {
     const ext = openExt(ctx, (req.cookies as any)?.[COOKIE]);
     if (!ext) throw new DomainError('AUTH_REQUIRED', 'Start the demo first.');
-    const u = await loadPartnerUser(ctx, P, ext).catch(() => null);
+    const u = await demoUser(ctx, ext);
     if (!u) throw new DomainError('AUTH_REQUIRED', 'The demo session ended. Start again.');
     const l = detectLocale(req);
     if (l !== u.locale) {
       await ctx.db.query('UPDATE users SET locale = $2 WHERE id = $1', [u.user_id, l]);
       u.locale = l;
+      if (u.row) u.row.locale = l;
     }
     return u;
   };
@@ -304,13 +324,17 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const l = detectLocale(req);
       let u: PartnerUser | null = null;
       const ext = openExt(ctx, (req.cookies as any)?.[COOKIE]);
-      if (ext) u = await loadPartnerUser(ctx, P, ext).catch(() => null);
+      if (ext) u = await demoUser(ctx, ext);
       if (!u) {
         u = await createDemoUser(ctx, req.ip, l);
         reply.setCookie(COOKIE, sealExt(ctx, u.external_user_id), { httpOnly: true, secure: ctx.cfg.cookieSecure, sameSite: 'lax', path: '/ari', maxAge: 24 * 3600 });
       }
+      // A user created by this request has no Grab link and no events yet; for a returning one both are read together.
+      const [grab, lastEvent] = u.created
+        ? [{ linked: false, linked_at: null, simulated: false }, 0]
+        : await Promise.all([grabLinkStatus(ctx, u), lastPartnerEventSeq(ctx, u.user_id)]);
       return send(reply, {
-        ok: true, user: { id: u.external_user_id }, grab: await grabLinkStatus(ctx, u), examples: ariExamples(l), last_event: await lastPartnerEventSeq(ctx, u.user_id),
+        ok: true, user: { id: u.external_user_id }, grab, examples: ariExamples(l), last_event: lastEvent,
         greeting: tr(l, { en: 'Hi, I\'m Ari. Tell me what you need from Grab and I\'ll take care of it. Nothing is ordered until you confirm.', ru: 'Здравствуйте, я Ari. Скажите, что нужно от Grab, и я всё сделаю. Ничего не заказывается без вашего подтверждения.', th: 'สวัสดีค่ะ Ari เองค่ะ บอกได้เลยว่าต้องการอะไรจาก Grab เดี๋ยว Ari จัดการให้ และจะยังไม่สั่งอะไรจนกว่าคุณจะยืนยันค่ะ' }),
       });
     } catch (e) {
@@ -358,11 +382,13 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const id = String(b.checkout_id ?? '');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Checkout not found');
       const trace: TraceEntry[] = [];
-      const card = await checkoutCard(ctx, P, u, id);
-      const live = card.service === 'express' ? 'GrabPay · charge/init + GrabExpress · POST /v1/deliveries' : card.service === 'ride' ? 'Ride booking scope (requested) · today: Grab deep link' : 'GrabFood / GrabMart order scope (requested)';
-      const r = await traced(trace, `POST /partner/v1/users/${u.external_user_id}/checkouts/${id}/confirm`, live, () => confirmCheckout(ctx, P, u, id, {
+      const r = await traced(trace, `POST /partner/v1/users/${u.external_user_id}/checkouts/${id}/confirm`, null, () => confirmCheckout(ctx, P, u, id, {
         confirm_hash: b.confirm_hash, user_verification: 'biometric', confirmed_at: ctx.clock.now().toISOString(), device_id: 'web-demo',
       }));
+      // The service for the trace line comes from the order card of the result; only when there is no order yet is it looked up.
+      const service = r.order?.card.service
+        ?? (await ctx.db.query('SELECT k.service FROM checkouts c JOIN carts k ON k.id = c.cart_id WHERE c.id = $1 AND c.user_id = $2', [id, u.user_id])).rows[0]?.service;
+      trace[0].grab = service === 'express' ? 'GrabPay · charge/init + GrabExpress · POST /v1/deliveries' : service === 'ride' ? 'Ride booking scope (requested) · today: Grab deep link' : 'GrabFood / GrabMart order scope (requested)';
       const l = cardLocale(u.locale);
       return send(reply, {
         ok: true,
@@ -402,9 +428,13 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
   app.get('/ari/api/events', rl(240), async (req, reply) => {
     try {
       guard(req);
-      const u = await current(req);
+      // The poll: the user check and the events in one statement.
+      const ext = openExt(ctx, (req.cookies as any)?.[COOKIE]);
+      if (!ext) throw new DomainError('AUTH_REQUIRED', 'Start the demo first.');
       const after = Math.max(Number((req.query as any)?.after ?? 0) || 0, 0);
-      return send(reply, { ok: true, events: await listPartnerEvents(ctx, u.user_id, after) });
+      const events = await listPartnerEventsFor(ctx, P.id, ext, after);
+      if (!events) throw new DomainError('AUTH_REQUIRED', 'The demo session ended. Start again.');
+      return send(reply, { ok: true, events });
     } catch (e) {
       return fail(reply, e);
     }

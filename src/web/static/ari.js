@@ -14,6 +14,7 @@
   const push = $('ari-push');
   const sheet = $('ari-faceid');
   const call = $('ari-call');
+  const sendBtn = app.querySelector('.ari-send');
   const lang = S.lang || document.documentElement.lang || 'en';
   let lastEvent = 0;
   let busy = false;
@@ -135,7 +136,7 @@
     busy = on;
     app.classList.toggle('busy', on);
     chat.setAttribute('aria-busy', on ? 'true' : 'false');
-    $('ari-send').disabled = on;
+    if (sendBtn) sendBtn.disabled = on;
   };
   const loading = (btn, on) => {
     if (!btn) return;
@@ -176,6 +177,8 @@
       b.addEventListener('click', () => ask(x));
       chips.appendChild(b);
     });
+    // The row of examples changes the height of the chat: stay on the latest message.
+    scroll();
   };
   const addTrace = (entries) => {
     (entries || []).forEach((t) => {
