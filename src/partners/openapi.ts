@@ -9,10 +9,11 @@ const json = (schema: unknown, description = 'OK') => ({ description, content: {
 const uid = { name: 'uid', in: 'path', required: true, description: 'Your (Ari) user id, opaque, 1 to 128 chars of [A-Za-z0-9._:@-]', schema: { type: 'string' } };
 const idp = (name: string, what: string) => ({ name, in: 'path', required: true, description: `${what} id (UUID)`, schema: { type: 'string', format: 'uuid' } });
 const errors = {
+  '400': json(ref('Error'), 'VALIDATION_FAILED: the path, query or body is wrong (the message names the field)'),
   '401': json(ref('Error'), 'Signature missing or invalid (PARTNER_AUTH_FAILED)'),
-  '404': json(ref('Error'), 'Not found'),
-  '409': json(ref('Error'), 'Conflict (for example CONFIRM_HASH_MISMATCH, CONFIRMATION_EXPIRED, PRICE_CHANGED)'),
-  '429': json(ref('Error'), 'Rate limited'),
+  '404': json(ref('Error'), 'NOT_FOUND: unknown user (create it with PUT /partner/v1/users/{uid}), tool, checkout, order, cancellation or place'),
+  '409': json(ref('Error'), 'Conflict. CONFIRM_HASH_MISMATCH: the hash is not the one from the card. CONFIRMATION_INVALIDATED (details.reason CART_CHANGED, DECLINED...), CONFIRMATION_EXPIRED, PRICE_CHANGED: the checkout can no longer be confirmed, show the card of the new checkout. CANCELLATION_NOT_ALLOWED: the order can no longer be cancelled.'),
+  '429': json(ref('Error'), 'RATE_LIMITED: limits are per partner user (600 requests a minute, 120 tool calls a minute). Same error envelope as every other error.'),
 };
 
 export function openApiDocument(ctx: Ctx) {
@@ -66,20 +67,30 @@ export function openApiDocument(ctx: Ctx) {
       '/partner/v1/users/{uid}/tools/{name}': {
         post: {
           summary: 'Call a tool for this user. The result is the same envelope as the MCP server plus a renderable card.',
+          description:
+            'Every error a tool itself reports comes back as HTTP 422 with ok: false and the reason in error.code (for example PLACE_NOT_FOUND, PLACE_AMBIGUOUS, ' +
+            'VALIDATION_FAILED for wrong arguments, NOT_FOUND for an unknown order id, PRICE_CHANGED): branch on error.code, not on the HTTP status. ' +
+            'HTTP 404 means the user or the tool name is unknown; HTTP 400 means the request itself is malformed or the tool is not available to partner apps.',
           parameters: [uid, { name: 'name', in: 'path', required: true, schema: { type: 'string', examples: ['search_stores', 'estimate_trip', 'create_cart'] } }],
           requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { arguments: { type: 'object' } } } } } },
-          responses: { '200': json(ref('ToolResult')), '422': json(ref('ToolResult'), 'Tool error (ok: false, error.code, error.user_action, next_actions)'), ...errors },
+          responses: { '200': json(ref('ToolResult')), '422': json(ref('ToolResult'), 'Tool error (ok: false, error.code, error.message, error.user_action, next_actions). All tool-level errors use 422.'), ...errors },
         },
       },
-      '/partner/v1/users/{uid}/checkouts/{cid}': { get: { summary: 'Current checkout card (re-fetch after CONFIRM_HASH_MISMATCH)', parameters: [uid, idp('cid', 'Checkout')], responses: { '200': json(okEnvelope({ card: ref('Card') })), ...errors } } },
+      '/partner/v1/users/{uid}/checkouts/{cid}': { get: { summary: 'Current card of this checkout (re-fetch after CONFIRM_HASH_MISMATCH). A checkout that was replaced or declined returns its card without actions; the new card comes in the create_cart or update_cart result.', parameters: [uid, idp('cid', 'Checkout')], responses: { '200': json(okEnvelope({ card: ref('Card') })), ...errors } } },
       '/partner/v1/users/{uid}/checkouts/{cid}/confirm': {
         post: {
           summary: 'The user tapped Confirm (Face ID for large totals). Approves and places the order. Idempotent.',
+          description:
+            'Returns 200 with order { id, card } once the provider accepted the order. When the provider has not answered yet the result is still 200 with order: null and ' +
+            'checkout.submission.status "unknown": do not confirm a second checkout, wait for the order.created event or repeat this call (it never creates a second order). ' +
+            '409 CONFIRM_HASH_MISMATCH: the hash sent is not the one of this card. 409 CONFIRMATION_INVALIDATED: the cart changed after the card was shown (details.reason CART_CHANGED) ' +
+            'or the user declined; this checkout stays closed and the current card is in the latest create_cart or update_cart result.',
           parameters: [uid, idp('cid', 'Checkout')],
           requestBody: { required: true, content: { 'application/json': { schema: ref('ConfirmInput') } } },
           responses: {
             '200': json(okEnvelope({ checkout: { type: 'object' }, order: { type: ['object', 'null'], properties: { id: { type: 'string' }, card: ref('Card') } } })),
             '403': json(ref('Error'), 'STEP_UP_REQUIRED: verify with Face ID or passcode and send user_verification "biometric"'),
+            '503': json(ref('Error'), 'SUBMISSIONS_PAUSED or PROVIDER_UNAVAILABLE: nothing was ordered, repeat later. NOT_CONFIGURED: prepaid Live orders are not switched on for partner apps yet.'),
             ...errors,
           },
         },
@@ -87,11 +98,11 @@ export function openApiDocument(ctx: Ctx) {
       '/partner/v1/users/{uid}/checkouts/{cid}/decline': { post: { summary: 'The user tapped Not now', parameters: [uid, idp('cid', 'Checkout')], responses: { '200': json(okEnvelope({ checkout: { type: 'object' } })), ...errors } } },
       '/partner/v1/users/{uid}/orders': { get: { summary: 'Recent orders', parameters: [uid, { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 50 } }], responses: { '200': json(okEnvelope({ orders: { type: 'array', items: { type: 'object' } } })), ...errors } } },
       '/partner/v1/users/{uid}/orders/{oid}': { get: { summary: 'Order card with live status (refreshed from the provider)', parameters: [uid, idp('oid', 'Order')], responses: { '200': json(okEnvelope({ card: ref('Card') })), ...errors } } },
-      '/partner/v1/users/{uid}/orders/{oid}/cancel': { post: { summary: 'Prepare a cancellation: returns a card with the fee to confirm', parameters: [uid, idp('oid', 'Order')], responses: { '200': json(okEnvelope({ cancellation: { type: 'object' }, card: ref('Card') })), ...errors } } },
+      '/partner/v1/users/{uid}/orders/{oid}/cancel': { post: { summary: 'Prepare a cancellation: returns a card with the fee to confirm. 409 CANCELLATION_NOT_ALLOWED when the provider no longer allows it (for example after pickup).', parameters: [uid, idp('oid', 'Order')], responses: { '200': json(okEnvelope({ cancellation: { type: 'object' }, card: ref('Card') })), ...errors } } },
       '/partner/v1/users/{uid}/cancellations/{xid}': { get: { summary: 'Cancellation card', parameters: [uid, idp('xid', 'Cancellation')], responses: { '200': json(okEnvelope({ card: ref('Card') })), ...errors } } },
       '/partner/v1/users/{uid}/cancellations/{xid}/confirm': {
         post: {
-          summary: 'The user confirmed the cancellation (and any fee)', parameters: [uid, idp('xid', 'Cancellation')],
+          summary: 'The user confirmed the cancellation (and any fee). cancellation.status is executed, rejected, invalidated (the fee changed: prepare again) or unknown.', parameters: [uid, idp('xid', 'Cancellation')],
           requestBody: { required: true, content: { 'application/json': { schema: ref('ConfirmInput') } } },
           responses: { '200': json(okEnvelope({ cancellation: { type: 'object' }, order: { type: 'object' } })), ...errors },
         },
@@ -106,7 +117,7 @@ export function openApiDocument(ctx: Ctx) {
         get: { summary: 'Grab account link status', parameters: [uid], responses: { '200': json(okEnvelope({ grab: ref('GrabLink') })), ...errors } },
         delete: { summary: 'Unlink the Grab account', parameters: [uid], responses: { '200': json(okEnvelope({ grab: ref('GrabLink') })), ...errors } },
       },
-      '/partner/v1/users/{uid}/grab/link': { post: { summary: 'Start Login with Grab (demo: links a simulated account at once)', parameters: [uid], responses: { '200': json(okEnvelope({ status: { enum: ['linked', 'authorize'] }, authorize_url: { type: 'string' } })), '503': json(ref('Error'), 'NOT_CONFIGURED in live mode until the partner redirect URI is registered with GrabID'), ...errors } } },
+      '/partner/v1/users/{uid}/grab/link': { post: { summary: 'Start Login with Grab (demo: links a simulated account at once)', parameters: [uid], responses: { '200': json(okEnvelope({ status: { enum: ['linked'] }, linked: { type: 'boolean' }, linked_at: { type: ['string', 'null'], format: 'date-time' }, simulated: { type: 'boolean', description: 'true for the demo link' } })), '503': json(ref('Error'), 'NOT_CONFIGURED in live mode until the partner redirect URI is registered with GrabID'), ...errors } } },
     },
     webhooks: {
       partnerEvent: {
@@ -129,7 +140,7 @@ export function openApiDocument(ctx: Ctx) {
         UserInput: { type: 'object', properties: { locale: { enum: ['en', 'th', 'vi', 'id', 'ms', 'fil', 'km', 'my', 'zh', 'ru'] }, region: { enum: ['TH', 'SG', 'MY', 'ID', 'VN', 'PH', 'KH', 'MM'] }, display_name: { type: 'string', maxLength: 60 } } },
         User: { type: 'object', properties: { user_id: { type: 'string' }, display_name: { type: ['string', 'null'] }, locale: { type: 'string' }, region: { type: 'string' }, mode: { enum: ['demo', 'live'] }, created: { type: 'boolean' } } },
         GrabLink: { type: 'object', properties: { linked: { type: 'boolean' }, linked_at: { type: ['string', 'null'] }, simulated: { type: 'boolean' } } },
-        PlaceInput: { type: 'object', required: ['label', 'line1', 'district', 'city'], properties: { label: { type: 'string' }, line1: { type: 'string' }, district: { type: 'string' }, city: { type: 'string' }, country: { type: 'string' }, instructions: { type: 'string' }, is_default: { type: 'boolean' } } },
+        PlaceInput: { type: 'object', required: ['label', 'line1', 'district', 'city'], properties: { label: { type: 'string' }, line1: { type: 'string' }, district: { type: 'string' }, city: { type: 'string' }, country: { type: 'string' }, instructions: { type: 'string' }, latitude: { type: 'number', description: 'Optional, together with longitude: exact point (needed for Live couriers and fares)' }, longitude: { type: 'number' }, is_default: { type: 'boolean' } } },
         Place: { type: 'object', properties: { place_id: { type: 'string' }, label: { type: 'string' }, area: { type: 'string' }, is_default: { type: 'boolean' } } },
         ToolDef: { type: 'object', properties: { name: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' }, input_schema: { type: 'object' }, read_only: { type: 'boolean' } } },
         ToolResult: {
@@ -172,14 +183,15 @@ export function openApiDocument(ctx: Ctx) {
             breakdown: { type: 'array', items: { type: 'object', properties: { label: { type: 'string' }, value: { type: 'string' } } } },
             total: { type: 'object', properties: { label: { type: 'string' }, value: { type: 'string' }, amount_minor: { type: 'integer' }, currency: { type: 'string' } } },
             status: { type: 'object', properties: { code: { type: 'string' }, label: { type: 'string' }, progress: { type: 'number' }, is_final: { type: 'boolean' }, eta_at: { type: ['string', 'null'] }, steps: { type: 'array', items: { type: 'object' } } } },
-            courier: { type: 'object', properties: { name: { type: 'string' }, vehicle: { type: 'string' }, plate: { type: 'string' }, rating: { type: 'number' }, fictional: { type: 'boolean' } } },
+            courier: { type: 'object', description: 'Present only when the provider supplies driver or courier details (in demo: a fictional one while the order is under way). Absent otherwise.', properties: { name: { type: 'string' }, vehicle: { type: 'string' }, plate: { type: 'string' }, rating: { type: 'number' }, fictional: { type: 'boolean' } } },
             actions: { type: 'array', items: ref('CardAction') }, footnote: { type: 'string' }, expires_at: { type: 'string', format: 'date-time' },
           },
         },
         Event: {
           type: 'object',
+          description: 'The same object in the webhook body and in GET .../events. notify is present on order.created and order.status_changed, in English, Russian or Thai (English for every other user locale).',
           properties: {
-            event_id: { type: 'string' }, seq: { type: 'integer' },
+            event_id: { type: 'string' }, seq: { type: 'integer', description: 'Grows with every event; pass the last one you processed as ?after= to resume' },
             type: { enum: ['order.created', 'order.status_changed', 'checkout.confirmed', 'cancellation.confirmed', 'grab.linked', 'grab.unlinked'] },
             partner_id: { type: 'string' }, user_id: { type: 'string' }, created_at: { type: 'string' }, data: { type: 'object' },
             notify: { type: 'object', properties: { title: { type: 'string' }, body: { type: 'string' }, level: { enum: ['info', 'important', 'urgent'] }, suggest_call: { type: 'boolean' }, live_activity: { type: 'object', properties: { state: { type: 'string' }, progress: { type: 'number' }, eta_at: { type: ['string', 'null'] } } } } },

@@ -4,10 +4,10 @@ import { actorLabel, audit } from '../context.js';
 import type { Queryable } from '../db/db.js';
 import { DomainError } from '../domain/errors.js';
 import { money } from '../domain/money.js';
-import { ProviderOutcomeUnknownError, ProviderUnavailableError, SubmitResult } from '../providers/types.js';
+import { FulfillmentStatus, ProviderOutcomeUnknownError, ProviderUnavailableError, SubmitResult } from '../providers/types.js';
 import { CartState, describeTrip, loadCart, loadCartVersion, locationFingerprint, quoteCart, QuoteRow, tripLabel } from './carts.js';
 import { isTripService } from '../domain/regions.js';
-import { enqueuePartnerEvent } from '../partners/webhooks.js';
+import { enqueuePartnerEvent, orderNotify } from '../partners/webhooks.js';
 import { callProvider, requireCapability, submissionsEnabled, withTimeout } from './common.js';
 import { addressFingerprint, getAddress, maskedAddress, toDeliveryAddress } from './users.js';
 import { hasPasskey, verifyStepUp } from '../auth/passkeys.js';
@@ -613,7 +613,14 @@ export async function recordAccepted(ctx: Ctx, attemptId: string, ref: string, s
       await enqueuePartnerEvent(q, a.user_id, 'order.created', {
         order_id: ins.rows[0].id, checkout_id: c.id, service: cart.service, status, total_minor: Number(c.total_minor), currency: c.currency,
         title: isTripService(cart.service) ? where : cart.restaurant_name,
-      }, { dedupeKey: `order:${ins.rows[0].id}:created` });
+      }, {
+        dedupeKey: `order:${ins.rows[0].id}:created`,
+        // The first status ("Driver assigned", "Restaurant accepted") never arrives as order.status_changed, so its push text rides on this event.
+        notify: (l) => orderNotify({
+          id: ins.rows[0].id, user_id: a.user_id, service: cart.service, restaurant_name: cart.restaurant_name, address_label: where,
+          items: qr.lines.map((x: any) => ({ name: x.name })), eta_at: etaAt ?? null,
+        }, status as FulfillmentStatus, l),
+      });
     }
   });
 }

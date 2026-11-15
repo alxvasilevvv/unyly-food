@@ -201,14 +201,22 @@ export interface ServiceIntent {
 
 const RIDE = /taxi|\bcab\b|\bride\b|grabcar|justgrab|grabbike|\bbike to\b|\bcar to\b|такси|поездк|отвез|довез|подвез|машину до|แท็กซี่|เรียกรถ|นั่งรถ|รถไป|วินมอเตอร์ไซค์/u;
 const EXPRESS = /parcel|package|courier|\bsend\b|посылк|отправ|курьер|พัสดุ|ส่งของ|แมสเซนเจอร์/u;
-const FLOWERS = /flower|bouquet|roses?\b|lil(?:y|ies)|orchid|garland|цвет|букет|роз[ыау]?\b|лили|орхиде|ดอกไม้|กุหลาบ|ช่อ|พวงมาลัย|กล้วยไม้/u;
+const FLOWERS = /flower|bouquet|roses?\b|lil(?:y|ies)|orchid|garland|цвет|букет|(?<!\p{L})роз[ыау]?(?!\p{L})|лили|орхиде|ดอกไม้|กุหลาบ|ช่อ|พวงมาลัย|กล้วยไม้/u;
 const PHARMACY = /pharmac|paracetamol|plaster|band-?aid|thermometer|medicine|drugstore|аптек|парацетамол|пластыр|лекарств|градусник|термометр|ร้านยา|ยาสามัญ|พาราเซตามอล|พลาสเตอร์|ปรอทวัดไข้|ยาแก้/u;
 const CAKES = /\bcakes?\b|cheesecake|торт|чизкейк|пирожн|เค้ก/u;
 const GROCERY = /grocer|supermarket|продукт|супермаркет|ของชำ|ซูเปอร์มาร์เก็ต|ของใช้ในบ้าน/u;
-const STAPLE = /\beggs?\b|\bmilk\b|\bwater\b|bananas?|\brice\b|яйц|молок|\bвод[уаы]\b|банан|\bрис\b|ไข่ไก่|นมสด|น้ำดื่ม|กล้วย|ข้าวสาร/u;
+const STAPLE = /\beggs?\b|\bmilk\b|\bwater\b|bananas?|\brice\b|яйц|молок|(?<!\p{L})вод[уаы](?!\p{L})|банан|(?<!\p{L})рис(?!\p{L})|ไข่ไก่|นมสด|น้ำดื่ม|กล้วย|ข้าวสาร/u;
 const MEAL = /dinner|lunch|breakfast|meal|ужин|обед|завтрак|ข้าวเย็น|มื้อ|อาหารเย็น|อาหารกลางวัน/u;
+const FOOD_CUE = /food|\beat|hungry|restaurant|pizza|burger|noodle|sushi|pad thai|curry|soup|salad|sandwich|chicken|vegan|vegetarian|halal|еда|еды|еду|поесть|покушать|перекус|голод|ресторан|пицц|бургер|лапш|суши|суп|салат|веган|вегетариан|халял|อาหาร|กิน|หิว|ข้าว|ก๋วยเตี๋ยว|พิซซ่า|เบอร์เกอร์|ซูชิ|ส้มตำ|ผัดไทย|แกง/u;
+/** True when the sentence asks for a meal: a meal or dish word, or anything the food parser understood. */
+export function hasFoodCue(input: string): boolean {
+  const q = input.toLowerCase();
+  if (MEAL.test(q) || FOOD_CUE.test(q) || hasWord(q, PK.meal)) return true;
+  const i = parseIntent(input);
+  return !!(i.cuisine || i.dietary.length || i.exclude_allergens.length || i.budget_total_major);
+}
 
-const WEIGHT_UNITS = ['kg', 'кг', 'กก', 'กิโล', ...PK.weight].sort((a, b) => b.length - a.length).map(reEsc).join('|');
+const WEIGHT_UNITS =['kg', 'кг', 'กก', 'กิโล', ...PK.weight].sort((a, b) => b.length - a.length).map(reEsc).join('|');
 const CUT = new RegExp(`,|;|，|、|。|\\bfor\\b|\\bwith\\b|\\bна\\s+\\d|\\bдля\\b|\\bс\\s+\\d|${NUM}\\s*(?:${WEIGHT_UNITS})|สำหรับ`, 'iu');
 function cutPlace(s: string, last = false): string {
   const parts = s.split(CUT).filter((x) => x && x.trim());

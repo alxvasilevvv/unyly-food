@@ -65,6 +65,17 @@ export function page(o: PageOpts): string {
   const cur = (p: string) => (path === p ? html`aria-current="page"` : '');
   const abs = (p: string) => `${SITE_ORIGIN}${p}`;
   const isPublic = (PUBLIC_PATHS as readonly string[]).includes(path);
+  const desc = o.description ?? tr(l, {
+    en: 'Ari × Grab: a partnership proposal by CSA PROJECT - FZCO to bring Grab into the Ari assistant. Demo with fictional data.',
+    ru: 'Ari × Grab: предложение о партнёрстве от CSA PROJECT - FZCO. Grab внутри ассистента Ari. Демо на вымышленных данных.',
+    th: 'Ari × Grab: ข้อเสนอความร่วมมือจาก CSA PROJECT - FZCO เพื่อนำ Grab เข้าสู่ผู้ช่วย Ari เดโมใช้ข้อมูลสมมติ',
+  });
+  const navLinks: [string, string][] = [
+    ['/#how', m.navHow],
+    ['/for-grab', tr(l, { ru: 'Для Grab', en: 'For Grab', th: 'สำหรับ Grab' })],
+    ['/developers', tr(l, { ru: 'Разработчикам', en: 'Developers', th: 'นักพัฒนา' })],
+    ['/docs', tr(l, { ru: 'Документация', en: 'Docs', th: 'เอกสาร' })],
+  ];
   const noindex = o.noindex || NOINDEX_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`) || path.startsWith(`${p}-`));
   return (
     '<!doctype html>' +
@@ -73,15 +84,15 @@ export function page(o: PageOpts): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${o.title} · Ari × Grab</title>
-<meta name="description" content="${o.description ?? m.brandTagline}">
-<meta name="theme-color" content="#0a8a53">
+<meta name="description" content="${desc}">
+<meta name="theme-color" content="#6b4ef6">
 <meta property="og:title" content="${o.title} · Ari × Grab">
-<meta property="og:description" content="${o.description ?? m.brandTagline}">
+<meta property="og:description" content="${desc}">
 ${noindex ? html`<meta name="robots" content="noindex">` : ''}
 ${isPublic && !noindex ? html`<link rel="canonical" href="${abs(`${path}?lang=${l}`)}">` : ''}
 ${isPublic && !noindex ? html`${LOCALE_CODES.map((x) => html`<link rel="alternate" hreflang="${x}" href="${abs(`${path}?lang=${x}`)}">\n`)}<link rel="alternate" hreflang="x-default" href="${abs(path)}">` : ''}
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Unyly">
+<meta property="og:site_name" content="Ari × Grab">
 ${path ? html`<meta property="og:url" content="${abs(`${path}?lang=${l}`)}">` : ''}
 <meta property="og:locale" content="${OG_LOCALE[l]}">
 <meta property="og:image" content="${abs(OG_IMAGE_PATH)}">
@@ -90,7 +101,7 @@ ${path ? html`<meta property="og:url" content="${abs(`${path}?lang=${l}`)}">` : 
 <meta property="og:image:alt" content="Unyly pixel unicorn. Ari × Grab: a partnership proposal by CSA PROJECT - FZCO, not affiliated with Grab.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${o.title} · Ari × Grab">
-<meta name="twitter:description" content="${o.description ?? m.brandTagline}">
+<meta name="twitter:description" content="${desc}">
 <meta name="twitter:image" content="${abs(OG_IMAGE_PATH)}">
 <link rel="preload" href="/static/fonts/manrope-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -116,12 +127,15 @@ ${(o.scripts ?? []).map((x) => html`<script src="/static/${x}?v=${ASSET_VERSION}
 <header class="site"><div class="wrap">
   <a class="logo" href="/" aria-label="Ari × Grab, home"><span class="ari-mark" aria-hidden="true">A</span><span class="logo-text"><span class="logo-word">Ari <span class="x">×</span> Grab</span><span class="logo-sub">${tr(l, { ru: 'на движке Unyly', en: 'powered by Unyly', th: 'ขับเคลื่อนโดย Unyly' })}</span></span></a>
   <nav class="main" aria-label="${tr(l, { ru: 'Основная навигация', en: 'Main', th: 'เมนูหลัก' })}">
-    <a href="/#how" class="hide-md">${m.navHow}</a>
-    <a href="/for-grab" class="hide-md" ${cur('/for-grab')}>${tr(l, { ru: 'Для Grab', en: 'For Grab', th: 'สำหรับ Grab' })}</a>
-    <a href="/developers" class="hide-md" ${cur('/developers')}>${tr(l, { ru: 'Разработчикам', en: 'Developers', th: 'นักพัฒนา' })}</a>
-    <a href="/docs" class="hide-md" ${cur('/docs')}>${tr(l, { ru: 'Документация', en: 'Docs', th: 'เอกสาร' })}</a>
+    ${navLinks.map(([href, label]) => html`<a href="${href}" class="hide-md" ${cur(href)}>${label}</a>`)}
     ${o.loggedIn && !o.guest ? html`<a href="/app" class="hide-sm" ${cur('/app')}>${m.navApp}</a>` : ''}
     <a href="/ari" class="cta" ${cur('/ari')}>${tr(l, { ru: 'Живое демо', en: 'Live demo', th: 'เดโมสด' })}</a>
+    <details class="lang-menu nav-menu">
+      <summary>${raw('<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>')}<span class="nm-label">${tr(l, { ru: 'Меню', en: 'Menu', th: 'เมนู' })}</span></summary>
+      <ul role="list">
+        ${navLinks.map(([href, label]) => html`<li><a href="${href}" ${cur(href)}>${label}</a></li>`)}
+      </ul>
+    </details>
     <details class="lang-menu">
       <summary>${icon('globe')}<span><span class="sr-only">Language: </span>${l.toUpperCase()}</span></summary>
       <ul role="list">

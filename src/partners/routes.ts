@@ -68,6 +68,12 @@ export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx) {
         return sendError(reply, e);
       }
     };
+    // Errors raised outside the handlers (rate limit, body too large) use the same envelope as every other partner error.
+    scope.setErrorHandler((err: any, _req, reply) => {
+      if (err?.statusCode === 429) return sendError(reply, new DomainError('RATE_LIMITED', 'Too many requests. Retry after a short pause.'));
+      if (!isDomainError(err) && err?.statusCode >= 400 && err?.statusCode < 500) return sendError(reply, new DomainError('VALIDATION_FAILED', String(err.message ?? 'Bad request')));
+      return sendError(reply, err);
+    });
     const user = (req: Req): Promise<PartnerUser> => loadPartnerUser(ctx, req.partner!, String((req.params as any).uid ?? ''));
     // Per partner user, after the signature check: one busy user cannot use up the budget of the others.
     const userKey = (req: FastifyRequest) => `partner:${(req as Req).partner?.id ?? 'anon'}:${String((req.params as any)?.uid ?? '-')}`;
@@ -104,11 +110,25 @@ export async function registerPartnerRoutes(app: FastifyInstance, ctx: Ctx) {
     }));
     scope.post('/partner/v1/users/:uid/places', rl, route(async (req, reply) => {
       const u = await user(req);
-      const b = req.jsonBody ?? {};
-      const a = await addAddress(ctx, u.user_id, {
-        label: b.label, line1: b.line1, district: b.district, city: b.city, country: b.country ?? u.region, instructions: b.instructions,
-        latitude: b.latitude, longitude: b.longitude,
-      } as any, b.is_default !== false);
+      const b = req.jsonBody && typeof req.jsonBody === 'object' && !Array.isArray(req.jsonBody) ? req.jsonBody : {};
+      const missing = ['label', 'line1', 'district', 'city'].filter((k) => typeof b[k] !== 'string' || !b[k].trim());
+      const wrong = ['country', 'instructions'].filter((k) => b[k] !== undefined && b[k] !== null && typeof b[k] !== 'string');
+      const hasCoords = b.latitude !== undefined || b.longitude !== undefined;
+      if (hasCoords && !(Number.isFinite(b.latitude) && Number.isFinite(b.longitude) && Math.abs(b.latitude) <= 90 && Math.abs(b.longitude) <= 180)) wrong.push('latitude', 'longitude');
+      if (missing.length || wrong.length) {
+        throw new DomainError('VALIDATION_FAILED', `Place needs label, line1, district and city as text${hasCoords ? '; latitude and longitude as numbers' : ''}. Check: ${[...missing, ...wrong].join(', ')}.`, { fields: [...missing, ...wrong] });
+      }
+      let a;
+      try {
+        a = await addAddress(ctx, u.user_id, {
+          label: b.label, line1: b.line1, district: b.district, city: b.city, country: b.country ?? u.region, instructions: b.instructions ?? undefined,
+          coordinates: hasCoords ? `${Number(b.latitude).toFixed(6)}, ${Number(b.longitude).toFixed(6)}` : undefined,
+        }, b.is_default !== false);
+      } catch (e) {
+        // An incomplete address (no house number, unknown country) is the caller's input error here.
+        if (isDomainError(e) && e.code === 'ADDRESS_AMBIGUOUS') throw new DomainError('VALIDATION_FAILED', `${e.message}: ${((e.details?.fields as string[]) ?? []).join(', ')}`, e.details);
+        throw e;
+      }
       return ok(reply, { place: { place_id: a.id, label: a.label, is_default: a.is_default, ...maskedAddress(a) } }, 201);
     }));
     scope.delete('/partner/v1/users/:uid/places/:pid', rl, route(async (req, reply) => {

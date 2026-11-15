@@ -9,6 +9,7 @@ import type { Service } from '../domain/regions.js';
 import type { FulfillmentStatus } from '../providers/types.js';
 import { tr } from '../web/messages.js';
 import { signedHeaders } from './auth.js';
+import { cardLocale } from './cards.js';
 import { findPartner } from './config.js';
 
 export type PartnerEventType = 'order.created' | 'order.status_changed' | 'checkout.confirmed' | 'cancellation.confirmed' | 'grab.linked' | 'grab.unlinked';
@@ -85,7 +86,7 @@ export async function enqueuePartnerEvent(
     user_id: pu.external_user_id,
     created_at: new Date().toISOString(),
     data,
-    ...(opts.notify ? { notify: opts.notify(pu.locale) } : {}),
+    ...(opts.notify ? { notify: opts.notify(cardLocale(pu.locale)) } : {}),
   };
   await q.query(
     `INSERT INTO partner_webhooks (partner_id, user_id, event_type, dedupe_key, payload) VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
@@ -105,9 +106,17 @@ export interface StoredEvent {
   event_id: string;
   seq: number;
   type: string;
+  partner_id: string;
+  user_id: string;
   created_at: string;
   data: unknown;
   notify?: Notify;
+}
+
+/** Sequence number of the user's newest event (0 when there is none). */
+export async function lastPartnerEventSeq(ctx: Ctx, userId: string): Promise<number> {
+  const r = await ctx.db.query('SELECT max(id) AS seq FROM partner_webhooks WHERE user_id = $1', [userId]);
+  return Number(r.rows[0]?.seq ?? 0);
 }
 
 export async function listPartnerEvents(ctx: Ctx, userId: string, after = 0, limit = 50): Promise<StoredEvent[]> {
@@ -116,7 +125,9 @@ export async function listPartnerEvents(ctx: Ctx, userId: string, after = 0, lim
     [userId, after, Math.min(Math.max(limit, 1), 100)],
   );
   return r.rows.map((x) => ({
-    event_id: x.event_id, seq: Number(x.id), type: x.event_type, created_at: new Date(x.created_at).toISOString(), data: x.payload.data, notify: x.payload.notify,
+    // Same shape as the webhook body: event_id, seq, then the stored payload fields.
+    event_id: x.event_id, seq: Number(x.id), type: x.event_type, partner_id: x.payload.partner_id, user_id: x.payload.user_id,
+    created_at: new Date(x.created_at).toISOString(), data: x.payload.data, notify: x.payload.notify,
   }));
 }
 
@@ -148,7 +159,8 @@ export async function deliverPartnerWebhooks(ctx: Ctx, limit = 25, fetcher: type
     });
     if (!row) continue;
     const { r, p } = row;
-    const body = JSON.stringify({ event_id: r.event_id, ...r.payload });
+    // seq is the same number GET .../events returns, so a receiver can resume polling from the last webhook it saw.
+    const body = JSON.stringify({ event_id: r.event_id, seq: Number(r.id), ...r.payload });
     const url = new URL(p.webhookUrl!);
     let ok = false;
     let err = '';

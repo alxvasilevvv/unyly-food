@@ -129,13 +129,14 @@ def unyly(method, path, body=None):
 - `uid`: стабильный внутренний id пользователя Ari (1-128 символов `[A-Za-z0-9._:@-]`), не телефон и не email.
 - `locale`: `en, th, vi, id, ms, fil, km, my, zh, ru`. `region`: `TH, SG, MY, ID, VN, PH, KH, MM`.
 - Повторный вызов обновляет язык и регион (ответ 200, первый раз 201).
+- Тексты карточек и уведомлений готовы на английском, русском и тайском. Для остальных языков из списка карточки и `notify` приходят целиком на английском (без смешения языков), а суммы оформляются в английском формате.
 Готово, когда: смена языка в Ari меняет язык карточек.
 
 ### B3. Инструменты для LLM
 1. При старте (и раз в сутки) загрузить `GET /partner/v1/tools`: в ответе `instructions` (добавить в системный промпт Ari, когда пользователь говорит о Grab) и `tools[]` с `name`, `description`, `input_schema` (JSON Schema). Формат подходит для tool calling OpenAI и Anthropic без изменений.
 2. Вызов инструмента моделью: `POST /partner/v1/users/{uid}/tools/{name}` с телом `{"arguments": {...}}`.
 3. Ответ: `ok`, `mode`, `result` (данные для модели), `next_actions`, `notices`, `card` (для приложения). Модели отдавать `result`, `next_actions`, `notices`; приложению отдавать `card`.
-4. При `ok: false` (HTTP 422) модели отдать `error.code`, `error.message`, `error.user_action`: там написано, что спросить у пользователя.
+4. Любая ошибка самого инструмента приходит с HTTP 422 и `ok: false`. Причина лежит в `error.code` (например, `PLACE_NOT_FOUND`, `PLACE_AMBIGUOUS`, `VALIDATION_FAILED` при неверных аргументах, `PRICE_CHANGED`), поэтому ветвиться нужно по `error.code`, а не по HTTP-статусу. Модели отдать `error.code`, `error.message`, `error.user_action`: там написано, что спросить у пользователя. HTTP 404 на этом пути означает, что пользователь не создан или инструмента с таким именем нет.
 5. Основные пути: еда и магазины `search_stores` → `create_cart {store_id, items}`; поездка и посылка `estimate_trip` → `create_cart {service, pickup, dropoff, items:[{item_id, quantity:1}]}`. После `create_cart` приходит карточка `checkout`.
 6. Если пользователь выбирает вариант нажатием на карточку `options`, приложение присылает `action.tool` (имя и готовые аргументы), бэкенд вызывает этот инструмент напрямую, без LLM.
 Готово, когда: «такси до аэропорта» в Ari показывает карточку вариантов, выбор показывает карточку с итогом.
@@ -147,8 +148,10 @@ POST /partner/v1/users/{uid}/checkouts/{checkout_id}/confirm
 {"confirm_hash": "<из action.endpoint.body карточки>", "user_verification": "biometric", "confirmed_at": "<время нажатия ISO 8601>", "device_id": "<id устройства>"}
 ```
 - `user_verification`: `biometric` (Face ID / Touch ID), `passcode` или `tap`. Если в карточке `requires_user_verification: "biometric"`, то `tap` вернёт 403 `STEP_UP_REQUIRED`.
-- `confirm_hash` привязывает подтверждение к той цене и составу, которые видел пользователь. Если корзина изменилась, вернётся 409 `CONFIRM_HASH_MISMATCH`: нужно запросить `GET .../checkouts/{id}` и показать новую карточку.
+- `confirm_hash` привязывает подтверждение к той цене и составу, которые видел пользователь. Если прислан хеш не от этой карточки, вернётся 409 `CONFIRM_HASH_MISMATCH`: запросите `GET .../checkouts/{id}` и покажите карточку заново.
+- Если корзина изменилась после показа карточки (`update_cart`), старое подтверждение закрывается: вызов вернёт 409 `CONFIRMATION_INVALIDATED` с `details.reason: "CART_CHANGED"`. Новая карточка с новым `id` и новой ценой приходит в ответе `update_cart` или `create_cart`, показать нужно её. `GET` по старому `id` вернёт прежнюю карточку без кнопок.
 - Повторный вызов безопасен: вернёт тот же заказ, второй заказ не создаётся.
+- Если провайдер ещё не ответил, вызов всё равно вернёт 200, но с `order: null` и `checkout.submission.status: "unknown"`. Второй заказ создавать нельзя: дождитесь события `order.created` или повторите этот же вызов позже.
 - Модель (LLM) не должна иметь доступа к этому вызову. Только нажатие пользователя в приложении.
 - «Не сейчас»: `POST .../checkouts/{id}/decline`.
 - Ответ: `checkout` (статус) и `order: {id, card}`. Предоплата GrabPay в рабочем режиме для партнёрских приложений включается вместе с мерчант-аккаунтом GrabPay; до этого такой заказ вернёт 503 `NOT_CONFIGURED`, ничего не списывается.
@@ -159,17 +162,18 @@ POST /partner/v1/users/{uid}/checkouts/{checkout_id}/confirm
 1. Проверить подпись и время (±300 с), иначе 401.
 2. Дедупликация по `event_id`.
 3. Ответить 2xx быстро (до 5 секунд), обработку вести асинхронно. При ошибке Unyly повторит до 12 раз с экспоненциальной задержкой.
-4. Типы: `order.created`, `order.status_changed`, `checkout.confirmed`, `cancellation.confirmed`, `grab.linked`, `grab.unlinked`.
-5. Поле `notify` уже локализовано на язык пользователя:
+4. Типы: `order.created`, `order.status_changed`, `checkout.confirmed`, `cancellation.confirmed`, `grab.linked`, `grab.unlinked`. Первый статус заказа («Водитель назначен», «Ресторан принял заказ») приходит в `order.created`; `order.status_changed` отправляется при каждой следующей смене статуса.
+5. Поле `notify` есть в `order.created` и `order.status_changed`. Оно уже на языке пользователя (английский, русский или тайский; для остальных языков английский):
    - `level: "info"`: только обновить Live Activity и карточку.
    - `level: "important"`: обычный пуш `title` + `body`.
    - `level: "urgent"` и `suggest_call: true`: пуш и звонок Ari пользователю (существующая функция «Ari звонит»), текст звонка собрать из `notify.body` и карточки заказа (`courier.name`, `courier.vehicle`, `courier.plate`).
    - `live_activity: {state, progress (0..1), eta_at}`: обновление Live Activity через APNs.
-6. Резервный путь: `GET /partner/v1/users/{uid}/events?after=<seq>` возвращает те же события. Использовать для восстановления после простоя.
+6. Резервный путь: `GET /partner/v1/users/{uid}/events?after=<seq>` возвращает те же события в том же формате (до 50 за запрос, по возрастанию `seq`). В теле вебхука тоже есть `seq`: сохраняйте последний обработанный номер и после простоя запрашивайте события после него.
+7. Данные курьера (`courier` в карточке заказа) есть только тогда, когда их передаёт провайдер. В демо это вымышленный курьер, пока заказ в пути. Если поля нет, текст звонка собирается только из `notify.body`.
 Готово, когда: статусы заказа приходят в приложение без опроса, при «Водитель едет к вам» Ari звонит.
 
 ### B6. Места пользователя
-Адреса доставки и ярлыки «Дом», «Работа» из памяти Ari передавать в `POST /partner/v1/users/{uid}/places` (`label`, `line1`, `district`, `city`, `country`, `instructions`, `is_default`). Список `GET .../places`, удаление `DELETE .../places/{place_id}`. После этого пользователь может сказать «такси домой».
+Адреса доставки и ярлыки «Дом», «Работа» из памяти Ari передавать в `POST /partner/v1/users/{uid}/places` (обязательные `label`, `line1` с номером дома, `district`, `city`; необязательные `country`, `instructions`, `is_default`, а также `latitude` и `longitude` числами, если известна точная точка). Неполный адрес вернёт 400 `VALIDATION_FAILED` со списком полей в `details.fields`. Список `GET .../places`, удаление `DELETE .../places/{place_id}`. После этого пользователь может сказать «такси домой».
 
 ### B7. Аккаунт Grab
 `POST /partner/v1/users/{uid}/grab/link`. В демо аккаунт связывается сразу (симуляция). В рабочем режиме вход через Grab (OAuth 2.0 PKCE) включается после регистрации redirect URI приложения Ari в GrabID; до этого вызов вернёт 503 `NOT_CONFIGURED`. После включения в ответе придёт `authorize_url`, его нужно открыть в `ASWebAuthenticationSession`, затем проверить `GET .../grab`. Отвязка: `DELETE .../grab`. Пароли и OTP Grab Ari не видит никогда.
@@ -177,19 +181,34 @@ POST /partner/v1/users/{uid}/checkouts/{checkout_id}/confirm
 ### B8. Удаление данных
 При удалении аккаунта Ari вызвать `DELETE /partner/v1/users/{uid}`: удаляет все данные пользователя в Unyly (PDPA, GDPR).
 
-### B9. Обработка ошибок
+### B9. Отмена заказа
+Отмену, как и заказ, подтверждает только пользователь нажатием в приложении.
+1. Кнопка отмены в карточке заказа (`kind: prepare_cancel`) есть, пока заказ ещё можно отменить (до того, как курьер или водитель забрал заказ или пассажира). По нажатию вызвать `POST /partner/v1/users/{uid}/orders/{order_id}/cancel` без тела. В ответе `cancellation` (статус, `fee`, `terms`, `expires_at`) и карточка `cancellation` с платой за отмену.
+2. Если отменить уже нельзя, вернётся 409 `CANCELLATION_NOT_ALLOWED`, причина в `error.message`.
+3. Пользователь нажимает «Подтвердить отмену»: `POST /partner/v1/users/{uid}/cancellations/{cancellation_id}/confirm` с телом `{"confirm_hash": "<из action.endpoint.body карточки>", "user_verification": "tap"}`. Оба поля обязательны.
+4. В ответе `cancellation.status`: `executed` (заказ отменён), `rejected` (провайдер отказал, заказ продолжается), `invalidated` (плата изменилась, пока пользователь думал: подготовьте отмену заново и покажите новую карточку), `unknown` (исход уточняется, смотрите статус заказа). Там же `order: {id, card}` с актуальной карточкой.
+5. Карточку отмены можно перечитать: `GET /partner/v1/users/{uid}/cancellations/{cancellation_id}`. Подтверждение действует 5 минут (`expires_at`).
+6. После отмены приходят события `order.status_changed` со статусом `cancelled` и `cancellation.confirmed`.
+Готово, когда: отмена проходит только по нажатию, плата видна до подтверждения.
+
+### B10. Обработка ошибок
+Все ошибки, включая 429, приходят в одном формате: `{"ok": false, "error": {"code", "message", "details", "user_action"}}`.
+
 | Код | HTTP | Что делать |
 |---|---|---|
 | `PARTNER_AUTH_FAILED` | 401 | Проверить часы сервера, секрет и путь в подписи |
-| `NOT_FOUND` | 404 | Сначала `PUT /users/{uid}` |
-| `VALIDATION_FAILED` | 400 | Исправить аргументы (сообщение называет поле) |
-| `CONFIRM_HASH_MISMATCH` | 409 | Перезапросить карточку, показать новую цену |
+| `NOT_FOUND` | 404 | Сначала `PUT /users/{uid}`; проверить имя инструмента и id |
+| `VALIDATION_FAILED` | 400 | Исправить запрос (сообщение называет поле) |
+| `CONFIRM_HASH_MISMATCH` | 409 | Прислан хеш не от этой карточки: перезапросить карточку и показать её |
+| `CONFIRMATION_INVALIDATED` | 409 | Корзина изменилась или пользователь отказался: показать карточку из последнего ответа `update_cart` или `create_cart` |
+| `CONFIRMATION_EXPIRED`, `PRICE_CHANGED` | 409 | Создать корзину заново (модель сама вызовет `quote_cart` или `create_cart`) |
 | `STEP_UP_REQUIRED` | 403 | Запросить Face ID и повторить с `biometric` |
-| `CONFIRMATION_EXPIRED`, `PRICE_CHANGED`, `CONFIRMATION_INVALIDATED` | 409 | Создать корзину заново (модель сама вызовет `quote_cart` или `create_cart`) |
-| `PLACE_NOT_FOUND`, `PLACE_AMBIGUOUS` | 404, 409 | Спросить пользователя, в `details.suggestions` варианты |
-| `SUBMISSION_UNKNOWN` | 202 | Не создавать заказ повторно, ждать события |
-| `SUBMISSIONS_PAUSED`, `PROVIDER_UNAVAILABLE` | 503 | Сообщить пользователю, повторить позже |
-| `RATE_LIMITED` | 429 | Повторить с задержкой |
+| `CANCELLATION_NOT_ALLOWED` | 409 | Сообщить пользователю, что заказ уже нельзя отменить |
+| `SUBMISSIONS_PAUSED`, `PROVIDER_UNAVAILABLE`, `NOT_CONFIGURED` | 503 | Сообщить пользователю, повторить позже |
+| `RATE_LIMITED` | 429 | Повторить с задержкой. Лимит считается на пользователя: 600 запросов в минуту, из них до 120 вызовов инструментов |
+| Любая ошибка инструмента (`PLACE_NOT_FOUND`, `PLACE_AMBIGUOUS`, `VALIDATION_FAILED` в аргументах и другие) | 422 | Смотреть `error.code` и `error.user_action`; для мест варианты лежат в `error.details.suggestions` |
+
+Неизвестный исход отправки заказа не считается ошибкой: подтверждение вернёт 200 с `order: null` (см. B4).
 
 ---
 
@@ -199,7 +218,7 @@ POST /partner/v1/users/{uid}/checkouts/{checkout_id}/confirm
 Нативный SwiftUI-рендер карточек. Общие поля: `type`, `title`, `subtitle`, `badges[]`, `demo` (показывать плашку «Демо»), `footnote`, `actions[]`.
 - `options`: список `options[]` (`title`, `subtitle`, `price`, `eta`, `badges[]`). Если есть `disabled_reason`, вариант неактивен и показывает причину. Нажатие отправляет на бэкенд `action.tool`.
 - `checkout`: `route` (откуда, куда, км), `lines[]` (`title`, `quantity`, `value`), `breakdown[]`, `total`, кнопки из `actions[]`: `kind: confirm` (главная), `kind: decline` («Не сейчас»). Показывать `expires_at` (подтверждение действует до 15 минут).
-- `order`: `status` (`label`, `progress`, `steps[]` для прогресс-бара, `eta_at`, `is_final`), `courier` (`name`, `vehicle`, `plate`, `rating`; в демо `fictional: true`), `total`, кнопка отмены `kind: prepare_cancel`.
+- `order`: `status` (`label`, `progress`, `steps[]` для прогресс-бара, `eta_at`, `is_final`), `courier` (`name`, `vehicle`, `plate`, `rating`; в демо `fictional: true`; поле есть, только когда провайдер передал данные курьера), `total`, кнопка отмены `kind: prepare_cancel` (пока заказ можно отменить, порядок в B9).
 - `cancellation`: текст с платой, кнопка `kind: confirm` (destructive) и «Оставить заказ».
 - `handoff`: кнопка `kind: open_url` открывает приложение Grab с подготовленным заказом.
 - `message`: текст, что нужно поправить.
@@ -230,11 +249,11 @@ Intent «Ask Ari» уже есть. Добавить подсказки: «Ari, 
 
 ## 7. Приёмка (демо-режим, Бангкок)
 
-1. «Такси от Siam Paragon до Suvarnabhumi» → карточка вариантов → выбор → карточка с итогом → Face ID → заказ → Live Activity → пуш «Водитель назначен» → звонок Ari «Водитель едет к вам» → «Поездка завершена».
+1. «Такси от Siam Paragon до Suvarnabhumi» → карточка вариантов → выбор → карточка с итогом → Face ID → заказ → Live Activity → пуш «Водитель назначен» (из `order.created`) → звонок Ari «Водитель едет к вам» → «Поездка завершена».
 2. «Ужин на двоих до 600 бат без орехов» → 3 ресторана с пометкой бюджета → выбор → итог со сборами → подтверждение → статусы.
 3. «Отправь посылку 3 кг в ICONSIAM» → варианты курьера → заказ → отмена с платой 0 или 20 бат.
 4. Сообщение «да, заказывай» без нажатия кнопки не создаёт заказ.
-5. Изменение корзины после показа карточки → 409 → приложение показывает новую цену.
+5. Изменение корзины после показа карточки → подтверждение старой карточки даёт 409 `CONFIRMATION_INVALIDATED` → приложение показывает новую карточку с новой ценой из ответа `update_cart`.
 6. Сумма выше порога (2 000 бат) → подтверждение только с Face ID.
 7. Отключение бэкенда Ari на 10 минут → после включения события догружаются через `/events`.
 8. Удаление аккаунта Ari → `DELETE /users/{uid}` → повторный запрос даёт 404.
@@ -243,7 +262,7 @@ Intent «Ask Ari» уже есть. Добавить подсказки: «Ari, 
 
 | Блок | Оценка |
 |---|---|
-| Бэкенд B1-B9 | 4-6 рабочих дней |
+| Бэкенд B1-B10 | 4-6 рабочих дней |
 | iOS A1-A2 | 4-5 дней |
 | iOS A3-A5 | 3-4 дня |
 | iOS A6-A8 | 2-3 дня |
@@ -273,10 +292,10 @@ Intent «Ask Ari» уже есть. Добавить подсказки: «Ari, 
 }
 ```
 
-Событие вебхука:
+Событие вебхука (тот же объект возвращает `GET .../events`):
 ```json
 {
-  "event_id": "4f2c...", "type": "order.status_changed", "partner_id": "ari", "user_id": "u_1", "created_at": "...",
+  "event_id": "4f2c...", "seq": 1042, "type": "order.status_changed", "partner_id": "ari", "user_id": "u_1", "created_at": "...",
   "data": { "order_id": "...", "service": "ride", "status": "preparing", "is_final": false, "eta_at": "...", "status_label": "Driver arriving" },
   "notify": { "title": "Водитель едет к вам", "body": "Водитель уже едет к точке посадки.", "level": "urgent", "suggest_call": true,
               "live_activity": { "state": "preparing", "progress": 0.5, "eta_at": "..." } }

@@ -22,6 +22,25 @@
   let traceEmpty = true;
   const called = new Set();
   const orderCards = new Map();
+  let orderShownAt = 0;
+  let lastPushAt = 0;
+  let ringTimer = null;
+  let liveCard = null;
+
+  // While the Face ID sheet or the call covers the screen, keep keyboard and screen readers inside it.
+  const overlay = (node, on) => {
+    for (const k of node.parentElement.children) if (k !== node) k.inert = on;
+  };
+  // Move keyboard focus to a new card (its first button) unless the user is typing.
+  const focusCard = (c) => {
+    if (!c || document.activeElement === input) return;
+    const b = c.querySelector('button:not([disabled]), a[href]');
+    if (b) b.focus({ preventScroll: true });
+    else {
+      c.tabIndex = -1;
+      c.focus({ preventScroll: true });
+    }
+  };
 
   const el = (tag, cls, text) => {
     const n = document.createElement(tag);
@@ -223,7 +242,11 @@
     }
     if (!opts.detached) {
       chat.appendChild(c);
-      scroll();
+      // A card taller than the chat is shown from its title, not from its bottom.
+      requestAnimationFrame(() => {
+        if (c.offsetHeight > chat.clientHeight - 24) chat.scrollTop += c.getBoundingClientRect().top - chat.getBoundingClientRect().top - 8;
+        else chat.scrollTop = chat.scrollHeight;
+      });
     }
     return c;
   }
@@ -247,6 +270,12 @@
         s.title = x.label;
         bar.appendChild(s);
       });
+      bar.setAttribute('role', 'progressbar');
+      bar.setAttribute('aria-label', card.title || st.label);
+      bar.setAttribute('aria-valuemin', '0');
+      bar.setAttribute('aria-valuemax', String(st.steps.length));
+      bar.setAttribute('aria-valuenow', String(st.steps.filter((x) => x.done).length));
+      bar.setAttribute('aria-valuetext', st.label);
       c.append(bar);
     }
     if (card.courier) {
@@ -288,7 +317,7 @@
       await new Promise((ok) => setTimeout(ok, 350));
       t.remove();
       say('ari', r.reply);
-      if (r.card) renderCard(r.card);
+      if (r.card) focusCard(renderCard(r.card));
       setChips(r.chips && r.chips.length ? r.chips : []);
       addTrace(r.trace);
     } catch (e) {
@@ -311,7 +340,7 @@
       const r = await api('POST', withLang('/ari/api/action'), { tool: a.name, arguments: a.arguments });
       t.remove();
       if (r.reply) say('ari', r.reply);
-      if (r.card) renderCard(r.card);
+      if (r.card) focusCard(renderCard(r.card));
       if (r.chips && r.chips.length) setChips(r.chips);
       addTrace(r.trace);
     } catch (e) {
@@ -335,10 +364,13 @@
   const faceId = () => new Promise((ok) => {
     sheet.hidden = false;
     sheet.className = 'ari-sheet scan';
+    overlay(sheet, true);
+    sheet.focus({ preventScroll: true });
     setTimeout(() => {
       sheet.className = 'ari-sheet ok';
       setTimeout(() => {
         sheet.hidden = true;
+        overlay(sheet, false);
         ok();
       }, 450);
     }, 1000);
@@ -359,6 +391,10 @@
         const c = renderCard(r.card);
         orderCards.set(r.card.id, c);
         activeOrder = r.card.id;
+        liveCard = r.card;
+        orderShownAt = Date.now();
+        updateIsland(r.card);
+        focusCard(c);
         startPolling();
       }
     } catch (e) {
@@ -415,7 +451,9 @@
     const st = card.status;
     $('la-title').textContent = st.label;
     const eta = st.eta_at && !st.is_final ? Math.max(1, Math.round((new Date(st.eta_at) - Date.now()) / 60000)) : null;
-    $('la-eta').textContent = eta ? `${eta} ${S.min || 'min'}` : st.is_final ? '✓' : '';
+    const ended = /cancel|fail/.test(st.code);
+    $('la-eta').textContent = eta ? `${eta} ${S.min || 'min'}` : st.is_final && !ended ? '✓' : '';
+    island.classList.toggle('ended', ended);
     island.classList.add('live');
     if (st.is_final) setTimeout(() => island.classList.remove('live'), 5000);
   }
@@ -425,6 +463,7 @@
     $('push-title').textContent = n.title;
     $('push-body').textContent = n.body;
     push.classList.add('show');
+    lastPushAt = Date.now();
     clearTimeout(pushTimer);
     pushTimer = setTimeout(() => push.classList.remove('show'), 3800);
   }
@@ -441,15 +480,23 @@
     $('call-state').textContent = S.calling;
     call.className = 'ari-call';
     call.hidden = false;
+    const before = document.activeElement;
+    overlay(call, true);
+    $('call-yes').focus({ preventScroll: true });
     const hang = () => {
+      if (call.hidden) return;
       call.hidden = true;
+      overlay(call, false);
       try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) { /* ignore */ }
+      if (before && before !== document.body && before.isConnected && !before.disabled) before.focus({ preventScroll: true });
     };
+    call.onkeydown = (e) => { if (e.key === 'Escape') hang(); };
     $('call-no').onclick = hang;
     $('call-yes').onclick = () => {
       call.className = 'ari-call active';
       $('call-state').textContent = '0:01';
       $('call-line').textContent = line;
+      $('call-no').focus({ preventScroll: true });
       try {
         if (window.speechSynthesis) {
           const u = new SpeechSynthesisUtterance(line);
@@ -471,18 +518,33 @@
       let latestNotify = null;
       for (const e of ev.events) {
         lastEvent = Math.max(lastEvent, e.seq);
-        if (e.type === 'order.status_changed' && e.notify) latestNotify = { e, n: e.notify };
+        if ((e.type === 'order.status_changed' || e.type === 'order.created') && e.notify) latestNotify = { e, n: e.notify };
       }
       if (activeOrder) {
         const r = await api('GET', withLang(`/ari/api/orders/${activeOrder}`));
         const c = orderCards.get(activeOrder);
         if (c) fillOrder(c, r.card);
+        liveCard = r.card;
         if (latestNotify) {
           if (latestNotify.n.level !== 'info') showPush(latestNotify.n);
           const key = `${latestNotify.e.data.order_id}:${latestNotify.e.data.status}`;
           if (latestNotify.n.suggest_call && !called.has(key)) {
             called.add(key);
-            setTimeout(() => ringCall(r.card, latestNotify.n), 900);
+            // Let the user see the order card and the push first: ring no sooner than 9 s after the
+            // card appeared and 3 s after the push, and only while that order is still running.
+            const oid = r.card.id;
+            const note = latestNotify.n;
+            const now = Date.now();
+            const wait = Math.max(900, orderShownAt + 9000 - now, lastPushAt + 3000 - now);
+            clearTimeout(ringTimer);
+            const ring = () => {
+              if (activeOrder !== oid || !liveCard || liveCard.id !== oid) return;
+              if (!sheet.hidden || busy) { ringTimer = setTimeout(ring, 1000); return; }
+              const st = liveCard.status;
+              if (st && st.is_final) return;
+              ringCall(liveCard, { title: st && st.label ? st.label : note.title });
+            };
+            ringTimer = setTimeout(ring, wait);
           }
         }
         if (r.card.status && r.card.status.is_final) {
@@ -497,7 +559,7 @@
   }
   function startPolling() {
     stopPolling();
-    pollTimer = setInterval(pollOnce, 2500);
+    pollTimer = setInterval(pollOnce, 3000);
   }
   function stopPolling() {
     if (pollTimer) clearInterval(pollTimer);
@@ -531,6 +593,7 @@
     try {
       await api('POST', withLang('/ari/api/grab-link'));
       b.classList.add('on');
+      b.setAttribute('aria-pressed', 'true');
       b.querySelector('span').textContent = S.linked;
       showPush({ title: 'Grab', body: S.linkedNote || S.linked });
     } catch (e) {
@@ -539,8 +602,10 @@
   });
   $('ari-reset').addEventListener('click', () => {
     stopPolling();
+    clearTimeout(ringTimer);
     activeOrder = null;
-    island.classList.remove('live');
+    liveCard = null;
+    island.classList.remove('live', 'ended');
     chat.textContent = '';
     start(true);
   });
@@ -555,6 +620,7 @@
       setChips(r.examples || EX);
       if (r.grab && r.grab.linked) {
         $('ari-grab').classList.add('on');
+        $('ari-grab').setAttribute('aria-pressed', 'true');
         $('ari-grab').querySelector('span').textContent = S.linked;
       }
       if (!again) say('note', S.voiceNote);

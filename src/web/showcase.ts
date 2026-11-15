@@ -26,6 +26,12 @@ const BASE_EXAMPLES: Record<'en' | 'th' | 'ru', string[]> = {
   th: ['ข้าวเย็นสำหรับ 2 คน ไม่เกิน 600 บาท ไม่ใส่ถั่ว', 'เรียกแท็กซี่จากสยามพารากอนไปสนามบินสุวรรณภูมิ', 'ของชำ ข้าวสาร ไข่ไก่ น้ำดื่ม', 'ช่อดอกกุหลาบให้แฟน', 'พาราเซตามอลกับพลาสเตอร์', 'เค้กช็อกโกแลตวันเกิด', 'ส่งพัสดุ 3 กก ไปไอคอนสยาม'],
   ru: ['Ужин на двоих до 600 бат, без орехов', 'Такси от Сиам Парагона до аэропорта Суварнабхуми', 'Продукты: рис, яйца и вода', 'Букет роз для жены', 'Парацетамол и пластыри', 'Шоколадный торт на день рождения', 'Отправить посылку 3 кг в Айконсиам'],
 };
+/** Frames the MCP pages inside the Ari × Grab site: they describe the same engine for other assistants. */
+const legacyNote = (l: Locale): SafeHtml => html`<p class="legacy-note">${icon('plug')}<span>${tr(l, {
+  ru: 'Другие ИИ-ассистенты (MCP): тот же движок Unyly, на котором работает Ari × Grab, для ChatGPT, Claude, Gemini и других.',
+  en: 'Other AI assistants (MCP): the same Unyly engine that powers Ari × Grab, for ChatGPT, Claude, Gemini and others.',
+  th: 'ผู้ช่วย AI อื่นๆ (MCP): เอนจิน Unyly เดียวกับที่ใช้ใน Ari × Grab สำหรับ ChatGPT, Claude, Gemini และอื่นๆ',
+})}</span><a href="/">${tr(l, { ru: 'К Ari × Grab', en: 'Back to Ari × Grab', th: 'กลับไปที่ Ari × Grab' })} ${icon('arrow')}</a></p>`;
 /** Example requests per language: ru/en/th here, the others from the language packs. */
 const exFor = (l: Locale): string[] => {
   const base = (BASE_EXAMPLES as Record<string, string[]>)[l];
@@ -85,6 +91,7 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
       { ic: 'box', t: { ru: 'Посылки', en: 'Parcels', th: 'ส่งพัสดุ' }, d: { ru: 'От документов до 300 кг', en: 'From documents to 300 kg', th: 'ตั้งแต่เอกสารถึง 300 กก.' }, q: 6 },
     ];
     return send(reply, r, tr(l, { ru: 'Grab через ИИ-ассистента', en: 'Grab through your AI assistant', th: 'Grab ผ่านผู้ช่วย AI' }), html`
+${legacyNote(l)}
 <section class="hero">
   <div>
     <span class="eyebrow">${icon('sparkle')} ${tr(l, { ru: 'Концепт для Grab · все сервисы · старт в Бангкоке', en: 'Concept for Grab · every service · starting in Bangkok', th: 'แนวคิดสำหรับ Grab · ทุกบริการ · เริ่มที่กรุงเทพฯ' })}</span>
@@ -205,6 +212,7 @@ export function registerShowcase(app: FastifyInstance, kit: Kit) {
     const built = (href: string, t: string, d: string) => html`<a class="built" href="${href}"><span><strong>${t}</strong><span class="small muted">${d}</span></span>${icon('arrow')}</a>`;
     const guard = (ic: string, t: string, d: string) => html`<div class="feature"><span class="ico">${icon(ic)}</span><h3>${t}</h3><p>${d}</p></div>`;
     return send(reply, r, tr(l, { ru: 'Предложение для Grab', en: 'Proposal for Grab', th: 'ข้อเสนอสำหรับ Grab' }), html`
+${legacyNote(l)}
 <section class="pitch-hero">
   <span class="eyebrow">${icon('handshake')} ${tr(l, { ru: 'Предложение о партнёрстве · черновик', en: 'Partnership proposal · draft', th: 'ข้อเสนอความร่วมมือ · ฉบับร่าง' })}</span>
   <h1>${tr(l, { ru: 'Весь Grab в любом ИИ-ассистенте. Безопасно.', en: 'All of Grab inside any AI assistant. Safely.', th: 'ทุกบริการของ Grab ในผู้ช่วย AI ทุกตัว อย่างปลอดภัย' })}</h1>
@@ -626,7 +634,7 @@ ${flash ?? ''}
     <div class="card"><h2 class="h3">${tr(l, { ru: 'Как проходит демо', en: 'How the demo goes', th: 'ขั้นตอนของเดโม' })}</h2><ol class="steps">${steps.map((s) => html`<li><span class="num" aria-hidden="true"></span><span class="grow">${s}</span></li>`)}</ol></div>
   </aside>
 </div>`;
-    return send(reply, r, tr(l, { ru: 'Демо', en: 'Live demo', th: 'เดโม' }), body, { status, noBanner: !r.s, description: tr(l, { ru: 'Попробуйте заказ через ИИ-ассистента в браузере.', en: 'Try ordering through an AI assistant in your browser.', th: 'ลองสั่งอาหารผ่านผู้ช่วย AI ในเบราว์เซอร์' }) });
+    return send(reply, r, tr(l, { ru: 'Демо для MCP-ассистентов', en: 'MCP assistant demo', th: 'เดโมสำหรับผู้ช่วย MCP' }), body, { status, noBanner: !r.s, description: tr(l, { ru: 'Попробуйте заказ через ИИ-ассистента в браузере.', en: 'Try ordering through an AI assistant in your browser.', th: 'ลองสั่งอาหารผ่านผู้ช่วย AI ในเบราว์เซอร์' }) });
   }
 }
 

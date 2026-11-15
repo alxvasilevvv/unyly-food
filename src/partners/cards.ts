@@ -101,9 +101,10 @@ const LAST = ['K.', 'P.', 'S.', 'W.', 'T.', 'R.', 'C.', 'M.'];
 const THAI_LETTERS = ['กข', 'ขค', 'งจ', 'ฉช', 'ฒณ', 'ทน', 'บป', 'ผฝ'];
 
 /** A fictional, deterministic courier for demo orders (never shown for real orders). */
-export function demoCourier(ref: string, service: Service, l: Locale) {
+export function demoCourier(ref: string, service: Service, l: Locale, itemId?: string) {
   const h = createHash('sha256').update(ref).digest();
-  const bike = service === 'food' || service === 'mart' || (service === 'express' && h[4] % 2 === 0);
+  // The vehicle follows what was booked: a bike ride or bike courier never shows a car.
+  const bike = service === 'food' || service === 'mart' || /bike/i.test(itemId ?? '');
   const vehicle = bike
     ? tr(l, { en: 'Honda Wave 125, red', ru: 'Honda Wave 125, красный', th: 'Honda Wave 125 สีแดง' })
     : tr(l, { en: 'Toyota Corolla Altis, silver', ru: 'Toyota Corolla Altis, серебристый', th: 'Toyota Corolla Altis สีเงิน' });
@@ -126,13 +127,39 @@ const DEMO_TEXT: Record<string, { ru: string; th: string }> = {
   'Demo terms: free cancellation right after a driver is assigned; 30 THB once the driver is on the way; not possible after pickup.': { ru: 'Демо-условия: бесплатная отмена сразу после назначения водителя; 30 бат, когда водитель уже едет; после посадки отмена невозможна.', th: 'เงื่อนไขเดโม: ยกเลิกฟรีทันทีหลังได้คนขับ 30 บาทเมื่อคนขับกำลังมา ยกเลิกไม่ได้หลังขึ้นรถ' },
   'Demo terms: free cancellation right after a courier is assigned; 20 THB once the courier is on the way; not possible after pickup.': { ru: 'Демо-условия: бесплатная отмена сразу после назначения курьера; 20 бат, когда курьер уже едет; после забора посылки отмена невозможна.', th: 'เงื่อนไขเดโม: ยกเลิกฟรีทันทีหลังได้ไรเดอร์ 20 บาทเมื่อไรเดอร์กำลังมา ยกเลิกไม่ได้หลังรับพัสดุ' },
   'Allergen data comes from restaurants and may be missing or incomplete. Unyly never marks a dish as safe. Confirm with the restaurant.': { ru: 'Данные об аллергенах дают рестораны, они могут быть неполными. Мы никогда не называем блюдо безопасным. Уточните у ресторана.', th: 'ข้อมูลสารก่อภูมิแพ้มาจากร้านและอาจไม่ครบถ้วน เราไม่รับรองว่าเมนูใดปลอดภัย โปรดสอบถามร้าน' },
+  // Vehicle and courier types (demo catalog descriptions).
+  'Motorbike taxi, 1 passenger, helmet provided.': { ru: 'Мототакси, 1 пассажир, шлем выдаётся.', th: 'วินมอเตอร์ไซค์ ผู้โดยสาร 1 คน มีหมวกกันน็อกให้' },
+  'Nearest available car or taxi, up to 4 passengers.': { ru: 'Ближайшая свободная машина или такси, до 4 пассажиров.', th: 'รถหรือแท็กซี่ที่ใกล้ที่สุด นั่งได้สูงสุด 4 คน' },
+  'Licensed metered taxi, up to 4 passengers.': { ru: 'Лицензированное такси со счётчиком, до 4 пассажиров.', th: 'แท็กซี่มิเตอร์ถูกกฎหมาย นั่งได้สูงสุด 4 คน' },
+  'Newer, larger cars with top-rated drivers.': { ru: 'Новые просторные машины, водители с высоким рейтингом.', th: 'รถใหม่ กว้างขวาง คนขับคะแนนสูง' },
+  'Up to 6 passengers or extra luggage.': { ru: 'До 6 пассажиров или много багажа.', th: 'นั่งได้สูงสุด 6 คน หรือมีสัมภาระเยอะ' },
+  'Van for groups of up to 10.': { ru: 'Минивэн для компании до 10 человек.', th: 'รถตู้สำหรับกลุ่มสูงสุด 10 คน' },
+  'Documents and parcels up to 20 kg.': { ru: 'Документы и посылки до 20 кг.', th: 'เอกสารและพัสดุไม่เกิน 20 กก.' },
+  'Bulky parcels up to 100 kg.': { ru: 'Крупные посылки до 100 кг.', th: 'พัสดุขนาดใหญ่ไม่เกิน 100 กก.' },
+  'Large items up to 200 kg.': { ru: 'Крупногабаритные вещи до 200 кг.', th: 'ของชิ้นใหญ่ไม่เกิน 200 กก.' },
+  'Furniture and moves up to 300 kg.': { ru: 'Мебель и переезды до 300 кг.', th: 'เฟอร์นิเจอร์และขนย้ายไม่เกิน 300 กก.' },
+  // Store notes and refusals.
+  'Does not deliver to your default address': { ru: 'Не доставляет по вашему адресу', th: 'ไม่จัดส่งไปยังที่อยู่ของคุณ' },
+  'No delivery address set: availability and fees unknown': { ru: 'Адрес доставки не задан: доступность и сборы неизвестны', th: 'ยังไม่ได้ตั้งที่อยู่จัดส่ง จึงยังไม่ทราบค่าธรรมเนียม' },
+  'Pickup and drop-off are the same place': { ru: 'Точка посадки и пункт назначения совпадают.', th: 'จุดรับและจุดส่งเป็นที่เดียวกัน' },
+  'Cannot cancel: the trip has started or ended.': { ru: 'Отменить нельзя: поездка уже началась или завершилась.', th: 'ยกเลิกไม่ได้ การเดินทางเริ่มหรือสิ้นสุดแล้ว' },
+  'Cannot cancel: the parcel has been picked up.': { ru: 'Отменить нельзя: посылку уже забрали.', th: 'ยกเลิกไม่ได้ ไรเดอร์รับพัสดุไปแล้ว' },
 };
+
+/** Cards and notifications are written in English, Russian and Thai; every other locale gets English throughout (never a mix). */
+export const cardLocale = (l: Locale | string | null | undefined): Locale => (l === 'ru' || l === 'th' ? l : 'en');
+
+export const seatsBadge = (l: Locale, n: number) => (l === 'ru' ? `Мест: ${n}` : l === 'th' ? `${n} ที่นั่ง` : `${n} ${n === 1 ? 'seat' : 'seats'}`);
 
 export function localText(text: string | null | undefined, l: Locale): string | undefined {
   if (!text) return undefined;
   if (l !== 'ru' && l !== 'th') return text;
   const exact = DEMO_TEXT[text];
   if (exact) return exact[l];
+  if (/^Cannot cancel: /.test(text)) return l === 'ru' ? 'Этот заказ уже нельзя отменить.' : 'ยกเลิกคำสั่งซื้อนี้ไม่ได้แล้ว';
+  if (/^Closed: /.test(text)) return l === 'ru' ? 'Сейчас закрыто' : 'ร้านปิดอยู่';
+  const seats = /^Seats (\d+), passengers (\d+)$/.exec(text);
+  if (seats) return l === 'ru' ? `Мест: ${seats[1]}, пассажиров: ${seats[2]}` : `${seats[1]} ที่นั่ง ผู้โดยสาร ${seats[2]} คน`;
   const m = /^(Free cancellation: the (driver|courier|restaurant|store) (?:has just been assigned|has not started preparing) \(demo\)\.)$/.exec(text);
   if (m) return l === 'ru' ? 'Бесплатная отмена (демо).' : 'ยกเลิกฟรี (เดโม)';
   const fee = /^The (driver|courier) is on the way: (\d+) THB cancellation fee \(demo, not charged\)\.$/.exec(text);

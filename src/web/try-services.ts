@@ -21,13 +21,13 @@ export const SHOP_STORE: Record<Exclude<DemoService, 'food' | 'ride' | 'express'
 /** [item id, keywords in EN/RU/TH]. The first entry per store is the default pick. */
 const PICKS: Record<string, [string, RegExp][]> = {
   'demo-m1': [
-    ['m1-rice', /\brice\b|\bрис|ข้าวสาร/u],
+    ['m1-rice', /\brice\b|(?<!\p{L})рис(?!\p{L})|ข้าวสาร/u],
     ['m1-eggs', /\beggs?\b|яйц|ไข่/u],
-    ['m1-water', /water|\bвод|น้ำดื่ม/u],
+    ['m1-water', /water|(?<!\p{L})вод[аыуе](?!\p{L})|น้ำดื่ม/u],
     ['m1-milk', /\bmilk\b|молок|นม/u],
     ['m1-banana', /banana|банан|กล้วย/u],
     ['m1-mango', /mango|манго|มะม่วง/u],
-    ['m1-chicken', /chicken|куриц|ไก่(?!ไข่)/u],
+    ['m1-chicken', /chicken|куриц|(?<!ไข่)ไก่/u],
     ['m1-noodles', /noodle|лапш|บะหมี่|มาม่า/u],
     ['m1-coffee', /coffee|кофе|กาแฟ/u],
     ['m1-veg', /vegetable|greens|овощ|зелень|ผัก/u],
@@ -58,6 +58,14 @@ const PICKS: Record<string, [string, RegExp][]> = {
   ],
 };
 
+/** Words for modifier options (gift box, candles), keyed by option id. */
+const OPTION_WORDS: Record<string, RegExp> = {
+  box: /gift box|\bbox\b|коробк|กล่อง/u,
+  paper: /kraft|paper|крафт|бумаг|กระดาษ/u,
+  candles: /candle|свеч|เทียน/u,
+  knife: /knife|plates|нож|тарел|มีด|จาน/u,
+};
+
 /** Item words from the language packs, keyed by item id (substring match on lowercased text). */
 const SHOP_WORDS: Record<string, string[]> = {};
 for (const [, p] of packs()) for (const [id, words] of Object.entries(p.shop_items ?? {})) (SHOP_WORDS[id] ??= []).push(...words.map((w) => w.toLowerCase()).filter((w) => w.length >= 2));
@@ -82,6 +90,15 @@ export async function shopPlan(ctx: Ctx, actor: Actor, service: keyof typeof SHO
   const table = PICKS[storeId];
   let ids = table.filter(([id, re]) => re.test(text) || (SHOP_WORDS[id] ?? []).some((w) => text.includes(w))).map(([id]) => id);
   if (!ids.length) ids = service === 'groceries' ? ['m1-rice', 'm1-eggs', 'm1-water'] : [table[0][0]];
+  // One cake per request: the cake named first in the sentence ("chocolate cake for a birthday" is one chocolate cake).
+  if (service === 'cakes' && ids.length > 1) {
+    const at = (id: string) => {
+      const m = table.find(([x]) => x === id)![1].exec(text);
+      const w = (SHOP_WORDS[id] ?? []).map((x) => text.indexOf(x)).filter((i) => i >= 0);
+      return Math.min(m ? m.index : Infinity, ...w);
+    };
+    ids = [ids.slice().sort((a, b) => at(a) - at(b))[0]];
+  }
   ids = ids.slice(0, 5);
   const addr = await getDefaultAddress(ctx.db, actor.userId);
   const provider = ctx.provider('demo');
@@ -90,9 +107,19 @@ export async function shopPlan(ctx: Ctx, actor: Actor, service: keyof typeof SHO
   for (const id of ids) {
     const it = menu.items.find((x) => x.id === id);
     if (!it || !it.available) continue;
-    // Required choices default to the first free option (e.g. kraft paper wrapping).
-    const modifiers = it.modifier_groups.filter((g) => g.min_select > 0).map((g) => ({ group_id: g.id, option_ids: [g.options.find((o) => o.available)!.id] }));
-    const optNote = it.modifier_groups.filter((g) => g.min_select > 0).map((g) => `${g.name}: ${g.options.find((o) => o.available)!.name}`).join(', ');
+    // Choices named in the request win ("in a gift box", "with candles"); a required choice nobody
+    // named defaults to the first free option (e.g. kraft paper wrapping).
+    const modifiers: { group_id: string; option_ids: string[] }[] = [];
+    const notes: string[] = [];
+    for (const g of it.modifier_groups) {
+      const free = g.options.filter((o) => o.available);
+      const named = free.filter((o) => OPTION_WORDS[o.id]?.test(text) || text.includes(o.name.toLowerCase())).slice(0, Math.max(g.max_select, 1));
+      const picked = named.length ? named : g.min_select > 0 && free[0] ? [free[0]] : [];
+      if (!picked.length) continue;
+      modifiers.push({ group_id: g.id, option_ids: picked.map((o) => o.id) });
+      notes.push(`${g.name}: ${picked.map((o) => o.name).join(', ')}`);
+    }
+    const optNote = notes.join(', ');
     lines.push({ item_id: it.id, name: it.name, quantity: 1, unit_minor: it.price_minor, modifiers, option_note: optNote || undefined });
   }
   if (!lines.length) throw new DomainError('OUT_OF_STOCK', 'Nothing from this request is available right now.');

@@ -8,16 +8,16 @@ import { hmac, safeEqual, UUID_RE } from '../domain/crypto.js';
 import { DomainError, isDomainError } from '../domain/errors.js';
 import type { Locale } from '../domain/locales.js';
 import { addAddress } from '../services/users.js';
-import { detectService, parseIntent } from '../web/intent.js';
+import { detectService, hasFoodCue, parseIntent } from '../web/intent.js';
 import { SHOP_STORE, shopPlan } from '../web/try-services.js';
 import { tr } from '../web/messages.js';
-import type { Card } from './cards.js';
+import { Card, cardLocale, localText } from './cards.js';
 import { WEB_DEMO_PARTNER } from './config.js';
 import {
   cancellationCard, checkoutCard, confirmCancelPartner, confirmCheckout, declineCheckoutPartner, grabLinkStatus, orderCard, prepareCancelPartner, runTool, startGrabLink,
 } from './core.js';
 import { loadPartnerUser, partnerActor, PartnerUser, upsertPartnerUser } from './users.js';
-import { listPartnerEvents } from './webhooks.js';
+import { lastPartnerEventSeq, listPartnerEvents } from './webhooks.js';
 
 const P = WEB_DEMO_PARTNER;
 const COOKIE = 'ari_demo';
@@ -62,7 +62,7 @@ const GREET = /^(hi|hello|hey|привет|здравств|добр|สวั�
 
 /** One user message: decide what Ari would do and run it through the Partner API path. */
 export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promise<AriTurn> {
-  const l = u.locale;
+  const l = cardLocale(u.locale);
   const trace: TraceEntry[] = [];
   const base = `/partner/v1/users/${u.external_user_id}`;
   const q = text.replace(/\s+/g, ' ').trim().slice(0, 300);
@@ -78,22 +78,41 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
       const addr = (await ctx.db.query(`SELECT label FROM addresses WHERE user_id = $1 AND is_default`, [u.user_id])).rows[0];
       const pickup = si.pickup || addr?.label || '';
       if (!si.dropoff) {
+        if (si.service === 'express') {
+          return { reply: t(l, { en: 'Where should the parcel go? For example "to ICONSIAM".', ru: 'Куда доставить посылку? Например, «в Айконсиам».', th: 'ส่งพัสดุไปที่ไหนคะ เช่น "ไปไอคอนสยาม"' }), chips: [ariExamples(l)[2]], trace };
+        }
         return { reply: t(l, { en: 'Where to? For example "to Suvarnabhumi airport".', ru: 'Куда едем? Например, «до аэропорта Суварнабхуми».', th: 'ไปที่ไหนคะ เช่น "ไปสนามบินสุวรรณภูมิ"' }), chips: [ariExamples(l)[0]], trace };
       }
       const args: Record<string, unknown> = { service: si.service, pickup, dropoff: si.dropoff };
       if (si.service === 'express') args.parcel_weight_kg = si.weight_kg ?? 2;
-      if (si.passengers) args.passengers = si.passengers;
+      if (si.passengers) args.passengers = Math.min(si.passengers, 10);
       const r = await traced(trace, `POST ${base}/tools/estimate_trip`, grabFor('estimate_trip', args), () => runTool(ctx, P, u, 'estimate_trip', args));
       if (!r.ok) return errorTurn(l, r.error, trace);
       const res = r.result;
       const from = res.trip?.pickup?.name;
       const to = res.trip?.dropoff?.name;
+      // The reply has to say what the card shows: when no vehicle can take the trip, say why.
+      if (r.card?.options?.length && r.card.options.every((o) => !o.action)) {
+        const maxKg = Math.max(0, ...(res.options ?? []).map((o: any) => Number(o.max_weight_kg) || 0));
+        const maxSeats = Math.max(0, ...(res.options ?? []).map((o: any) => Number(o.seats) || 0));
+        const why = si.service === 'express'
+          ? t(l, { en: `A ${args.parcel_weight_kg} kg parcel is too heavy: the largest vehicle here carries up to ${maxKg} kg. Try a lighter parcel or split it.`, ru: `Посылка ${args.parcel_weight_kg} кг слишком тяжёлая: самая большая машина берёт до ${maxKg} кг. Уменьшите вес или разделите посылку.`, th: `พัสดุ ${args.parcel_weight_kg} กก. หนักเกินไปค่ะ รถคันใหญ่ที่สุดรับได้ไม่เกิน ${maxKg} กก. ลองลดน้ำหนักหรือแบ่งส่งนะคะ` })
+          : t(l, { en: `No vehicle here takes ${si.passengers ?? ''} passengers: the largest seats ${maxSeats}. Try a smaller group or two cars.`, ru: `Машины на ${si.passengers ?? ''} пассажиров нет: в самой большой мест ${maxSeats}. Попробуйте меньшую компанию или две машины.`, th: `ไม่มีรถที่รับผู้โดยสาร ${si.passengers ?? ''} คนได้ค่ะ คันใหญ่ที่สุดนั่งได้ ${maxSeats} คน ลองแบ่งเป็นสองคันนะคะ` });
+        return { reply: why, card: r.card, trace };
+      }
       const reply = si.service === 'ride'
         ? t(l, { en: `From ${from} to ${to}, about ${res.trip?.drive_minutes_estimate} min. Pick a ride:`, ru: `От ${from} до ${to}, примерно ${res.trip?.drive_minutes_estimate} мин в пути. Выберите машину:`, th: `จาก ${from} ไป ${to} ประมาณ ${res.trip?.drive_minutes_estimate} นาที เลือกประเภทรถได้เลยค่ะ` })
         : t(l, { en: `Parcel ${args.parcel_weight_kg} kg from ${from} to ${to}. Pick a courier:`, ru: `Посылка ${args.parcel_weight_kg} кг от ${from} до ${to}. Выберите курьера:`, th: `พัสดุ ${args.parcel_weight_kg} กก. จาก ${from} ไป ${to} เลือกประเภทการส่งได้เลยค่ะ` });
       return { reply, card: r.card, trace };
     }
     if (si.service === 'food') {
+      // Nothing in the sentence names a service or a meal: say what Ari can do instead of guessing restaurants.
+      if (!hasFoodCue(q)) {
+        return {
+          reply: t(l, { en: 'I did not catch which Grab service you need. I can book a ride, order food, groceries, flowers or pharmacy items, or send a parcel. Try one of these:', ru: 'Не поняла, какой сервис Grab нужен. Могу вызвать такси, заказать еду, продукты, цветы, товары из аптеки или отправить посылку. Например:', th: 'Ari ยังไม่แน่ใจว่าต้องการบริการไหนของ Grab ค่ะ เรียกรถ สั่งอาหาร ของชำ ดอกไม้ ร้านยา หรือส่งพัสดุได้เลย ลองแบบนี้ดูนะคะ' }),
+          chips: ariExamples(l).slice(0, 4), trace,
+        };
+      }
       const intent = parseIntent(q);
       const args: Record<string, unknown> = {
         service: 'food', limit: 3, party_size: intent.party_size ?? 2,
@@ -110,7 +129,10 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
       const allergy = intent.exclude_allergens.length
         ? t(l, { en: ' Restaurants did not declare the allergens you excluded, but I never mark a dish as safe.', ru: ' Рестораны не заявили исключённые аллергены, но я никогда не называю блюдо безопасным.', th: ' ร้านไม่ได้ระบุสารก่อภูมิแพ้ที่คุณยกเว้น แต่ Ari จะไม่รับรองว่าปลอดภัย' })
         : '';
-      const reply = n
+      const fits = (r.result?.stores ?? []).some((s: any) => s.suggestion?.within_budget === true);
+      const reply = n && args.budget_total_major && !fits
+        ? t(l, { en: `Nothing fits ฿${args.budget_total_major} for ${people}. These are the closest options:`, ru: `В ${args.budget_total_major} бат на ${people} чел. уложиться не получится. Вот самые близкие варианты:`, th: `ยังไม่มีร้านที่อยู่ในงบ ${args.budget_total_major} บาทสำหรับ ${people} คนค่ะ นี่คือตัวเลือกที่ใกล้เคียงที่สุด` })
+        : n
         ? t(l, { en: `${n} options for ${people}${budget}.${allergy} Tap one:`, ru: `Вариантов: ${n} (на ${people} чел.${budget}).${allergy} Выберите:`, th: `${n} ตัวเลือกสำหรับ ${people} คน${budget}${allergy} เลือกได้เลยค่ะ` })
         : t(l, { en: 'Nothing matches right now. Try a bigger budget or fewer restrictions.', ru: 'Сейчас ничего не подходит. Попробуйте увеличить бюджет или убрать ограничения.', th: 'ยังไม่มีร้านที่ตรง ลองเพิ่มงบหรือลดเงื่อนไขค่ะ' });
       return { reply, card: r.card, trace };
@@ -143,7 +165,9 @@ function errorTurn(l: Locale, err: any, trace: TraceEntry[]): AriTurn {
       chips: sug.map((s) => t(l, { en: `Taxi to ${s}`, ru: `Такси до ${s}`, th: `แท็กซี่ไป ${s}` })), trace,
     };
   }
-  return { reply: String(err?.message ?? 'Something went wrong.'), chips: [], trace };
+  // Protocol-level text (argument validation) is for developers, not for the chat.
+  const msg = String(err?.message ?? '');
+  return { reply: (/^MCP error/.test(msg) ? undefined : localText(msg, l)) ?? t(l, { en: 'Something went wrong. Please try again.', ru: 'Что-то пошло не так. Попробуйте ещё раз.', th: 'เกิดข้อผิดพลาด กรุณาลองอีกครั้งค่ะ' }), chips: [], trace };
 }
 
 // ---------------------------------------------------------------- HTTP
@@ -204,7 +228,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
   };
   const rl = (max: number) => ({ config: { rateLimit: { max, timeWindow: '1 minute' } } });
 
-  app.post('/ari/api/session', rl(20), async (req, reply) => {
+  app.post('/ari/api/session', rl(60), async (req, reply) => {
     try {
       guard(req);
       const l = detectLocale(req);
@@ -215,9 +239,8 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
         u = await createDemoUser(ctx, req.ip, l);
         reply.setCookie(COOKIE, sealExt(ctx, u.external_user_id), { httpOnly: true, secure: ctx.cfg.cookieSecure, sameSite: 'lax', path: '/ari', maxAge: 24 * 3600 });
       }
-      const ev = await listPartnerEvents(ctx, u.user_id, 0, 100);
       return send(reply, {
-        ok: true, user: { id: u.external_user_id }, grab: await grabLinkStatus(ctx, u), examples: ariExamples(l), last_event: ev.at(-1)?.seq ?? 0,
+        ok: true, user: { id: u.external_user_id }, grab: await grabLinkStatus(ctx, u), examples: ariExamples(l), last_event: await lastPartnerEventSeq(ctx, u.user_id),
         greeting: tr(l, { en: 'Hi, I\'m Ari. Tell me what you need from Grab and I\'ll take care of it. Nothing is ordered until you confirm.', ru: 'Здравствуйте, я Ari. Скажите, что нужно от Grab, и я всё сделаю. Ничего не заказывается без вашего подтверждения.', th: 'สวัสดีค่ะ Ari เองค่ะ บอกได้เลยว่าต้องการอะไรจาก Grab ไม่มีการสั่งจนกว่าคุณจะยืนยันค่ะ' }),
       });
     } catch (e) {
@@ -225,7 +248,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     }
   });
 
-  app.post('/ari/api/message', rl(40), async (req, reply) => {
+  app.post('/ari/api/message', rl(90), async (req, reply) => {
     try {
       guard(req);
       const u = await current(req);
@@ -236,7 +259,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     }
   });
 
-  app.post('/ari/api/action', rl(40), async (req, reply) => {
+  app.post('/ari/api/action', rl(90), async (req, reply) => {
     try {
       guard(req);
       const u = await current(req);
@@ -246,8 +269,8 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const args = b.arguments && typeof b.arguments === 'object' ? b.arguments : {};
       const trace: TraceEntry[] = [];
       const r = await traced(trace, `POST /partner/v1/users/${u.external_user_id}/tools/${name}`, grabFor(name, args), () => runTool(ctx, P, u, name, args));
-      if (!r.ok) return send(reply, { ok: true, ...errorTurn(u.locale, r.error, trace) });
-      const l = u.locale;
+      if (!r.ok) return send(reply, { ok: true, ...errorTurn(cardLocale(u.locale), r.error, trace) });
+      const l = cardLocale(u.locale);
       const reply2 = r.card?.type === 'checkout'
         ? tr(l, { en: 'Here is everything with the final price. Tap Confirm when you are ready.', ru: 'Вот всё с итоговой ценой. Нажмите «Подтвердить», когда будете готовы.', th: 'นี่คือรายละเอียดพร้อมราคาสุดท้าย กดยืนยันเมื่อพร้อมค่ะ' })
         : '';
@@ -257,7 +280,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     }
   });
 
-  app.post('/ari/api/confirm', rl(20), async (req, reply) => {
+  app.post('/ari/api/confirm', rl(60), async (req, reply) => {
     try {
       guard(req);
       const u = await current(req);
@@ -268,9 +291,9 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const card = await checkoutCard(ctx, P, u, id);
       const live = card.service === 'express' ? 'GrabPay · charge/init + GrabExpress · POST /v1/deliveries' : card.service === 'ride' ? 'Ride booking scope (requested) · today: Grab deep link' : 'GrabFood / GrabMart order scope (requested)';
       const r = await traced(trace, `POST /partner/v1/users/${u.external_user_id}/checkouts/${id}/confirm`, live, () => confirmCheckout(ctx, P, u, id, {
-        confirm_hash: b.confirm_hash, user_verification: 'biometric', confirmed_at: new Date().toISOString(), device_id: 'web-demo',
+        confirm_hash: b.confirm_hash, user_verification: 'biometric', confirmed_at: ctx.clock.now().toISOString(), device_id: 'web-demo',
       }));
-      const l = u.locale;
+      const l = cardLocale(u.locale);
       return send(reply, {
         ok: true,
         reply: tr(l, { en: 'Done! I\'ll keep you posted and call you when it matters.', ru: 'Готово! Я буду сообщать о статусе и позвоню, когда это важно.', th: 'เรียบร้อยค่ะ Ari จะแจ้งสถานะและโทรหาเมื่อถึงเวลาสำคัญ' }),
@@ -288,13 +311,13 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const id = String((req.body as any)?.checkout_id ?? '');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Checkout not found');
       await declineCheckoutPartner(ctx, P, u, id);
-      return send(reply, { ok: true, reply: tr(u.locale, { en: 'No problem, nothing was ordered.', ru: 'Хорошо, ничего не заказано.', th: 'ได้ค่ะ ไม่มีการสั่งซื้อ' }), card: await checkoutCard(ctx, P, u, id) });
+      return send(reply, { ok: true, reply: tr(cardLocale(u.locale),{ en: 'No problem, nothing was ordered.', ru: 'Хорошо, ничего не заказано.', th: 'ได้ค่ะ ไม่มีการสั่งซื้อ' }), card: await checkoutCard(ctx, P, u, id) });
     } catch (e) {
       return fail(reply, e);
     }
   });
 
-  app.get('/ari/api/orders/:id', rl(120), async (req, reply) => {
+  app.get('/ari/api/orders/:id', rl(240), async (req, reply) => {
     try {
       guard(req);
       const u = await current(req);
@@ -306,7 +329,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     }
   });
 
-  app.get('/ari/api/events', rl(120), async (req, reply) => {
+  app.get('/ari/api/events', rl(240), async (req, reply) => {
     try {
       guard(req);
       const u = await current(req);
@@ -324,7 +347,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const id = String((req.body as any)?.order_id ?? '');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Order not found');
       const r = await prepareCancelPartner(ctx, P, u, id);
-      return send(reply, { ok: true, reply: tr(u.locale, { en: 'Here are the cancellation terms:', ru: 'Условия отмены:', th: 'เงื่อนไขการยกเลิก:' }), card: r.card });
+      return send(reply, { ok: true, reply: tr(cardLocale(u.locale),{ en: 'Here are the cancellation terms:', ru: 'Условия отмены:', th: 'เงื่อนไขการยกเลิก:' }), card: r.card });
     } catch (e) {
       return fail(reply, e);
     }
@@ -337,13 +360,13 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const b = (req.body ?? {}) as any;
       const id = String(b.cancellation_id ?? '');
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Cancellation not found');
-      const r = await confirmCancelPartner(ctx, P, u, id, { confirm_hash: b.confirm_hash, user_verification: 'tap', confirmed_at: new Date().toISOString() });
+      const r = await confirmCancelPartner(ctx, P, u, id, { confirm_hash: b.confirm_hash, user_verification: 'tap', confirmed_at: ctx.clock.now().toISOString() });
       const done = r.cancellation.status === 'executed';
       return send(reply, {
         ok: true,
         reply: done
-          ? tr(u.locale, { en: 'Cancelled.', ru: 'Заказ отменён.', th: 'ยกเลิกแล้วค่ะ' })
-          : tr(u.locale, { en: 'The cancellation did not go through; the order continues.', ru: 'Отменить не получилось, заказ продолжается.', th: 'ยกเลิกไม่สำเร็จค่ะ คำสั่งซื้อยังดำเนินต่อ' }),
+          ? tr(cardLocale(u.locale),{ en: 'Cancelled.', ru: 'Заказ отменён.', th: 'ยกเลิกแล้วค่ะ' })
+          : tr(cardLocale(u.locale),{ en: 'The cancellation did not go through; the order continues.', ru: 'Отменить не получилось, заказ продолжается.', th: 'ยกเลิกไม่สำเร็จค่ะ คำสั่งซื้อยังดำเนินต่อ' }),
         card: r.order.card,
         cancel_card: await cancellationCard(ctx, P, u, id),
       });

@@ -62,4 +62,69 @@ describe('Website Ari demo (/ari)', () => {
     const s = await post('/ari/api/message?lang=th', { text: 'พาราเซตามอลกับพลาสเตอร์' });
     expect(s.json.card.type).toBe('checkout');
   });
+
+  it('the example requests build exactly the cart that was asked for', async () => {
+    const titles = (r: any) => r.json.card.lines.map((x: any) => x.title);
+    const ru = await post('/ari/api/message?lang=ru', { text: 'Продукты: рис, яйца и вода' });
+    expect(titles(ru)).toEqual(['Jasmine rice 5 kg', 'Fresh eggs, 10 pack', 'Drinking water 6 x 1.5 L']);
+    const th = await post('/ari/api/message?lang=th', { text: 'ของชำ ข้าวสาร ไข่ไก่ น้ำดื่ม' });
+    expect(titles(th)).toEqual(['Jasmine rice 5 kg', 'Fresh eggs, 10 pack', 'Drinking water 6 x 1.5 L']);
+    for (const [lang, text] of [['en', 'Red roses with a gift box'], ['ru', 'Букет роз в подарочной коробке'], ['th', 'ช่อดอกกุหลาบพร้อมกล่องของขวัญ']]) {
+      const roses = await post(`/ari/api/message?lang=${lang}`, { text });
+      expect(roses.json.card.lines[0].detail).toContain('Gift box');
+    }
+    const plain = await post('/ari/api/message?lang=en', { text: 'Red roses' });
+    expect(plain.json.card.lines[0].detail).toContain('Kraft paper');
+    const cake = await post('/ari/api/message?lang=en', { text: 'Chocolate cake for a birthday' });
+    expect(titles(cake)).toEqual(['Chocolate fudge cake, 1 lb']);
+  });
+
+  it('the reply matches the card: over budget, too heavy, and no guessing on unknown requests', async () => {
+    const poor = await post('/ari/api/message?lang=en', { text: 'Dinner for two under 10 baht' });
+    expect(poor.json.reply).toContain('Nothing fits');
+    const heavy = await post('/ari/api/message?lang=en', { text: 'Send a 500 kg parcel to ICONSIAM' });
+    expect(heavy.json.reply).toContain('too heavy');
+    expect(heavy.json.card.options.every((o: any) => !o.action && /300|200|100|20/.test(o.disabled_reason))).toBe(true);
+    const unknown = await post('/ari/api/message?lang=en', { text: 'aspirin 1000 tablets' });
+    expect(unknown.json.card ?? null).toBeNull();
+    expect(unknown.json.chips.length).toBeGreaterThan(0);
+    const pizza = await post('/ari/api/message?lang=en', { text: 'pizza' });
+    expect(pizza.json.card.type).toBe('options');
+    const parcel = await post('/ari/api/message?lang=ru', { text: 'отправить посылку' });
+    expect(parcel.json.chips[0]).toContain('посылку');
+  });
+
+  it('offers cancellation only while the order can still be cancelled', async () => {
+    const m = await post('/ari/api/message?lang=ru', { text: 'Парацетамол и пластыри' });
+    const confirm = m.json.card.actions.find((x: any) => x.kind === 'confirm');
+    const c = await post('/ari/api/confirm?lang=ru', { checkout_id: m.json.card.id, confirm_hash: confirm.endpoint.body.confirm_hash, user_verification: 'biometric' });
+    expect(c.json.card.actions.map((a: any) => a.kind)).toEqual(['prepare_cancel']);
+    // The first card already carries the presentation-speed ETA the next poll will show.
+    const first = await get(`/ari/api/orders/${c.json.order_id}?lang=ru`);
+    expect(first.json.card.status.eta_at).toBe(c.json.card.status.eta_at);
+    // Mart timeline: picked up after 12 simulated minutes, delivered after 25.
+    const speed = h.cfg.demoTimeScale * Math.max(h.cfg.demoGuestSpeed * 2, 1);
+    h.clock.advance((15 * 60_000) / speed);
+    const o = await get(`/ari/api/orders/${c.json.order_id}?lang=ru`);
+    expect(o.json.card.status.code).toBe('picked_up');
+    expect(o.json.card.actions).toEqual([]);
+    const refused = await post('/ari/api/cancel?lang=ru', { order_id: c.json.order_id });
+    expect(refused.status).toBe(409);
+    expect(refused.json.error.message).toMatch(/[а-яё]/i);
+  });
+
+  it('session resume starts after the newest event, however many there are', async () => {
+    const s = await post('/ari/api/session?lang=en');
+    const uid = (await h.db.query('SELECT user_id FROM partner_users WHERE external_user_id = $1', [s.json.user.id])).rows[0].user_id;
+    await h.db.query(
+      `INSERT INTO partner_webhooks (partner_id, user_id, event_type, payload, status)
+       SELECT 'ari-web', $1, 'grab.linked', '{"type":"grab.linked","data":{}}'::jsonb, 'skipped' FROM generate_series(1, 130)`,
+      [uid],
+    );
+    const max = Number((await h.db.query('SELECT max(id) AS m FROM partner_webhooks WHERE user_id = $1', [uid])).rows[0].m);
+    const again = await post('/ari/api/session?lang=en');
+    expect(again.json.last_event).toBe(max);
+    const rest = await get(`/ari/api/events?after=${again.json.last_event}`);
+    expect(rest.json.events).toEqual([]);
+  });
 });

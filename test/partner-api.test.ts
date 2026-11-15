@@ -128,6 +128,10 @@ describe('Partner API: ride from request to order', () => {
     const types = ev.json.events.map((e: any) => e.type);
     expect(types).toContain('order.created');
     expect(types).toContain('checkout.confirmed');
+    // The first status has no order.status_changed of its own: its push text rides on order.created.
+    const created = ev.json.events.find((e: any) => e.type === 'order.created');
+    expect(created.notify).toMatchObject({ title: 'Driver assigned', level: 'important', live_activity: { state: 'accepted' } });
+    expect(created).toMatchObject({ partner_id: 'ari', user_id: 'ari-user-1' });
     // Advance the demo trip: status events carry a localized notify block.
     h.clock.advance(30 * 60_000);
     const card = await call(ARI, 'GET', `${U}/orders/${orderId}`);
@@ -147,6 +151,30 @@ describe('Partner API: ride from request to order', () => {
     const expected = sign(ARI.webhookSecret, 'POST', '/hooks/unyly', one.headers['x-unyly-timestamp'], one.headers['x-unyly-nonce'], one.body);
     expect(one.headers['x-unyly-signature']).toBe(expected);
     expect(JSON.parse(one.body).user_id).toBe('ari-user-1');
+    // Webhook and polling carry the same sequence number.
+    expect(JSON.parse(one.body).seq).toBe(ev.json.events.find((e: any) => e.event_id === JSON.parse(one.body).event_id).seq);
+  });
+
+  it('rejects an incomplete place with 400 and saves a complete one', async () => {
+    const bad = await call(ARI, 'POST', `${U}/places`, { label: 'Home' });
+    expect(bad.status).toBe(400);
+    expect(bad.json.error).toMatchObject({ code: 'VALIDATION_FAILED', details: { fields: ['line1', 'district', 'city'] } });
+    const noNumber = await call(ARI, 'POST', `${U}/places`, { label: 'Home', line1: 'Sukhumvit', district: 'Watthana', city: 'Bangkok' });
+    expect(noNumber.status).toBe(400);
+    const good = await call(ARI, 'POST', `${U}/places`, { label: 'Home', line1: '88 Sukhumvit Soi 24', district: 'Watthana', city: 'Bangkok', latitude: 13.7242, longitude: 100.5681 });
+    expect(good.status).toBe(201);
+    expect(good.json.place.label).toBe('Home');
+  });
+
+  it('cards and notifications for other locales are fully English, never mixed', async () => {
+    const V = '/partner/v1/users/ari-vi';
+    await call(ARI, 'PUT', V, { locale: 'vi' });
+    const est = await call(ARI, 'POST', `${V}/tools/estimate_trip`, { arguments: { service: 'ride', pickup: 'Siam Paragon', dropoff: 'ICONSIAM' } });
+    expect(est.json.card.title).toBe('Choose a ride');
+    expect(est.json.card.options[0].badges[0]).toMatch(/^\d+ seats?$/);
+    const cart = await call(ARI, 'POST', `${V}/tools/create_cart`, { arguments: est.json.card.options[0].action.tool.arguments });
+    expect(cart.json.card.total.label).toBe('Total');
+    expect(cart.json.card.total.value).toMatch(/^฿/);
   });
 
   it('keeps users of different partners and different users apart', async () => {

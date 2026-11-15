@@ -18,9 +18,9 @@ import {
   approveCancellation, cancelOrder, describeCancellation, getOrderStatus, listOrders, loadCancellation, loadOrder, prepareCancellation, OrderRow,
 } from '../services/orders.js';
 import { tr } from '../web/messages.js';
-import { Card, CardAction, CardOption, demoCourier, localText, minutes, statusBlock, T } from './cards.js';
+import { Card, CardAction, CardOption, cardLocale, demoCourier, localText, minutes, seatsBadge, statusBlock, T } from './cards.js';
 import type { PartnerConfig } from './config.js';
-import { callPartnerTool, ToolEnvelope } from './tools.js';
+import { adaptForPartner, callPartnerTool, ToolEnvelope } from './tools.js';
 import { partnerActor, PartnerUser } from './users.js';
 import { enqueuePartnerEvent } from './webhooks.js';
 
@@ -38,7 +38,7 @@ function cancelHash(ctx: Ctx, c: { id: string; order_id: string; fee_minor: numb
 
 // ---------------------------------------------------------------- cards from tool results
 
-function optionsFromStores(env: ToolEnvelope, l: Locale): Card | null {
+function optionsFromStores(env: ToolEnvelope, args: Record<string, unknown>, l: Locale): Card | null {
   const r = env.result;
   if (!r || !Array.isArray(r.stores)) return null;
   const service: Service = r.service === 'mart' ? 'mart' : 'food';
@@ -62,14 +62,17 @@ function optionsFromStores(env: ToolEnvelope, l: Locale): Card | null {
         price: sug?.estimated_total ? money(Number(sug.estimated_total.amount_minor), sug.estimated_total.currency, l).formatted : undefined,
         eta: st.eta_estimate_minutes ? minutes(l, st.eta_estimate_minutes.min, st.eta_estimate_minutes.max) : undefined,
         badges,
-        disabled_reason: blocked ? (notes[0] ?? tr(l, { en: 'Not available right now', ru: 'Сейчас недоступно', th: 'ไม่พร้อมให้บริการขณะนี้' })) : undefined,
+        disabled_reason: blocked ? (localText(notes[0], l) ?? tr(l, { en: 'Not available right now', ru: 'Сейчас недоступно', th: 'ไม่พร้อมให้บริการขณะนี้' })) : undefined,
         action: blocked ? undefined : {
           id: `choose:${st.store_id}`, label: tr(l, T.choose), style: 'primary', kind: 'tool',
           tool: { name: 'create_cart', arguments: { store_id: st.store_id, items: sug.items.map((i: any) => ({ item_id: i.item_id, quantity: i.quantity })) } },
         },
       });
     } else {
-      const item = (s.matching_items ?? []).find((i: any) => i.available);
+      // Best match for the query: the available item whose name shares the most query words (first one on a tie).
+      const words: string[] = String(args.query ?? '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length > 1);
+      const score = (i: any) => words.filter((w) => String(i.name ?? '').toLowerCase().includes(w)).length;
+      const item = (s.matching_items ?? []).filter((i: any) => i.available).reduce((best: any, i: any) => (!best || score(i) > score(best) ? i : best), null);
       const blocked = !item || notes.length;
       options.push({
         id: st.store_id,
@@ -77,7 +80,7 @@ function optionsFromStores(env: ToolEnvelope, l: Locale): Card | null {
         subtitle: item ? item.name : undefined,
         price: item?.price ? money(Number(item.price.amount_minor), item.price.currency, l).formatted : undefined,
         eta: st.eta_estimate_minutes ? minutes(l, st.eta_estimate_minutes.min, st.eta_estimate_minutes.max) : undefined,
-        disabled_reason: blocked ? (notes[0] ?? tr(l, { en: 'Not available right now', ru: 'Сейчас недоступно', th: 'ไม่พร้อมให้บริการขณะนี้' })) : undefined,
+        disabled_reason: blocked ? (localText(notes[0], l) ?? tr(l, { en: 'Not available right now', ru: 'Сейчас недоступно', th: 'ไม่พร้อมให้บริการขณะนี้' })) : undefined,
         action: blocked ? undefined : {
           id: `choose:${st.store_id}:${item.item_id}`, label: tr(l, T.choose), style: 'primary', kind: 'tool',
           tool: {
@@ -100,6 +103,21 @@ function optionsFromStores(env: ToolEnvelope, l: Locale): Card | null {
   };
 }
 
+/** Why a vehicle cannot take this trip, in the card language. */
+function tripMisfit(o: any, args: Record<string, unknown>, l: Locale): string {
+  const w = Number(args.parcel_weight_kg);
+  if (o.max_weight_kg !== undefined && Number.isFinite(w) && w > Number(o.max_weight_kg)) {
+    return tr(l, { en: `Up to ${o.max_weight_kg} kg only`, ru: `Только до ${o.max_weight_kg} кг`, th: `รับได้ไม่เกิน ${o.max_weight_kg} กก.` });
+  }
+  const p = Number(args.passengers);
+  if (o.seats !== undefined && Number.isFinite(p) && p > Number(o.seats)) {
+    return tr(l, { en: `Seats ${o.seats} only`, ru: `Мест всего ${o.seats}`, th: `นั่งได้ ${o.seats} คนเท่านั้น` });
+  }
+  const first = Array.isArray(o.issues) ? o.issues[0] : undefined;
+  const text = typeof first === 'string' ? first : first?.message;
+  return (l === 'en' ? text : undefined) ?? tr(l, { en: 'Does not fit', ru: 'Не подходит', th: 'ไม่รองรับ' });
+}
+
 function optionsFromTrip(env: ToolEnvelope, args: Record<string, unknown>, l: Locale): Card | null {
   const r = env.result;
   if (!r || !Array.isArray(r.options) || !r.trip) return null;
@@ -110,10 +128,10 @@ function optionsFromTrip(env: ToolEnvelope, args: Record<string, unknown>, l: Lo
     route: { from: r.trip.pickup?.name, to: r.trip.dropoff?.name, distance_km: r.trip.distance_km_estimate, minutes: r.trip.drive_minutes_estimate },
     demo: env.mode === 'demo',
     options: r.options.map((o: any): CardOption => ({
-      id: o.item_id, title: o.name, subtitle: o.description, price: o.estimated_total ? money(Number(o.estimated_total.amount_minor), o.estimated_total.currency, l).formatted : undefined,
+      id: o.item_id, title: o.name, subtitle: localText(o.description, l), price: o.estimated_total ? money(Number(o.estimated_total.amount_minor), o.estimated_total.currency, l).formatted : undefined,
       eta: o.eta_estimate_minutes ? minutes(l, o.eta_estimate_minutes.min, o.eta_estimate_minutes.max) : undefined,
-      badges: o.seats ? [l === 'ru' ? `Мест: ${o.seats}` : `${o.seats} ${tr(l, { en: 'seats', ru: 'мест', th: 'ที่นั่ง' })}`] : undefined,
-      disabled_reason: o.fits === false ? (o.issues?.[0]?.message ?? tr(l, { en: 'Does not fit', ru: 'Не подходит', th: 'ไม่รองรับ' })) : undefined,
+      badges: o.seats ? [seatsBadge(l, Number(o.seats))] : undefined,
+      disabled_reason: o.fits === false ? tripMisfit(o, args, l) : undefined,
       action: o.fits === false ? undefined : {
         id: `choose:${o.item_id}`, label: tr(l, T.choose), style: 'primary', kind: 'tool',
         tool: {
@@ -148,9 +166,9 @@ function issuesCard(env: ToolEnvelope, l: Locale): Card | null {
 /** Builds the card for a tool result. Checkout and order cards are read from the database (single source of truth). */
 export async function cardForTool(ctx: Ctx, p: PartnerConfig, u: PartnerUser, tool: string, args: Record<string, unknown>, env: ToolEnvelope): Promise<Card | null> {
   if (!env.ok) return null;
-  const l = u.locale;
+  const l = cardLocale(u.locale);
   const r = env.result ?? {};
-  if (tool === 'search_stores') return optionsFromStores(env, l);
+  if (tool === 'search_stores') return optionsFromStores(env, args, l);
   if (tool === 'estimate_trip') return optionsFromTrip(env, args, l);
   if (r.checkout?.checkout_id) return checkoutCard(ctx, p, u, r.checkout.checkout_id);
   if (['create_cart', 'update_cart', 'quote_cart'].includes(tool)) return issuesCard(env, l);
@@ -180,7 +198,7 @@ export async function runTool(ctx: Ctx, p: PartnerConfig, u: PartnerUser, tool: 
 // ---------------------------------------------------------------- checkout
 
 export async function checkoutCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, checkoutId: string): Promise<Card> {
-  const l = u.locale;
+  const l = cardLocale(u.locale);
   const v = await checkoutView(ctx, u.user_id, checkoutId, l);
   const c = v.checkout;
   const service = v.service as Service;
@@ -269,9 +287,7 @@ export async function confirmCheckout(ctx: Ctx, p: PartnerConfig, u: PartnerUser
         } catch (e) {
           if (!(isDomainError(e) && e.code === 'SUBMISSION_UNKNOWN')) throw e;
         }
-        const res = await confirmResult(ctx, p, u, c.id);
-        if (res.order && c.mode === 'demo') await speedUpDemo(ctx, res.order.id);
-        return res;
+        return resultAfterSubmit(ctx, p, u, c);
       }
       return confirmResult(ctx, p, u, c.id);
     }
@@ -302,8 +318,7 @@ export async function confirmCheckout(ctx: Ctx, p: PartnerConfig, u: PartnerUser
   } catch (e) {
     if (!(isDomainError(e) && e.code === 'SUBMISSION_UNKNOWN')) throw e;
   }
-  const res = await confirmResult(ctx, p, u, c.id);
-  if (res.order && c.mode === 'demo') await speedUpDemo(ctx, res.order.id);
+  const res = await resultAfterSubmit(ctx, p, u, c);
   await enqueuePartnerEvent(ctx.db, u.user_id, 'checkout.confirmed', { checkout_id: c.id, order_id: res.order?.id ?? null, user_verification: ver }, { dedupeKey: `checkout:${c.id}:confirmed` });
   return res;
 }
@@ -317,8 +332,24 @@ async function speedUpDemo(ctx: Ctx, orderId: string) {
   if (o.eta_at) {
     // The ETA shown in the app follows the same clock as the faster simulation.
     const secs = Math.max(30, Math.round((new Date(o.eta_at).getTime() - new Date(o.created_at).getTime()) / 1000 / speed));
-    await ctx.db.query(`UPDATE orders SET eta_at = created_at + make_interval(secs => $2) WHERE id = $1 AND mode = 'demo'`, [orderId, secs]);
+    const eta = (await ctx.db.query(`UPDATE orders SET eta_at = created_at + make_interval(secs => $2) WHERE id = $1 AND mode = 'demo' RETURNING eta_at`, [orderId, secs])).rows[0]?.eta_at;
+    // order.created was stored a moment ago with the slower ETA: keep its Live Activity hint in step.
+    if (eta) {
+      await ctx.db.query(
+        `UPDATE partner_webhooks SET payload = jsonb_set(payload, '{notify,live_activity,eta_at}', to_jsonb($2::text)) WHERE dedupe_key = $1 AND payload #> '{notify,live_activity}' IS NOT NULL`,
+        [`order:${orderId}:created`, new Date(eta).toISOString()],
+      );
+    }
   }
+}
+
+/** The confirm result right after a submission. The demo speed-up runs first so the first order card already shows the ETA the app will keep seeing. */
+async function resultAfterSubmit(ctx: Ctx, p: PartnerConfig, u: PartnerUser, c: Pick<CheckoutRow, 'id' | 'mode'>) {
+  if (c.mode === 'demo') {
+    const o = (await ctx.db.query('SELECT id FROM orders WHERE checkout_id = $1', [c.id])).rows[0];
+    if (o) await speedUpDemo(ctx, o.id);
+  }
+  return confirmResult(ctx, p, u, c.id);
 }
 
 async function confirmResult(ctx: Ctx, p: PartnerConfig, u: PartnerUser, checkoutId: string) {
@@ -338,14 +369,15 @@ export async function declineCheckoutPartner(ctx: Ctx, p: PartnerConfig, u: Part
 // ---------------------------------------------------------------- orders
 
 export async function orderCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, orderId: string, opts: { refresh?: boolean } = {}): Promise<Card> {
-  const l = u.locale;
+  const l = cardLocale(u.locale);
   if (opts.refresh) await getOrderStatus(ctx, partnerActor(p, u.user_id), orderId).catch(() => undefined);
   const o: OrderRow = await loadOrder(ctx.db, u.user_id, orderId);
   const trip = isTripService(o.service);
   const isFinal = TERMINAL.includes(o.fulfillment_status);
   const eta = o.eta_at ? new Date(o.eta_at).toISOString() : null;
   const showCourier = o.mode === 'demo' && ['accepted', 'preparing', 'picked_up'].includes(o.fulfillment_status);
-  const canCancel = !isFinal && o.mode !== 'handoff';
+  // Offered only while the provider can still cancel: after pickup a cancel request is always refused.
+  const canCancel = o.mode !== 'handoff' && ['submitted', 'accepted', 'preparing'].includes(o.fulfillment_status);
   return {
     schema: 'unyly.card.v1', type: 'order', id: o.id, service: o.service,
     title: trip ? `${o.items[0]?.name ?? ''}` : o.restaurant_name,
@@ -355,11 +387,13 @@ export async function orderCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, orde
     lines: trip ? undefined : o.items.map((i: any) => ({ title: i.name, quantity: i.quantity, value: i.line_total_minor !== undefined ? money(Number(i.line_total_minor), o.currency, l).formatted : '' })),
     total: { label: tr(l, T.total), value: money(Number(o.total_minor), o.currency, l).formatted, amount_minor: Number(o.total_minor), currency: o.currency },
     status: statusBlock(o.service, o.fulfillment_status as FulfillmentStatus, isFinal, eta, l),
-    courier: showCourier ? demoCourier(o.provider_order_ref, o.service, l) : undefined,
+    courier: showCourier ? demoCourier(o.provider_order_ref, o.service, l, o.items[0]?.item_id) : undefined,
     actions: canCancel
       ? [{ id: 'cancel', label: tr(l, T.cancelOrder), style: 'destructive', kind: 'prepare_cancel', endpoint: { method: 'POST', path: `${base(u)}/orders/${o.id}/cancel` } }]
       : [],
-    footnote: o.mode === 'demo' ? tr(l, { en: 'Courier and plate are fictional in the demo.', ru: 'Курьер и номер машины в демо вымышлены.', th: 'ไรเดอร์และทะเบียนรถในเดโมเป็นข้อมูลสมมติ' }) : undefined,
+    footnote: !showCourier ? undefined : trip && o.service === 'ride'
+      ? tr(l, { en: 'Driver and plate are fictional in the demo.', ru: 'Водитель и номер машины в демо вымышлены.', th: 'คนขับและทะเบียนรถในเดโมเป็นข้อมูลสมมติ' })
+      : tr(l, { en: 'Courier and plate are fictional in the demo.', ru: 'Курьер и номер в демо вымышлены.', th: 'ไรเดอร์และทะเบียนรถในเดโมเป็นข้อมูลสมมติ' }),
   };
 }
 
@@ -369,12 +403,19 @@ export async function listOrdersPartner(ctx: Ctx, p: PartnerConfig, u: PartnerUs
 }
 
 export async function prepareCancelPartner(ctx: Ctx, p: PartnerConfig, u: PartnerUser, orderId: string) {
-  const c = await prepareCancellation(ctx, partnerActor(p, u.user_id), orderId);
-  return { cancellation: describeCancellation(c), card: await cancellationCard(ctx, p, u, c.id) };
+  let c;
+  try {
+    c = await prepareCancellation(ctx, partnerActor(p, u.user_id), orderId);
+  } catch (e) {
+    // The provider's refusal ("the trip has started") in the card language.
+    if (isDomainError(e) && e.code === 'CANCELLATION_NOT_ALLOWED') throw new DomainError(e.code, localText(e.message, cardLocale(u.locale)) ?? e.message, e.details, e.userAction);
+    throw e;
+  }
+  return { cancellation: adaptForPartner(describeCancellation(c)), card: await cancellationCard(ctx, p, u, c.id) };
 }
 
 export async function cancellationCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, cancellationId: string): Promise<Card> {
-  const l = u.locale;
+  const l = cardLocale(u.locale);
   const c = await loadCancellation(ctx.db, u.user_id, cancellationId);
   const o = await loadOrder(ctx.db, u.user_id, c.order_id);
   const open = c.status === 'awaiting_user';
@@ -409,7 +450,7 @@ export async function confirmCancelPartner(ctx: Ctx, p: PartnerConfig, u: Partne
   }
   const res = await cancelOrder(ctx, partnerActor(p, u.user_id), c.id);
   await enqueuePartnerEvent(ctx.db, u.user_id, 'cancellation.confirmed', { cancellation_id: c.id, order_id: c.order_id, status: res.status }, { dedupeKey: `cancel:${c.id}:confirmed` });
-  return { cancellation: res, order: { id: c.order_id, card: await orderCard(ctx, p, u, c.order_id) } };
+  return { cancellation: adaptForPartner(res) as typeof res, order: { id: c.order_id, card: await orderCard(ctx, p, u, c.order_id) } };
 }
 
 // ---------------------------------------------------------------- Grab account (Login with Grab)

@@ -35,7 +35,19 @@ const rewriteText = (s: string) =>
     .replace(/from confirm_url/g, 'from the checkout card')
     .replace(/confirm_url/g, 'the checkout card')
     .replace(/the confirmation link/g, 'the checkout card')
-    .replace(/the Unyly confirmation page|the Unyly page/g, 'the app');
+    .replace(/on the Unyly (?:confirmation )?page/g, 'in the app')
+    .replace(/the Unyly confirmation page|the Unyly page/g, 'the app')
+    .replace(/creates a confirmation page\. The user confirms on that page before cancel_order can run\./g, 'creates a cancellation card. The user confirms on that card in the app.')
+    .replace(/(a|the) confirmation page/g, '$1 confirmation card')
+    .replace(/on that page/g, 'on that card');
+
+/** Same wording changes for every string of a JSON value, keeping all keys (used for tool input schemas). */
+function rewriteStrings(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(rewriteStrings);
+  if (typeof v === 'string') return rewriteText(v);
+  if (!v || typeof v !== 'object') return v;
+  return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, rewriteStrings(x)]));
+}
 
 export function adaptForPartner(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(adaptForPartner);
@@ -116,8 +128,8 @@ export async function partnerToolDefs(ctx: Ctx, p: PartnerConfig): Promise<ToolD
     .map((t) => ({
       name: t.name,
       title: t.title ?? (t.annotations as any)?.title,
-      description: String(t.description ?? '').replace(/confirm_url/g, 'the checkout card').replace(/Unyly confirmation page/g, 'app confirmation card'),
-      input_schema: t.inputSchema,
+      description: rewriteText(String(t.description ?? '')),
+      input_schema: rewriteStrings(t.inputSchema),
       read_only: !!(t.annotations as any)?.readOnlyHint,
     }));
   return toolCache;
