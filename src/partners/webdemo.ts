@@ -87,7 +87,7 @@ const BYE = /^(?:good ?bye|bye(?:[- ]bye)?|see you|see ya|good night|пока|д
 const YES = /^(?:yes|yeah|yep|yup|sure|ok(?:ay)?|k|fine|confirm(?:ed)?|go ahead|do it|order it|place (?:the|my) order|book it|buy it|proceed|let'?s go|sounds good|да|ага|угу|давай(?:те)?|подтвержда\S*|подтверди\S*|оформ\S*|заказывай\S*|хорошо|ок(?:ей)?|ладно|согласен|согласна|беру|ใช่|ตกลง|ยืนยัน|สั่งเลย|โอเค|ได้เลย|ได้|เอาเลย|เอา|จัดไป|ครับ|ค่ะ|👍|👌|✅)(?:[\s,.!]+(?:yes|please|and|confirm\S*|go ahead|order it|do it|it|that|the order|подтвержда\S*|подтверди\S*|заказывай|оформляй|пожалуйста|ยืนยัน|เลย|ครับ|ค่ะ|นะ))*[\s.!]*$/iu;
 const NO = /^(?:no|nope|nah|not now|never ?mind|нет|не надо|не нужно|не сейчас|передумал\S*|ไม่|ไม่เอา|ไม่ต้อง|ไม่เป็นไร|ไว้ก่อน)(?:[\s,.!]+(?:thanks|thank you|спасибо|ครับ|ค่ะ|ขอบคุณ))*[\s.!]*$/iu;
 const FEES = /how much (?:is|does|for) (?:the )?(?:delivery|shipping|service)|delivery (?:fee|cost|price)|service fee|сколько стоит доставк|стоимость доставки|цена доставки|сервисный сбор|ค่าส่ง|ค่าบริการ|ค่าธรรมเนียม/iu;
-const SUPPORT = /refund|complain|money back|lost (?:my|an?|the) |left my|talk to (?:a |an |the )?(?:human|person|agent|operator|manager|support)|human agent|customer (?:service|support|care)|\bsupport\b|возврат|верни\S* деньги|жалоб|потерял|забыл\S* в |оператор|поддержк|позови\S* (?:человека|менеджера)|живо\S* человек|คืนเงิน|ร้องเรียน|ลืมของ|ของหาย|คุยกับคน|คุยกับเจ้าหน้าที่|เจ้าหน้าที่|ติดต่อ/iu;
+const SUPPORT = /refund|complain|money back|lost (?:my|an?|the) |left my|talk to (?:a |an |the )?(?:human|person|agent|operator|manager|support)|human agent|customer (?:service|support|care)|\bsupport\b|возврат|верни\S* деньги|жалоб|потерял|забыл\S* в |оператор|поддержк|позови\S* (?:человека|менеджера)|живо\S* человек|คืนเงิน|เงินคืน|ร้องเรียน|ลืมของ|ของหาย|คุยกับคน|คุยกับเจ้าหน้าที่|เจ้าหน้าที่|ติดต่อ/iu;
 const INSULT = /stupid|idiot|dumb|useless|\bsuck|fuck|shit|туп(?:ая|ой|ица)|дур[аы]|идиот|бесполезн|โง่|ห่วย|แย่มาก|ไร้ประโยชน์/iu;
 const CHEAPER = /cheap|expensive|pricey|lower price|дешев|дёшев|дорог|ถูกกว่า|ถูกๆ|ถูกที่สุด|ราคาถูก|แพง/iu;
 const ADDRESS = /(?:change|update|edit|new|another|different|other|wrong|my) (?:delivery |home )?address|поменя\S* адрес|смени\S* адрес|измени\S* адрес|друг\S* адрес|нов\S* адрес|не тот адрес|мой адрес|เปลี่ยนที่อยู่|แก้(?:ไข)?ที่อยู่|ที่อยู่ใหม่|ที่อยู่อื่น/iu;
@@ -198,7 +198,7 @@ function findDishes(q: string, intent: { exclude_allergens: string[]; dietary: s
     });
     // "2 pad thai", "один том ям", "ผัดไทยหนึ่ง": a count right next to the dish is for that dish alone.
     const m = dish.re.exec(q);
-    const before = m ? new RegExp(`(?<![\\p{L}\\d])(\\d{1,2}|${DISH_COUNT_ALT})\\s*(?:x\\s*|×\\s*)?$`, 'iu').exec(q.slice(0, m.index)) : null;
+    const before = m ? new RegExp(`(?<![\\p{L}\\d])(\\d{1,2}|${DISH_COUNT_ALT})\\s*(?:x\\s*|×\\s*)?(?:\\p{L}+\\s+){0,2}$`, 'iu').exec(q.slice(0, m.index)) : null;
     const after = m ? new RegExp(`^\\s*(\\d{1,2}|หนึ่ง|สอง|สาม|สี่)(?!\\s*(?:คน|บาท|\\d))`, 'u').exec(q.slice(m.index + m[0].length)) : null;
     const k = (before?.[1] ?? (/[฀-๿]/.test(m?.[0] ?? '') ? after?.[1] : undefined))?.toLowerCase();
     const n = k ? (/^\d+$/.test(k) ? Number(k) : DISH_COUNT[k]) : undefined;
@@ -715,7 +715,10 @@ function errorTurn(l: Locale, err: any, trace: TraceEntry[], ask?: TripAsk): Ari
     const other = otherSaid ? resolvePlace(otherSaid) : null;
     const sug: string[] = (err.details?.suggestions ?? []).filter((s: string) => !(other?.ok && other.place.name === s)).slice(0, 4);
     const airports = sug.length > 0 && sug.every((s) => /airport/i.test(s));
-    const shown = said.length > 40 ? `${said.slice(0, 40)}…` : said;
+    // An outside place is named by itself, without the words around it ("ภูเก็ตได้ไหม" is "ภูเก็ต").
+    const out = OUTSIDE.exec(said);
+    const outName = out ? (/[\u0E00-\u0E7F]/.test(out[0]) ? out[0] : said.slice(0, out.index + out[0].length).split(/\s+/).pop()! + (/^[\p{L}]*/u.exec(said.slice(out.index + out[0].length))?.[0] ?? '')) : '';
+    const shown = outName || (said.length > 40 ? `${said.slice(0, 40)}…` : said);
     const reply = code === 'PLACE_AMBIGUOUS'
       ? airports
         ? t(l, { en: 'Bangkok has two airports. Which one?', ru: 'В Бангкоке два аэропорта. Какой нужен?', th: 'กรุงเทพฯ มีสนามบินสองแห่งค่ะ หมายถึงที่ไหนคะ' })
@@ -733,6 +736,31 @@ function errorTurn(l: Locale, err: any, trace: TraceEntry[], ask?: TripAsk): Ari
   // English provider text has no place in a Russian or Thai chat: fall back to the general sentence.
   const fits = known && (l === 'en' || known !== msg);
   return { reply: (fits ? known : undefined) ?? t(l, { en: 'Something went wrong. Please try again.', ru: 'Что-то пошло не так. Попробуйте ещё раз.', th: 'เกิดข้อผิดพลาด กรุณาลองอีกครั้งค่ะ' }), chips: ariExamples(l).slice(0, 3), trace };
+}
+
+/** What the chat says when an endpoint refuses: the reason in plain words, in the chat language. */
+function humanError(l: Locale, err: DomainError): string {
+  const reason = (err.details as any)?.reason;
+  const M: Record<string, Tri> = {
+    DECLINED: { en: 'You declined this order earlier, so nothing was ordered. Ask me again and I will prepare a fresh card.', ru: 'Вы отказались от этого заказа, поэтому ничего не заказано. Попросите ещё раз, и я подготовлю новую карточку.', th: 'คุณกดไม่ยืนยันรายการนี้ไปแล้ว จึงยังไม่มีการสั่งซื้อค่ะ บอก Ari อีกครั้งได้เลย แล้ว Ari จะเตรียมการ์ดใหม่ให้' },
+    CHANGED: { en: 'This card is out of date: the order changed after it was shown, so nothing was ordered. Please use the newest card.', ru: 'Эта карточка устарела: заказ изменился после её показа, поэтому ничего не заказано. Подтвердите на самой новой карточке.', th: 'การ์ดนี้ไม่เป็นปัจจุบันแล้วค่ะ รายการมีการเปลี่ยนแปลงหลังจากแสดงการ์ด จึงยังไม่มีการสั่งซื้อ กรุณายืนยันบนการ์ดล่าสุด' },
+    CONFIRMATION_EXPIRED: { en: 'This card has expired and nothing was ordered. Ask me again for a fresh price.', ru: 'Срок этой карточки истёк, ничего не заказано. Попросите ещё раз, и я покажу актуальную цену.', th: 'การ์ดนี้หมดอายุแล้วและยังไม่มีการสั่งซื้อค่ะ บอก Ari อีกครั้งเพื่อดูราคาล่าสุดได้เลย' },
+    CANCELLATION_NOT_ALLOWED: { en: 'This order can no longer be cancelled.', ru: 'Этот заказ уже нельзя отменить.', th: 'คำสั่งซื้อนี้ยกเลิกไม่ได้แล้วค่ะ' },
+    NOT_FOUND: { en: 'I can\'t find that order or card any more. Please ask me again.', ru: 'Не нахожу этот заказ или карточку. Попросите, пожалуйста, ещё раз.', th: 'Ari หาคำสั่งซื้อหรือการ์ดนี้ไม่พบแล้วค่ะ กรุณาบอกอีกครั้งนะคะ' },
+    AUTH_REQUIRED: { en: 'The demo session ended. Start again.', ru: 'Демо-сессия завершилась. Начните заново.', th: 'เซสชันเดโมสิ้นสุดแล้วค่ะ กรุณาเริ่มใหม่อีกครั้ง' },
+    RATE_LIMITED: { en: 'The demo is busy right now. Please try again in a few minutes.', ru: 'Демо сейчас занято. Попробуйте через несколько минут.', th: 'ตอนนี้มีผู้ใช้เดโมจำนวนมากค่ะ กรุณาลองใหม่ในอีกสักครู่' },
+    STEP_UP_REQUIRED: { en: 'This total needs Face ID or the device passcode before I can place the order.', ru: 'Для этой суммы нужно подтверждение по Face ID или коду устройства.', th: 'ยอดนี้ต้องยืนยันด้วย Face ID หรือรหัสผ่านของเครื่องก่อนค่ะ' },
+    OTHER: { en: 'That did not go through and nothing was ordered. Please try again.', ru: 'Не получилось, ничего не заказано. Попробуйте ещё раз.', th: 'ดำเนินการไม่สำเร็จและยังไม่มีการสั่งซื้อค่ะ กรุณาลองอีกครั้ง' },
+  };
+  const key = err.code === 'CONFIRMATION_INVALIDATED' ? (reason === 'DECLINED' ? 'DECLINED' : 'CHANGED')
+    : err.code === 'CONFIRM_HASH_MISMATCH' ? 'CHANGED'
+    : err.code;
+  if (err.code === 'CANCELLATION_NOT_ALLOWED') {
+    // The provider's own reason when it is already in the chat language ("the trip has started").
+    const own = localText(err.message, l);
+    if (own && (l === 'en' ? /^Cannot cancel/.test(own) : own !== err.message)) return own;
+  }
+  return t(l, M[key] ?? M.OTHER);
 }
 
 // ---------------------------------------------------------------- HTTP
@@ -791,10 +819,15 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
     if (origin && origin !== ctx.cfg.webOrigin) throw new DomainError('AUTH_REQUIRED', 'Cross-site request blocked');
   };
   const send = (reply: FastifyReply, data: unknown, status = 200) => reply.code(status).header('cache-control', 'no-store').send(data);
-  const fail = (reply: FastifyReply, e: unknown) => {
+  const fail = (reply: FastifyReply, e: unknown, req?: FastifyRequest) => {
     const err = isDomainError(e) ? e : new DomainError('INTERNAL', 'Something went wrong. Please try again.');
     if (!isDomainError(e)) console.error('[ari-demo]', e);
-    return send(reply, { ok: false, error: { code: err.code, message: err.message, details: err.details } }, err.httpStatus);
+    // The page shows this text to the person in the chat: plain words in their language, never tool instructions.
+    let l: Locale = 'en';
+    try {
+      if (req) l = cardLocale(detectLocale(req));
+    } catch { /* keep English */ }
+    return send(reply, { ok: false, error: { code: err.code, message: humanError(l, err), details: err.details } }, err.httpStatus);
   };
   const current = async (req: FastifyRequest): Promise<PartnerUser> => {
     const ext = openExt(ctx, (req.cookies as any)?.[COOKIE]);
@@ -831,7 +864,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
         greeting: tr(l, { en: 'Hi, I\'m Ari. Tell me what you need from Grab and I\'ll take care of it. Nothing is ordered until you confirm.', ru: 'Здравствуйте, я Ari. Скажите, что нужно от Grab, и я всё сделаю. Ничего не заказывается без вашего подтверждения.', th: 'สวัสดีค่ะ Ari เองค่ะ บอกได้เลยว่าต้องการอะไรจาก Grab เดี๋ยว Ari จัดการให้ และจะยังไม่สั่งอะไรจนกว่าคุณจะยืนยันค่ะ' }),
       });
     } catch (e) {
-      return fail(reply, e);
+      return fail(reply, e, req);
     }
   });
 
@@ -842,7 +875,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const text = String((req.body as any)?.text ?? '');
       return send(reply, { ok: true, ...(await ariRespond(ctx, u, text)) });
     } catch (e) {
-      return fail(reply, e);
+      return fail(reply, e, req);
     }
   });
 
@@ -863,7 +896,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
         : '';
       return send(reply, { ok: true, reply: reply2, card: r.card, trace });
     } catch (e) {
-      return fail(reply, e);
+      return fail(reply, e, req);
     }
   });
 
@@ -889,7 +922,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
         card: r.order?.card ?? null, order_id: r.order?.id ?? null, trace,
       });
     } catch (e) {
-      return fail(reply, e);
+      return fail(reply, e, req);
     }
   });
 
@@ -902,7 +935,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       await declineCheckoutPartner(ctx, P, u, id);
       return send(reply, { ok: true, reply: tr(cardLocale(u.locale),{ en: 'No problem, nothing was ordered.', ru: 'Хорошо, ничего не заказано.', th: 'ได้ค่ะ ยังไม่ได้สั่งอะไรนะคะ' }), card: await checkoutCard(ctx, P, u, id) });
     } catch (e) {
-      return fail(reply, e);
+      return fail(reply, e, req);
     }
   });
 
@@ -914,7 +947,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       if (!UUID_RE.test(id)) throw new DomainError('NOT_FOUND', 'Order not found');
       return send(reply, { ok: true, card: await orderCard(ctx, P, u, id, { refresh: true }) });
     } catch (e) {
-      return fail(reply, e);
+      return fail(reply, e, req);
     }
   });
 
@@ -929,7 +962,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       if (!events) throw new DomainError('AUTH_REQUIRED', 'The demo session ended. Start again.');
       return send(reply, { ok: true, events });
     } catch (e) {
-      return fail(reply, e);
+      return fail(reply, e, req);
     }
   });
 
@@ -942,7 +975,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const r = await prepareCancelPartner(ctx, P, u, id);
       return send(reply, { ok: true, reply: tr(cardLocale(u.locale),{ en: 'Here are the cancellation terms:', ru: 'Условия отмены:', th: 'นี่คือเงื่อนไขการยกเลิกค่ะ' }), card: r.card });
     } catch (e) {
-      return fail(reply, e);
+      return fail(reply, e, req);
     }
   });
 
@@ -964,7 +997,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
         cancel_card: await cancellationCard(ctx, P, u, id),
       });
     } catch (e) {
-      return fail(reply, e);
+      return fail(reply, e, req);
     }
   });
 
@@ -975,7 +1008,7 @@ export function registerAriDemo(app: FastifyInstance, ctx: Ctx, detectLocale: (r
       const r = await startGrabLink(ctx, P, u);
       return send(reply, { ok: true, grab: r });
     } catch (e) {
-      return fail(reply, e);
+      return fail(reply, e, req);
     }
   });
 }

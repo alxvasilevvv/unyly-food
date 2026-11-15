@@ -142,11 +142,12 @@
       return request(method, url, body);
     }
   };
-  // Server error texts are English: show a localized line for everything the user cannot act on.
+  // For a 4xx the server explains in the chat's language what happened (expired card, declined order):
+  // show that. Network failures, rate limits and 5xx get the page's own localized line.
   const errText = (e) => {
     if (e && e.code === 'NETWORK') return S.offline || S.error;
     if (e && (e.code === 'RATE_LIMITED' || e.status === 429)) return S.busy || S.error;
-    if (!e || !e.message || lang !== 'en' || e.status >= 500 || ['HTTP', 'INTERNAL', 'AUTH_REQUIRED'].includes(e.code)) return S.error;
+    if (!e || !e.message || !(e.status >= 400 && e.status < 500) || ['HTTP', 'INTERNAL', 'AUTH_REQUIRED'].includes(e.code)) return S.error;
     return e.message;
   };
   // One request at a time: while Ari answers, sending is off and cards do not take taps.
