@@ -4,6 +4,8 @@ import { deleteAccount } from '../services/users.js';
 import { ingestWebhook, processPendingEvents, reconcileCancellations } from '../services/orders.js';
 import { reconcileOpenPayments } from '../payments/service.js';
 import { retryPendingRefunds, settleLivePayments } from '../services/live-payment.js';
+import { deliverPartnerWebhooks } from '../partners/webhooks.js';
+import { pruneNonces } from '../partners/auth.js';
 
 /**
  * In-process background jobs. No external queue is needed at this scale.
@@ -34,6 +36,7 @@ const STEP_KEYS = {
   reconcile_payments: 8,
   settle_live_payments: 9,
   retry_refunds: 10,
+  partner_webhooks: 11,
 } as const;
 type StepName = keyof typeof STEP_KEYS;
 
@@ -47,6 +50,7 @@ export interface JobRunResult {
   payments: number;
   settled: number;
   refunds: number;
+  partnerWebhooks: number;
   retention: Record<string, number>;
   skipped: StepName[];
   failed: StepName[];
@@ -100,7 +104,7 @@ const RETENTION: [string, string][] = [
 ];
 
 export async function runJobsOnce(ctx: Ctx): Promise<JobRunResult> {
-  const out: JobRunResult = { reconciled: 0, demoEvents: 0, events: 0, stalePolled: 0, expired: 0, guestsDeleted: 0, payments: 0, settled: 0, refunds: 0, retention: {}, skipped: [], failed: [] };
+  const out: JobRunResult = { reconciled: 0, demoEvents: 0, events: 0, stalePolled: 0, expired: 0, guestsDeleted: 0, payments: 0, settled: 0, refunds: 0, partnerWebhooks: 0, retention: {}, skipped: [], failed: [] };
 
   // 1) Submissions with unknown outcome, or stuck in flight (e.g. after a crash/restart).
   await step(ctx, out, 'reconcile_submissions', async () => {
@@ -177,6 +181,12 @@ export async function runJobsOnce(ctx: Ctx): Promise<JobRunResult> {
   });
 
   // 6) Data retention.
+  // Partner apps (Ari): order events by webhook, and the replay-protection nonces older than the window.
+  await step(ctx, out, 'partner_webhooks', async () => {
+    out.partnerWebhooks = await deliverPartnerWebhooks(ctx);
+    await pruneNonces(ctx);
+  });
+
   await step(ctx, out, 'retention', async () => {
     for (const [table, sql] of RETENTION) {
       try {

@@ -29,6 +29,7 @@ import { registerDiscoveryRoutes } from './web/discovery.js';
 import { detectLocale, registerWebRoutes } from './web/routes.js';
 import { registerGrabPayRoutes } from './payments/routes.js';
 import { registerLiveExpressPayment } from './services/live-payment.js';
+import { registerPartnerRoutes } from './partners/routes.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -459,6 +460,7 @@ export async function buildApp(ctx: Ctx): Promise<FastifyInstance> {
     });
   });
 
+  await registerPartnerRoutes(app, ctx); // Signed Partner API for Ari: /partner/v1/*
   await registerGrabPayRoutes(app, ctx); // GrabPay OTC: every route 404 while GRABPAY=off
   // Captured payment -> submit the paid Live order; last check before the charge. Once per ctx.
   registerLiveExpressPayment(ctx);

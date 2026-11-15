@@ -7,6 +7,7 @@ import { money } from '../domain/money.js';
 import { ProviderOutcomeUnknownError, ProviderUnavailableError, SubmitResult } from '../providers/types.js';
 import { CartState, describeTrip, loadCart, loadCartVersion, locationFingerprint, quoteCart, QuoteRow, tripLabel } from './carts.js';
 import { isTripService } from '../domain/regions.js';
+import { enqueuePartnerEvent } from '../partners/webhooks.js';
 import { callProvider, requireCapability, submissionsEnabled, withTimeout } from './common.js';
 import { addressFingerprint, getAddress, maskedAddress, toDeliveryAddress } from './users.js';
 import { hasPasskey, verifyStepUp } from '../auth/passkeys.js';
@@ -111,7 +112,7 @@ export async function stepUpPolicy(ctx: Ctx, userId: string, c: Pick<CheckoutRow
   return { large, required, threshold_minor: threshold };
 }
 
-async function loadCheckout(q: Queryable, userId: string, id: string, lock = false): Promise<CheckoutRow> {
+export async function loadCheckout(q: Queryable, userId: string, id: string, lock = false): Promise<CheckoutRow> {
   const r = await q.query<CheckoutRow>(`SELECT * FROM checkouts WHERE id = $1 AND user_id = $2 ${lock ? 'FOR UPDATE' : ''}`, [id, userId]);
   if (!r.rows[0]) throw new DomainError('NOT_FOUND', 'Checkout not found');
   return r.rows[0];
@@ -376,12 +377,18 @@ export async function repriceProblem(ctx: Ctx, c: CheckoutRow): Promise<string |
  * provider's own validity, the same cart version is re-priced first. Same total: proceed. Different
  * total or a new blocking issue: the confirmation is invalidated with PRICE_CHANGED.
  */
-export async function approveCheckout(ctx: Ctx, userId: string, id: string, opts: { stepUp?: unknown } = {}) {
+export async function approveCheckout(
+  ctx: Ctx, userId: string, id: string,
+  opts: { stepUp?: unknown; via?: string; partnerVerification?: 'tap' | 'biometric' | 'passcode' } = {},
+) {
+  const via = opts.via ?? 'web';
   const pre = await loadCheckout(ctx.db, userId, id);
   // Step-up: a large order from a user with a passkey is approved only with a fresh passkey assertion
   // bound to this checkout. Checked before anything else; the challenge is consumed either way.
+  // Partner apps verify the user on the device (Face ID or passcode); src/partners/checkout.ts enforces
+  // that for large orders before calling this.
   let steppedUp = false;
-  if (pre.status === 'awaiting_user' && (await stepUpPolicy(ctx, userId, pre)).required) {
+  if (pre.status === 'awaiting_user' && !opts.partnerVerification && (await stepUpPolicy(ctx, userId, pre)).required) {
     await verifyStepUp(ctx, userId, id, opts.stepUp);
     steppedUp = true;
   }
@@ -404,21 +411,24 @@ export async function approveCheckout(ctx: Ctx, userId: string, id: string, opts
       await markInvalid(q, c.id, problem); // committed, then reported
       return reasonToError(problem);
     }
-    const r = await q.query<CheckoutRow>(`UPDATE checkouts SET status='approved', approved_at=$2, approved_via='web' WHERE id=$1 RETURNING *`, [c.id, ctx.clock.now()]);
-    if (steppedUp) await audit(q, { userId, actor: 'web', action: 'checkout.step_up', mode: c.mode, entity: 'checkout', entityId: c.id, details: { method: 'passkey' } });
-    await audit(q, { userId, actor: 'web', action: 'checkout.approved', mode: c.mode, entity: 'checkout', entityId: c.id, details: repriced ? { repriced: true } : undefined });
+    const r = await q.query<CheckoutRow>(`UPDATE checkouts SET status='approved', approved_at=$2, approved_via=$3 WHERE id=$1 RETURNING *`, [c.id, ctx.clock.now(), via]);
+    if (steppedUp) await audit(q, { userId, actor: via, action: 'checkout.step_up', mode: c.mode, entity: 'checkout', entityId: c.id, details: { method: 'passkey' } });
+    const details: Record<string, unknown> = {};
+    if (repriced) details.repriced = true;
+    if (opts.partnerVerification) details.user_verification = opts.partnerVerification;
+    await audit(q, { userId, actor: via, action: 'checkout.approved', mode: c.mode, entity: 'checkout', entityId: c.id, details: Object.keys(details).length ? details : undefined });
     return r.rows[0];
   });
   if (out instanceof DomainError) throw out;
   return out;
 }
 
-export async function declineCheckout(ctx: Ctx, userId: string, id: string) {
+export async function declineCheckout(ctx: Ctx, userId: string, id: string, via = 'web') {
   await ctx.db.tx(async (q) => {
     const c = await loadCheckout(q, userId, id, true);
     if (c.status === 'awaiting_user' || c.status === 'approved') {
       await q.query(`UPDATE checkouts SET status='declined' WHERE id=$1`, [c.id]);
-      await audit(q, { userId, actor: 'web', action: 'checkout.declined', mode: c.mode, entity: 'checkout', entityId: c.id });
+      await audit(q, { userId, actor: via, action: 'checkout.declined', mode: c.mode, entity: 'checkout', entityId: c.id });
     }
   });
 }
@@ -600,6 +610,10 @@ export async function recordAccepted(ctx: Ctx, attemptId: string, ref: string, s
     }
     if (ins.rowCount) {
       await audit(q, { userId: a.user_id, actor: 'system', action: 'order.accepted', mode: c.mode, entity: 'order', entityId: ins.rows[0].id, details: { total: c.total_minor } });
+      await enqueuePartnerEvent(q, a.user_id, 'order.created', {
+        order_id: ins.rows[0].id, checkout_id: c.id, service: cart.service, status, total_minor: Number(c.total_minor), currency: c.currency,
+        title: isTripService(cart.service) ? where : cart.restaurant_name,
+      }, { dedupeKey: `order:${ins.rows[0].id}:created` });
     }
   });
 }

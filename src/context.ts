@@ -40,11 +40,11 @@ export interface Ctx {
 /** Who is acting. user_id always comes from an authenticated session or token, never from tool arguments. */
 export interface Actor {
   userId: string;
-  via: 'web' | 'mcp' | 'system';
+  via: 'web' | 'mcp' | 'system' | 'partner';
   clientId?: string;
   scopes?: string[];
 }
-export const actorLabel = (a: Actor) => (a.via === 'mcp' ? `mcp:${a.clientId}` : a.via);
+export const actorLabel = (a: Actor) => (a.via === 'mcp' ? `mcp:${a.clientId}` : a.via === 'partner' ? `partner:${a.clientId}` : a.via);
 
 export function createCtx(cfg: Config, db: Db, clock: Clock = new OffsetClock()): Ctx {
   const providers: Providers = {

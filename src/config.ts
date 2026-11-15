@@ -4,6 +4,7 @@ import { isIP } from 'node:net';
 import { GrabPayConfig, loadGrabPayConfig } from './payments/grabpay-config.js';
 import { GrabIdConfig, loadGrabIdConfig } from './auth/grabid.js';
 import { GrabConfig, loadGrabConfig, validateExpressPayment, validateGrabConfig } from './providers/grab/config.js';
+import { loadPartners, PartnerConfig } from './partners/config.js';
 
 // Local convenience: load ./.env if present. Variables already set in the environment win.
 if (process.env.NODE_ENV !== 'test' && !process.env.VITEST && existsSync('.env')) process.loadEnvFile('.env');
@@ -50,6 +51,8 @@ export interface Config {
   grabId: GrabIdConfig;
   /** GrabExpress and Farefeed for Live mode (src/providers/grab/config.ts). Both off by default. */
   grab: GrabConfig;
+  /** Partner apps (Ari) calling the signed Partner API (src/partners/config.ts). */
+  partners: PartnerConfig[];
 }
 
 function bool(v: string | undefined, d: boolean): boolean {
@@ -159,6 +162,7 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     grabpay: overrides.grabpay ?? loadGrabPayConfig(overrides.webOrigin ?? webOrigin, overrides.env ?? env),
     grabId: overrides.grabId ?? loadGrabIdConfig({ env: overrides.env ?? env, webOrigin: overrides.webOrigin ?? webOrigin }),
     grab: overrides.grab ?? loadGrabConfig(process.env),
+    partners: overrides.partners ?? loadPartners(process.env, overrides.env ?? env),
     ...overrides,
   };
   // Also checked here so that overrides (tests, CLI) cannot smuggle in an invalid value.

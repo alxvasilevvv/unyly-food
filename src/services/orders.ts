@@ -10,6 +10,7 @@ import { isTripService, Service } from '../domain/regions.js';
 import { createCart, loadCart } from './carts.js';
 import { callProvider, requireCapability, withTimeout } from './common.js';
 import { settleOrder } from './live-payment.js';
+import { enqueueOrderStatus } from '../partners/webhooks.js';
 
 export interface OrderRow {
   id: string;
@@ -86,6 +87,10 @@ export async function applyEvent(q: Queryable, provider: string, ev: ProviderEve
     [o.id, ev.status, ev.payment_status, ev.sequence, ev.occurred_at, ev.eta_at ?? null, pickedUp],
   );
   await audit(q, { userId: o.user_id, actor: `provider:${provider}`, action: 'order.status_changed', mode: o.mode, entity: 'order', entityId: o.id, details: { status: ev.status, seq: ev.sequence } });
+  // Partner apps (Ari) get the change as an event; no-op for regular users.
+  if (ev.status !== o.fulfillment_status) {
+    await enqueueOrderStatus(q, { ...o, eta_at: ev.eta_at ?? o.eta_at }, ev.status, TERMINAL.includes(ev.status));
+  }
   return 'applied';
 }
 
@@ -247,7 +252,7 @@ export async function loadCancellation(q: Queryable, userId: string, id: string,
 }
 
 /** Human approval from the web page. Re-checks the fee: if it changed, the request is invalidated. */
-export async function approveCancellation(ctx: Ctx, userId: string, id: string) {
+export async function approveCancellation(ctx: Ctx, userId: string, id: string, via = 'web') {
   const c = await loadCancellation(ctx.db, userId, id);
   if (c.status !== 'awaiting_user') {
     if (['approved', 'executing', 'executed'].includes(c.status)) return c;
@@ -268,7 +273,7 @@ export async function approveCancellation(ctx: Ctx, userId: string, id: string) 
       const locked = await loadCancellation(q, userId, id, true);
       if (locked.status !== 'awaiting_user') return locked;
       const r = await q.query<CancellationRow>(`UPDATE cancellation_requests SET status='approved', approved_at=$2 WHERE id=$1 RETURNING *`, [id, ctx.clock.now()]);
-      await audit(q, { userId, actor: 'web', action: 'cancellation.approved', mode: o.mode, entity: 'order', entityId: o.id });
+      await audit(q, { userId, actor: via, action: 'cancellation.approved', mode: o.mode, entity: 'order', entityId: o.id });
       return r.rows[0];
     });
   } catch (e: any) {
