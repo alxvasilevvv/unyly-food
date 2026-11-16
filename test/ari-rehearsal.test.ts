@@ -52,24 +52,27 @@ describe('Ari demo brain: service detection for paraphrases', () => {
 describe('Ari demo brain: replies', () => {
   it('"home" resolves to the saved default place in every language, whatever language the label was saved in', async () => {
     // The session was started in English, so the saved label is "Home".
-    for (const [lang, text] of [['en', 'ride home from Asok'], ['ru', 'такси домой от Асока'], ['th', 'แท็กซี่จากอโศกไปบ้าน']]) {
+    // The card names the places in its own language (Russian and Thai have names for the demo landmarks).
+    for (const [lang, text, from, to] of [['en', 'ride home from Asok', 'Asok / Terminal 21', 'Home'], ['ru', 'такси домой от Асока', 'Асок / Terminal 21', 'Дом'], ['th', 'แท็กซี่จากอโศกไปบ้าน', 'อโศก / เทอร์มินอล 21', 'บ้าน']]) {
       const r = await say(lang, text);
-      expect([text, r.json.card?.route]).toEqual([text, expect.objectContaining({ from: 'Asok / Terminal 21', to: 'Home' })]);
+      expect([text, r.json.card?.route]).toEqual([text, expect.objectContaining({ from, to })]);
     }
-    for (const [lang, text] of [['en', '2 kg parcel from home to Siam Paragon'], ['ru', 'посылка 2 кг из дома в Сиам Парагон'], ['th', 'ส่งพัสดุ 2 กก จากบ้านไปสยามพารากอน']]) {
+    for (const [lang, text, from, to] of [['en', '2 kg parcel from home to Siam Paragon', 'Home', 'Siam Paragon'], ['ru', 'посылка 2 кг из дома в Сиам Парагон', 'Дом', 'Сиам Парагон'], ['th', 'ส่งพัสดุ 2 กก จากบ้านไปสยามพารากอน', 'บ้าน', 'สยามพารากอน']]) {
       const r = await say(lang, text);
-      expect([text, r.json.card?.service, r.json.card?.route?.from, r.json.card?.route?.to]).toEqual([text, 'express', 'Home', 'Siam Paragon']);
+      expect([text, r.json.card?.service, r.json.card?.route?.from, r.json.card?.route?.to]).toEqual([text, 'express', from, to]);
     }
   });
 
   it('"taxi home" without a pickup asks where from, and its chips work', async () => {
+    const HOME: Record<string, string> = { en: 'Home', ru: 'Дом', th: 'บ้าน' };
+    const PARAGON: Record<string, string> = { en: 'Siam Paragon', ru: 'Сиам Парагон', th: 'สยามพารากอน' };
     for (const [lang, text] of [['en', 'taxi home'], ['ru', 'отвези меня домой'], ['th', 'กลับบ้าน'], ['en', 'deliver a package to my home']]) {
       const r = await say(lang, text);
       expect(r.json.card ?? null).toBeNull();
       expect(r.json.chips.length).toBeGreaterThan(0);
       const next = await say(lang, r.json.chips[0]);
-      expect([text, next.json.card?.route?.to]).toEqual([text, 'Home']);
-      expect(next.json.card.route.from).toBe('Siam Paragon');
+      expect([text, next.json.card?.route?.to]).toEqual([text, HOME[lang]]);
+      expect(next.json.card.route.from).toBe(PARAGON[lang]);
     }
   });
 
@@ -150,8 +153,8 @@ describe('Ari demo brain: replies', () => {
     const ru = await say('ru', 'такси до Асока');
     const th = await say('th', 'แท็กซี่ไปอโศก');
     expect(en.json.reply).toMatch(/^From Home to Asok/);
-    expect(ru.json.reply).toMatch(/^Маршрут: Home → Asok/);
-    expect(th.json.reply).toMatch(/^จาก Home ไป Asok/);
+    expect(ru.json.reply).toMatch(/^Маршрут: Дом → Асок/);
+    expect(th.json.reply).toMatch(/^จาก บ้าน ไป อโศก/);
     expect([en.json.card.title, ru.json.card.title, th.json.card.title]).toEqual(['Choose a ride', 'Выберите поездку', 'เลือกประเภทรถ']);
   });
 });

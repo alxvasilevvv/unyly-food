@@ -19,7 +19,7 @@ import { SHOP_STORE, shopPicks, shopPlan } from '../web/try-services.js';
 import { tr } from '../web/messages.js';
 import { pack } from '../i18n/index.js';
 import { CATALOGS } from '../i18n/generated.js';
-import { Card, CardOption, chatLocale, dataText, localText, trf } from './cards.js';
+import { Card, CardOption, chatLocale, dataText, localText, placeText, trf } from './cards.js';
 import { WEB_DEMO_PARTNER } from './config.js';
 import {
   cancellationCard, checkoutCard, confirmCancelWithRows, confirmCheckout, grabLinkView, orderCard, prepareCancelPartner, runTool, startGrabLink,
@@ -535,8 +535,8 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
         return { ...e, reply: glue(l, lead, e.reply) };
       }
       const res = r.result;
-      const from = res.trip?.pickup?.name;
-      const to = res.trip?.dropoff?.name;
+      const from = placeText(res.trip?.pickup?.name, l) ?? '';
+      const to = placeText(res.trip?.dropoff?.name, l) ?? '';
       // The reply has to say what the card shows: when no vehicle can take the trip, say why.
       if (r.card?.options?.length && r.card.options.every((o) => !o.action)) {
         const maxKg = Math.max(0, ...(res.options ?? []).map((o: any) => Number(o.max_weight_kg) || 0));
@@ -585,7 +585,7 @@ export async function ariRespond(ctx: Ctx, u: PartnerUser, text: string): Promis
     const args = { store_id: plan.store_id, items: plan.lines.map((x) => ({ item_id: x.item_id, quantity: x.quantity, ...(x.modifiers.length ? { modifiers: x.modifiers } : {}) })) };
     const r = await traced(trace, `POST ${base}/tools/create_cart`, grabFor('create_cart', args), () => runTool(ctx, P, u, 'create_cart', args));
     if (!r.ok) return errorTurn(l, r.error, trace);
-    const names = plan.lines.map((x) => `${x.quantity > 1 ? `${x.quantity}× ` : ''}${dataText(x.name, l)}`).join(l === 'zh' ? '、' : ', ');
+    const names = plan.lines.map((x) => `${x.quantity > 1 ? `${x.quantity}× ` : ''}${dataText(x.name, l)}`).join(l === 'zh' ? '、' : ', ').replace(/[.。]+$/, '');
     const notes: string[] = [];
     if (!picks.matched && service === 'flowers') notes.push(t(l, { en: 'I picked the seasonal bouquet; say roses, lilies or orchids if you prefer.', ru: 'Я выбрала сезонный букет; если хотите розы, лилии или орхидею, скажите.', th: 'Ari เลือกช่อดอกไม้ตามฤดูกาลให้ค่ะ ถ้าอยากได้กุหลาบ ลิลลี่ หรือกล้วยไม้ บอกได้เลยนะคะ' }));
     if (!picks.matched && service === 'cakes') notes.push(t(l, { en: 'I picked the chocolate cake; there is also a birthday cake, a pandan chiffon and a mango cheesecake.', ru: 'Я выбрала шоколадный торт; ещё есть торт на день рождения, пандановый шифон и манговый чизкейк.', th: 'Ari เลือกเค้กช็อกโกแลตให้ค่ะ นอกจากนี้ยังมีเค้กวันเกิด ชิฟฟ่อนใบเตย และชีสเค้กมะม่วง' }));

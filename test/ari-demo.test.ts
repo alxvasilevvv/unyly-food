@@ -66,12 +66,12 @@ describe('Website Ari demo (/ari)', () => {
   it('the example requests build exactly the cart that was asked for', async () => {
     const titles = (r: any) => r.json.card.lines.map((x: any) => x.title);
     const ru = await post('/ari/api/message?lang=ru', { text: 'Продукты: рис, яйца и вода' });
-    expect(titles(ru)).toEqual(['Jasmine rice 5 kg', 'Fresh eggs, 10 pack', 'Drinking water 6 x 1.5 L']);
+    expect(titles(ru)).toEqual(['Жасминовый рис, 5 кг', 'Яйца свежие, 10 шт.', 'Питьевая вода, 6 x 1,5 л']);
     const th = await post('/ari/api/message?lang=th', { text: 'ของชำ ข้าวสาร ไข่ไก่ น้ำดื่ม' });
-    expect(titles(th)).toEqual(['Jasmine rice 5 kg', 'Fresh eggs, 10 pack', 'Drinking water 6 x 1.5 L']);
-    for (const [lang, text] of [['en', 'Red roses with a gift box'], ['ru', 'Букет роз в подарочной коробке'], ['th', 'ช่อดอกกุหลาบพร้อมกล่องของขวัญ']]) {
+    expect(titles(th)).toEqual(['ข้าวหอมมะลิ 5 กก.', 'ไข่ไก่สด 10 ฟอง', 'น้ำดื่ม 6 x 1.5 ลิตร']);
+    for (const [lang, text, box] of [['en', 'Red roses with a gift box', 'Gift box'], ['ru', 'Букет роз в подарочной коробке', 'Подарочная коробка'], ['th', 'ช่อดอกกุหลาบพร้อมกล่องของขวัญ', 'กล่องของขวัญ']]) {
       const roses = await post(`/ari/api/message?lang=${lang}`, { text });
-      expect(roses.json.card.lines[0].detail).toContain('Gift box');
+      expect(roses.json.card.lines[0].detail).toContain(box);
     }
     const plain = await post('/ari/api/message?lang=en', { text: 'Red roses' });
     expect(plain.json.card.lines[0].detail).toContain('Kraft paper');

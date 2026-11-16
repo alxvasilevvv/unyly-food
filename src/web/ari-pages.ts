@@ -12,7 +12,6 @@ type Tri = { en: string; ru: string; th: string };
 const APP_STORE = 'https://apps.apple.com/app/id6831932629';
 /** Signed routes under /partner/v1 in partners/routes.ts (openapi.json is public and not counted). Checked by test/r4-pages.test.ts. */
 export const SIGNED_ENDPOINTS = 22;
-const k3 = (l: Locale): 'en' | 'ru' | 'th' => (l === 'ru' || l === 'th' ? l : 'en');
 
 export const STATUS_LABEL: Record<CoverageStatus, Tri> = {
   built: { en: 'Built, tested on mocks, needs Grab keys', ru: 'Готово, проверено на моках, нужны ключи Grab', th: 'พร้อมแล้ว ทดสอบกับระบบจำลอง รอคีย์ Grab' },
@@ -101,7 +100,6 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
   app.get('/', async (req, reply) => {
     const r = await base(req, reply);
     const l = r.l;
-    const L = k3(l);
     const step = (n: number, ic: string, t: Tri, d: Tri) => html`<li class="step-card"><span class="step-n">${n}</span><span class="ico">${icon(ic)}</span><h3>${tr(l, t)}</h3><p>${tr(l, d)}</p></li>`;
     const safety: [string, Tri, Tri][] = [
       ['tap', { en: 'Only the user confirms', ru: 'Подтверждает только пользователь', th: 'ผู้ใช้เท่านั้นที่ยืนยัน' }, { en: 'A card with the exact price is bound to a one-time hash. A chat "yes" can never place an order.', ru: 'Карточка с точной ценой привязана к одноразовому хешу. «Да» в чате никогда не оформит заказ.', th: 'การ์ดที่แสดงราคาจริงผูกกับแฮชแบบใช้ครั้งเดียว การตอบ "ตกลง" ในแชทไม่ทำให้เกิดคำสั่งซื้อ' }],
@@ -119,7 +117,7 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
     ];
     const coverage = GRAB_PRODUCTS.map((p) => html`<li class="cov is-${p.today}">
   <div class="cov-head"><span class="ico">${icon(productIcon(p))}</span><b>${p.name}</b></div>
-  <p>${p.ari[L]}</p>
+  <p>${tr(l, p.ari)}</p>
   ${statusPill(l, p.today)}
 </li>`);
     return send(reply, r, tr(l, { en: 'Partnership proposal', ru: 'Предложение о партнёрстве', th: 'ข้อเสนอความร่วมมือ' }), html`
@@ -206,7 +204,7 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
   <span class="eyebrow">${icon('chart')} ${tr(l, { en: 'Why Grab', ru: 'Зачем это Grab', th: 'ประโยชน์ต่อ Grab' })}</span>
   <h2>${tr(l, { en: 'The assistant: a new ordering channel for Grab', ru: 'Ассистент как новый канал заказов для Grab', th: 'ผู้ช่วยส่วนตัว: ช่องทางสั่งซื้อใหม่ของ Grab' })}</h2>
   <div class="feature-grid four">${gets.map(([ic, t, d]) => html`<div class="feature"><span class="ico">${icon(ic)}</span><h3>${tr(l, t)}</h3><p>${tr(l, d)}</p></div>`)}</div>
-  <div class="markets">${MARKETS.map((m) => html`<span class="market ${m.demo ? 'on' : ''}"><b>${m.country[L]}</b><small>${m.currency} · ${m.languages.join(', ')}</small>${m.demo ? html`<em>${tr(l, { en: 'demo', ru: 'демо', th: 'เดโม' })}</em>` : ''}</span>`)}</div>
+  <div class="markets">${MARKETS.map((m) => html`<span class="market ${m.demo ? 'on' : ''}"><b>${tr(l, m.country)}</b><small>${m.currency} · ${m.languages.join(', ')}</small>${m.demo ? html`<em>${tr(l, { en: 'demo', ru: 'демо', th: 'เดโม' })}</em>` : ''}</span>`)}</div>
 </div></section>
 
 <section class="sec cta-band"><div class="wrap"><div class="cta-panel center">
@@ -323,7 +321,6 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
   app.get('/for-grab', async (req, reply) => {
     const r = await base(req, reply);
     const l = r.l;
-    const L = k3(l);
     const phases: [Tri, Tri, Tri][] = [
       [{ en: 'Weeks 1-3', ru: 'Недели 1-3', th: 'สัปดาห์ 1-3' }, { en: 'Certification', ru: 'Сертификация', th: 'การรับรอง' }, { en: 'GrabExpress on sandbox, Login with Grab on staging, GrabPay on test credentials. We run Grab\'s happy and unhappy paths and go through Grab\'s security review. No real users yet.', ru: 'GrabExpress в песочнице, Login with Grab на стейджинге, GrabPay на тестовых ключах. Проходим позитивные и негативные сценарии Grab и проверку безопасности со стороны Grab. Реальных пользователей пока нет.', th: 'GrabExpress บน sandbox, Login with Grab บน staging และ GrabPay ด้วยคีย์ทดสอบ เราทดสอบทั้งกรณีปกติและกรณีผิดพลาดตามที่ Grab กำหนด และผ่านการตรวจความปลอดภัยของ Grab ช่วงนี้ยังไม่มีผู้ใช้จริง' }],
       [{ en: 'Weeks 4-9', ru: 'Недели 4-9', th: 'สัปดาห์ 4-9' }, { en: 'Bangkok pilot', ru: 'Пилот в Бангкоке', th: 'นำร่องกรุงเทพฯ' }, { en: 'One market, one city, up to 1,000 invited Ari users. GrabExpress deliveries paid with GrabPay, plus Farefeed ride estimates that hand off to the Grab app. Grab can pause the pilot at any moment.', ru: 'Один рынок, один город, не более 1 000 приглашённых пользователей Ari. Доставки GrabExpress с оплатой через GrabPay и расчёт цены поездки через Farefeed с переходом в приложение Grab. Grab может остановить пилот в любой момент.', th: 'หนึ่งตลาด หนึ่งเมือง ผู้ใช้ Ari ที่ได้รับเชิญไม่เกิน 1,000 คน ส่งของด้วย GrabExpress ชำระผ่าน GrabPay และประมาณการค่าโดยสารจาก Farefeed แล้วส่งต่อไปจองในแอป Grab โดย Grab สั่งหยุดโครงการนำร่องได้ทุกเมื่อ' }],
@@ -389,7 +386,7 @@ export function registerAriPages(app: FastifyInstance, kit: Kit) {
   ${statusLegend(l, { detailed: true })}
   <div class="table-wrap" tabindex="0" role="region" aria-label="${tr(l, { en: 'Coverage of Grab products', ru: 'Покрытие продуктов Grab', th: 'ความครอบคลุมผลิตภัณฑ์ Grab' })}"><table class="cov-table">
     <thead><tr><th scope="col">${covCols[0]}</th><th scope="col">${covCols[1]}</th><th scope="col">${covCols[2]}</th><th scope="col">${covCols[3]}</th><th scope="col">${covCols[4]}</th></tr></thead>
-    <tbody>${GRAB_PRODUCTS.map((p) => html`<tr><th scope="row">${p.name}</th><td data-label="${covCols[1]}">${p.ari[L]}</td><td class="mono small" data-label="${covCols[2]}">${(L === 'en' ? undefined : p.api_local?.[L]) ?? p.api}</td><td data-label="${covCols[3]}">${statusPill(l, p.today)}</td><td data-label="${covCols[4]}">${p.with_grab[L]}</td></tr>`)}</tbody>
+    <tbody>${GRAB_PRODUCTS.map((p) => html`<tr><th scope="row">${p.name}</th><td data-label="${covCols[1]}">${tr(l, p.ari)}</td><td class="mono small" data-label="${covCols[2]}">${p.api_local ? tr(l, p.api_local) : p.api}</td><td data-label="${covCols[3]}">${statusPill(l, p.today)}</td><td data-label="${covCols[4]}">${tr(l, p.with_grab)}</td></tr>`)}</tbody>
   </table></div>
 </section>
 

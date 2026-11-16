@@ -1356,5 +1356,7 @@
  "Speaker": "ឧបករណ៍បំពងសំឡេង",
  "Mute": "បិទសំឡេង",
  "Captions": "អក្សររត់",
- "Listening": "កំពុងស្តាប់"
+ "Listening": "កំពុងស្តាប់",
+ "No public consumer ordering API (GrabFood Partner API is merchant-side POS)": "គ្មាន API សាធារណៈសម្រាប់កុម្ម៉ង់ជំនួសអ្នកប្រើប្រាស់ទេ (GrabFood Partner API គឺសម្រាប់ POS របស់ហាង)",
+ "No public consumer ordering API (GrabMart Partner API is merchant-side POS)": "គ្មាន API សាធារណៈសម្រាប់កុម្ម៉ង់ជំនួសអ្នកប្រើប្រាស់ទេ (GrabMart Partner API គឺសម្រាប់ POS របស់ហាង)"
 }

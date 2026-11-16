@@ -1,4 +1,5 @@
 import { lookup } from '../i18n/index.js';
+import { demoName } from '../partners/demo-names.js';
 import { tr, type Locale, type Tri } from './messages.js';
 
 /** Display translations for demo dishes. Provider data stays in English; this is presentation only. */
@@ -31,7 +32,7 @@ const DISHES: Record<string, { ru: string; th: string }> = {
   'r6-morningglory': { ru: 'Водяной шпинат вок', th: 'ผัดผักบุ้ง' },
 };
 export const dishName = (itemId: string, fallback: string, l: Locale) =>
-  l === 'en' ? fallback : (DISHES[itemId] as Record<string, string> | undefined)?.[l] ?? lookup(l, fallback) ?? fallback;
+  l === 'en' ? fallback : (DISHES[itemId] as Record<string, string> | undefined)?.[l] ?? demoName(l, fallback) ?? lookup(l, fallback) ?? fallback;
 
 export const ALLERGEN_NAMES: Record<string, Tri> = {
   peanut: { ru: 'арахис', en: 'peanut', th: 'ถั่วลิสง' },

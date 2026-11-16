@@ -1356,5 +1356,7 @@
  "Speaker": "စပီကာ",
  "Mute": "အသံပိတ်",
  "Captions": "စာတန်း",
- "Listening": "နားထောင်နေသည်"
+ "Listening": "နားထောင်နေသည်",
+ "No public consumer ordering API (GrabFood Partner API is merchant-side POS)": "သုံးစွဲသူကိုယ်စား မှာယူရန် အများသုံး API မရှိပါ (GrabFood Partner API သည် ဆိုင်များ၏ POS အတွက်ဖြစ်သည်)",
+ "No public consumer ordering API (GrabMart Partner API is merchant-side POS)": "သုံးစွဲသူကိုယ်စား မှာယူရန် အများသုံး API မရှိပါ (GrabMart Partner API သည် ဆိုင်များ၏ POS အတွက်ဖြစ်သည်)"
 }

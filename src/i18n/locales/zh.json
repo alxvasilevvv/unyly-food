@@ -1356,5 +1356,7 @@
  "Speaker": "扬声器",
  "Mute": "静音",
  "Captions": "字幕",
- "Listening": "正在聆听"
+ "Listening": "正在聆听",
+ "No public consumer ordering API (GrabFood Partner API is merchant-side POS)": "没有可代消费者下单的公开 API（GrabFood Partner API 面向商家 POS）",
+ "No public consumer ordering API (GrabMart Partner API is merchant-side POS)": "没有可代消费者下单的公开 API（GrabMart Partner API 面向商家 POS）"
 }

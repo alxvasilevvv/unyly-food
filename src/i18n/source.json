@@ -2,7 +2,7 @@
  {
   "en": "\"{place}\" is outside the demo area: rides and parcels here run within Bangkok only. Try one of these:",
   "where": [
-   "src/partners/webdemo.ts:786"
+   "src/partners/webdemo.ts:788"
   ]
  },
  {
@@ -68,49 +68,49 @@
  {
   "en": "{dish} is on the menu at {store}, but it does not deliver to your address right now.",
   "where": [
-   "src/partners/webdemo.ts:735"
+   "src/partners/webdemo.ts:737"
   ]
  },
  {
   "en": "{dish} is on the menu at {store}, but it is closed right now.",
   "where": [
-   "src/partners/webdemo.ts:659"
+   "src/partners/webdemo.ts:661"
   ]
  },
  {
   "en": "{item} at {store} does not fit your restrictions, so I left it out.",
   "where": [
-   "src/partners/webdemo.ts:662"
+   "src/partners/webdemo.ts:664"
   ]
  },
  {
   "en": "{item} is at another restaurant ({store}): ask for it as a separate order.",
   "where": [
-   "src/partners/webdemo.ts:665"
+   "src/partners/webdemo.ts:667"
   ]
  },
  {
   "en": "{n} option for {people} under ฿{budget}.",
   "where": [
-   "src/partners/webdemo.ts:626"
+   "src/partners/webdemo.ts:628"
   ]
  },
  {
   "en": "{n} option for {people}.",
   "where": [
-   "src/partners/webdemo.ts:630"
+   "src/partners/webdemo.ts:632"
   ]
  },
  {
   "en": "{n} options for {people} under ฿{budget}.",
   "where": [
-   "src/partners/webdemo.ts:627"
+   "src/partners/webdemo.ts:629"
   ]
  },
  {
   "en": "{n} options for {people}.",
   "where": [
-   "src/partners/webdemo.ts:631"
+   "src/partners/webdemo.ts:633"
   ]
  },
  {
@@ -134,20 +134,20 @@
  {
   "en": "{s}, for {n}",
   "where": [
-   "src/partners/webdemo.ts:761",
-   "src/partners/webdemo.ts:762"
+   "src/partners/webdemo.ts:763",
+   "src/partners/webdemo.ts:764"
   ]
  },
  {
   "en": "{store}: {names}.",
   "where": [
-   "src/partners/webdemo.ts:601"
+   "src/partners/webdemo.ts:603"
   ]
  },
  {
   "en": "{trip} for {n} people",
   "where": [
-   "src/partners/webdemo.ts:293"
+   "src/partners/webdemo.ts:295"
   ]
  },
  {
@@ -189,7 +189,7 @@
  {
   "en": "400+ automated tests, 10 interface languages, audit trail, kill switch, data export and deletion.",
   "where": [
-   "src/web/ari-pages.ts:351"
+   "src/web/ari-pages.ts:350"
   ]
  },
  {
@@ -201,13 +201,13 @@
  {
   "en": "A {kg} kg parcel is too heavy: the largest vehicle here carries up to {max} kg. Try a lighter parcel or split it.",
   "where": [
-   "src/partners/webdemo.ts:543"
+   "src/partners/webdemo.ts:545"
   ]
  },
  {
   "en": "A blueprint for AI channels",
   "where": [
-   "src/web/ari-pages.ts:359"
+   "src/web/ari-pages.ts:358"
   ]
  },
  {
@@ -219,13 +219,13 @@
  {
   "en": "A business contact (PIC) and a shared channel with the integration team",
   "where": [
-   "src/web/ari-pages.ts:343"
+   "src/web/ari-pages.ts:342"
   ]
  },
  {
   "en": "A card",
   "where": [
-   "src/web/ari-pages.ts:484"
+   "src/web/ari-pages.ts:483"
   ]
  },
  {
@@ -237,7 +237,7 @@
  {
   "en": "A chat message can't confirm an order. If the card looks right, tap its Confirm button: that is the only way an order is placed. Nothing has been ordered so far.",
   "where": [
-   "src/partners/webdemo.ts:447"
+   "src/partners/webdemo.ts:449"
   ]
  },
  {
@@ -249,7 +249,7 @@
  {
   "en": "A consumer ordering scope for GrabFood and GrabMart (not public today)",
   "where": [
-   "src/web/ari-pages.ts:341"
+   "src/web/ari-pages.ts:340"
   ]
  },
  {
@@ -327,7 +327,7 @@
  {
   "en": "Account linking with PKCE on Grab's pages. We keep the user identifier only, no Grab tokens.",
   "where": [
-   "src/web/ari-pages.ts:336"
+   "src/web/ari-pages.ts:335"
   ]
  },
  {
@@ -433,7 +433,7 @@
  {
   "en": "airport",
   "where": [
-   "src/web/ari-pages.ts:79"
+   "src/web/ari-pages.ts:80"
   ]
  },
  {
@@ -445,7 +445,7 @@
  {
   "en": "All contacts",
   "where": [
-   "src/web/ari-pages.ts:420",
+   "src/web/ari-pages.ts:419",
    "src/web/layout.ts:184",
    "src/web/showcase.ts:306"
   ]
@@ -507,7 +507,7 @@
  {
   "en": "An event",
   "where": [
-   "src/web/ari-pages.ts:485"
+   "src/web/ari-pages.ts:484"
   ]
  },
  {
@@ -580,13 +580,13 @@
  {
   "en": "Ari (iPhone, App Store) is a voice-first personal assistant by CSA PROJECT - FZCO. We propose to make Grab the way Ari users move, eat and send things in Southeast Asia, starting with a Bangkok pilot on Grab's public partner APIs.",
   "where": [
-   "src/web/ari-pages.ts:378"
+   "src/web/ari-pages.ts:377"
   ]
  },
  {
   "en": "Ari × Grab · partnership proposal",
   "where": [
-   "src/web/ari-pages.ts:376"
+   "src/web/ari-pages.ts:375"
   ]
  },
  {
@@ -598,7 +598,7 @@
  {
   "en": "Ari × Grab is a proposal by CSA PROJECT - FZCO (Dubai), the developer of Ari and Unyly. It is not affiliated with, endorsed by or sponsored by Grab. No agreement with Grab exists. The Grab features shown are proposed and are not in the released Ari app. Integrations were tested only against mocks. Grab and its service names are trademarks of their respective owners and are used only to describe the proposed integration; no Grab logos are used. The demo uses fictional stores, drivers, plates and fares; no real orders, rides or payments are created.",
   "where": [
-   "src/web/ari-pages.ts:412"
+   "src/web/ari-pages.ts:411"
   ]
  },
  {
@@ -616,7 +616,7 @@
  {
   "en": "Ari × Grab: a partnership proposal to make Grab the way Ari users move, eat and send things, starting with a Bangkok pilot.",
   "where": [
-   "src/web/ari-pages.ts:422"
+   "src/web/ari-pages.ts:421"
   ]
  },
  {
@@ -701,7 +701,7 @@
  {
   "en": "Ari prepares a checklist, the user orders in the Grab app",
   "where": [
-   "src/web/ari-pages.ts:20"
+   "src/web/ari-pages.ts:19"
   ]
  },
  {
@@ -847,13 +847,13 @@
  {
   "en": "Bangkok has two airports. Which one?",
   "where": [
-   "src/partners/webdemo.ts:783"
+   "src/partners/webdemo.ts:785"
   ]
  },
  {
   "en": "Bangkok pilot",
   "where": [
-   "src/web/ari-pages.ts:327"
+   "src/web/ari-pages.ts:326"
   ]
  },
  {
@@ -889,7 +889,7 @@
  {
   "en": "boat noodles",
   "where": [
-   "src/partners/webdemo.ts:159"
+   "src/partners/webdemo.ts:161"
   ]
  },
  {
@@ -901,7 +901,7 @@
  {
   "en": "Booked. I will call you when the driver is outside.",
   "where": [
-   "src/web/ari-pages.ts:83"
+   "src/web/ari-pages.ts:84"
   ]
  },
  {
@@ -921,7 +921,7 @@
  {
   "en": "bubble tea",
   "where": [
-   "src/partners/webdemo.ts:177"
+   "src/partners/webdemo.ts:179"
   ]
  },
  {
@@ -939,7 +939,7 @@
  {
   "en": "Built",
   "where": [
-   "src/web/ari-pages.ts:26"
+   "src/web/ari-pages.ts:25"
   ]
  },
  {
@@ -957,7 +957,7 @@
  {
   "en": "Built, tested on mocks, needs Grab keys",
   "where": [
-   "src/web/ari-pages.ts:18"
+   "src/web/ari-pages.ts:17"
   ]
  },
  {
@@ -970,7 +970,7 @@
  {
   "en": "burger",
   "where": [
-   "src/partners/webdemo.ts:165"
+   "src/partners/webdemo.ts:167"
   ]
  },
  {
@@ -1039,13 +1039,13 @@
  {
   "en": "Cancel this order?",
   "where": [
-   "src/partners/core.ts:459"
+   "src/partners/core.ts:494"
   ]
  },
  {
   "en": "Cancellation fee",
   "where": [
-   "src/partners/core.ts:460",
+   "src/partners/core.ts:495",
    "src/web/messages.ts:431"
   ]
  },
@@ -1065,7 +1065,7 @@
  {
   "en": "Cancelled.",
   "where": [
-   "src/partners/webdemo.ts:1064"
+   "src/partners/webdemo.ts:1094"
   ]
  },
  {
@@ -1107,7 +1107,7 @@
  {
   "en": "Cars that seat {n} are on top.",
   "where": [
-   "src/partners/webdemo.ts:552"
+   "src/partners/webdemo.ts:554"
   ]
  },
  {
@@ -1119,7 +1119,7 @@
  {
   "en": "Certification",
   "where": [
-   "src/web/ari-pages.ts:326"
+   "src/web/ari-pages.ts:325"
   ]
  },
  {
@@ -1137,7 +1137,7 @@
  {
   "en": "Chat",
   "where": [
-   "src/web/ari-pages.ts:63"
+   "src/web/ari-pages.ts:64"
   ]
  },
  {
@@ -1199,13 +1199,13 @@
  {
   "en": "Choose a courier",
   "where": [
-   "src/partners/core.ts:130"
+   "src/partners/core.ts:131"
   ]
  },
  {
   "en": "Choose a ride",
   "where": [
-   "src/partners/core.ts:130"
+   "src/partners/core.ts:131"
   ]
  },
  {
@@ -1271,7 +1271,7 @@
  {
   "en": "Completed deliveries, quote-to-order conversion, cancellations and failures, new GrabID links, GrabPay volume, Farefeed deep-link opens, incidents.",
   "where": [
-   "src/web/ari-pages.ts:328"
+   "src/web/ari-pages.ts:327"
   ]
  },
  {
@@ -1320,7 +1320,7 @@
  {
   "en": "Confirm ride · ฿421",
   "where": [
-   "src/web/ari-pages.ts:81"
+   "src/web/ari-pages.ts:82"
   ]
  },
  {
@@ -1345,7 +1345,7 @@
  {
   "en": "Confirmation stays on the device",
   "where": [
-   "src/web/ari-pages.ts:356"
+   "src/web/ari-pages.ts:355"
   ]
  },
  {
@@ -1465,7 +1465,7 @@
  {
   "en": "Control stays with Grab",
   "where": [
-   "src/web/ari-pages.ts:358"
+   "src/web/ari-pages.ts:357"
   ]
  },
  {
@@ -1549,7 +1549,7 @@
  {
   "en": "Courier and plate are fictional in the demo.",
   "where": [
-   "src/partners/core.ts:429"
+   "src/partners/core.ts:462"
   ]
  },
  {
@@ -1567,8 +1567,8 @@
  {
   "en": "Coverage of Grab products",
   "where": [
-   "src/web/ari-pages.ts:386",
-   "src/web/ari-pages.ts:388"
+   "src/web/ari-pages.ts:385",
+   "src/web/ari-pages.ts:387"
   ]
  },
  {
@@ -1592,7 +1592,7 @@
  {
   "en": "Create or update a user (locale, region)",
   "where": [
-   "src/web/ari-pages.ts:432"
+   "src/web/ari-pages.ts:431"
   ]
  },
  {
@@ -1628,7 +1628,7 @@
  {
   "en": "curry",
   "where": [
-   "src/partners/webdemo.ts:179"
+   "src/partners/webdemo.ts:181"
   ]
  },
  {
@@ -1641,7 +1641,7 @@
  {
   "en": "Customer stays with Grab",
   "where": [
-   "src/web/ari-pages.ts:355"
+   "src/web/ari-pages.ts:354"
   ]
  },
  {
@@ -1680,7 +1680,7 @@
  {
   "en": "Data is used only to fulfil the order the user confirmed. Before any live launch, retention periods and consent texts go through Thai counsel review.",
   "where": [
-   "src/web/ari-pages.ts:367"
+   "src/web/ari-pages.ts:366"
   ]
  },
  {
@@ -1737,7 +1737,7 @@
  {
   "en": "Deliveries in this demo go to your saved home address (88 Sukhumvit Soi 24). Addresses are changed in the app settings, not in the chat. For a ride or a parcel just name the places:",
   "where": [
-   "src/partners/webdemo.ts:425"
+   "src/partners/webdemo.ts:427"
   ]
  },
  {
@@ -1884,13 +1884,13 @@
  {
   "en": "Designed",
   "where": [
-   "src/web/ari-pages.ts:29"
+   "src/web/ari-pages.ts:28"
   ]
  },
  {
   "en": "Designed, built after onboarding",
   "where": [
-   "src/web/ari-pages.ts:21"
+   "src/web/ari-pages.ts:20"
   ]
  },
  {
@@ -1909,7 +1909,7 @@
  {
   "en": "Developers",
   "where": [
-   "src/web/ari-pages.ts:470",
+   "src/web/ari-pages.ts:469",
    "src/web/layout.ts:81"
   ]
  },
@@ -1940,7 +1940,7 @@
  {
   "en": "Dinner for two under 300 baht",
   "where": [
-   "src/partners/webdemo.ts:481"
+   "src/partners/webdemo.ts:483"
   ]
  },
  {
@@ -1998,13 +1998,13 @@
  {
   "en": "Does not fit",
   "where": [
-   "src/partners/core.ts:121"
+   "src/partners/core.ts:122"
   ]
  },
  {
   "en": "Doing well, thank you! What can I get you from Grab?",
   "where": [
-   "src/partners/webdemo.ts:440"
+   "src/partners/webdemo.ts:442"
   ]
  },
  {
@@ -2016,7 +2016,7 @@
  {
   "en": "Done! I'll keep you posted and call you when it matters.",
   "where": [
-   "src/partners/webdemo.ts:991"
+   "src/partners/webdemo.ts:1005"
   ]
  },
  {
@@ -2066,15 +2066,15 @@
  {
   "en": "Driver and plate are fictional in the demo.",
   "where": [
-   "src/partners/core.ts:428"
+   "src/partners/core.ts:461"
   ]
  },
  {
   "en": "Driver arriving",
   "where": [
    "src/domain/labels.ts:32",
-   "src/web/ari-pages.ts:71",
-   "src/web/ari-pages.ts:86"
+   "src/web/ari-pages.ts:72",
+   "src/web/ari-pages.ts:87"
   ]
  },
  {
@@ -2092,13 +2092,13 @@
  {
   "en": "dumplings",
   "where": [
-   "src/partners/webdemo.ts:173"
+   "src/partners/webdemo.ts:175"
   ]
  },
  {
   "en": "Each request carries X-Unyly-Partner, X-Unyly-Timestamp (±300 s) and a single-use X-Unyly-Nonce. Webhooks to Ari use the same scheme with the webhook secret.",
   "where": [
-   "src/web/ari-pages.ts:476"
+   "src/web/ari-pages.ts:475"
   ]
  },
  {
@@ -2110,7 +2110,7 @@
  {
   "en": "Email",
   "where": [
-   "src/web/ari-pages.ts:421",
+   "src/web/ari-pages.ts:420",
    "src/web/messages.ts:300"
   ]
  },
@@ -2123,7 +2123,7 @@
  {
   "en": "Email, saved addresses, preferences, carts, orders and an audit log. From Login with Grab: the account identifier (sub) only.",
   "where": [
-   "src/web/ari-pages.ts:363"
+   "src/web/ari-pages.ts:362"
   ]
  },
  {
@@ -2135,7 +2135,7 @@
  {
   "en": "Endpoints",
   "where": [
-   "src/web/ari-pages.ts:479"
+   "src/web/ari-pages.ts:478"
   ]
  },
  {
@@ -2165,14 +2165,14 @@
  {
   "en": "ETA",
   "where": [
-   "src/partners/core.ts:255",
+   "src/partners/core.ts:256",
    "src/web/ari-pages.ts:233"
   ]
  },
  {
   "en": "Events (same as webhooks) for polling and recovery",
   "where": [
-   "src/web/ari-pages.ts:438"
+   "src/web/ari-pages.ts:437"
   ]
  },
  {
@@ -2184,7 +2184,7 @@
  {
   "en": "Every order needs the user's tap on a card with the final price; above a per-currency threshold, Face ID. The assistant cannot confirm for the user.",
   "where": [
-   "src/web/ari-pages.ts:356"
+   "src/web/ari-pages.ts:355"
   ]
  },
  {
@@ -2208,7 +2208,7 @@
  {
   "en": "Every week",
   "where": [
-   "src/web/ari-pages.ts:328"
+   "src/web/ari-pages.ts:327"
   ]
  },
  {
@@ -2238,8 +2238,8 @@
  {
   "en": "Excluded allergens not declared",
   "where": [
-   "src/partners/core.ts:58",
-   "src/partners/webdemo.ts:619"
+   "src/partners/core.ts:59",
+   "src/partners/webdemo.ts:621"
   ]
  },
  {
@@ -2294,19 +2294,19 @@
  {
   "en": "Fare ranges and pickup times in Ari, then a deep link: the user books in the Grab app. A ride-booking scope is a separate conversation.",
   "where": [
-   "src/web/ari-pages.ts:340"
+   "src/web/ari-pages.ts:339"
   ]
  },
  {
   "en": "Fares only",
   "where": [
-   "src/web/ari-pages.ts:27"
+   "src/web/ari-pages.ts:26"
   ]
  },
  {
   "en": "Fares via Farefeed, booking in the Grab app",
   "where": [
-   "src/web/ari-pages.ts:19"
+   "src/web/ari-pages.ts:18"
   ]
  },
  {
@@ -2318,7 +2318,7 @@
  {
   "en": "Finish in Grab",
   "where": [
-   "src/partners/core.ts:184"
+   "src/partners/core.ts:185"
   ]
  },
  {
@@ -2431,13 +2431,13 @@
  {
   "en": "Found it: {items} at {store}, {price} with delivery.",
   "where": [
-   "src/partners/webdemo.ts:728"
+   "src/partners/webdemo.ts:730"
   ]
  },
  {
   "en": "Fragile",
   "where": [
-   "src/partners/webdemo.ts:528"
+   "src/partners/webdemo.ts:530"
   ]
  },
  {
@@ -2473,13 +2473,13 @@
  {
   "en": "fried chicken",
   "where": [
-   "src/partners/webdemo.ts:176"
+   "src/partners/webdemo.ts:178"
   ]
  },
  {
   "en": "fried rice",
   "where": [
-   "src/partners/webdemo.ts:160"
+   "src/partners/webdemo.ts:162"
   ]
  },
  {
@@ -2491,7 +2491,7 @@
  {
   "en": "From {from} to {to}, about {min} min.",
   "where": [
-   "src/partners/webdemo.ts:556"
+   "src/partners/webdemo.ts:558"
   ]
  },
  {
@@ -2523,7 +2523,7 @@
  {
   "en": "Full retention table",
   "where": [
-   "src/web/ari-pages.ts:408"
+   "src/web/ari-pages.ts:407"
   ]
  },
  {
@@ -2590,7 +2590,7 @@
  {
   "en": "Go or no-go against targets agreed before the start. If the result is positive: design consumer scopes for GrabFood, GrabMart and ride booking together, then add markets one by one, each with Grab's approval.",
   "where": [
-   "src/web/ari-pages.ts:329"
+   "src/web/ari-pages.ts:328"
   ]
  },
  {
@@ -2602,7 +2602,7 @@
  {
   "en": "Goodbye! I'm here whenever you need something from Grab.",
   "where": [
-   "src/partners/webdemo.ts:443"
+   "src/partners/webdemo.ts:445"
   ]
  },
  {
@@ -2638,7 +2638,7 @@
  {
   "en": "Grab API",
   "where": [
-   "src/web/ari-pages.ts:371"
+   "src/web/ari-pages.ts:370"
   ]
  },
  {
@@ -2650,7 +2650,7 @@
  {
   "en": "Grab credentials stay on the server. GrabPay tokens are sealed with AES-256-GCM. For production, secrets move to a KMS, as Grab's partner rules require.",
   "where": [
-   "src/web/ari-pages.ts:365"
+   "src/web/ari-pages.ts:364"
   ]
  },
  {
@@ -2692,7 +2692,7 @@
  {
   "en": "Grab passwords, SMS codes, card numbers and wallet credentials. Sign-in and checkout run on Grab's own pages.",
   "where": [
-   "src/web/ari-pages.ts:364"
+   "src/web/ari-pages.ts:363"
   ]
  },
  {
@@ -2740,7 +2740,7 @@
  {
   "en": "Grab, inside the assistant people already talk to",
   "where": [
-   "src/web/ari-pages.ts:377"
+   "src/web/ari-pages.ts:376"
   ]
  },
  {
@@ -2758,7 +2758,7 @@
  {
   "en": "Grab's security team gets the OpenAPI document, the test suite and a staging environment before any production key is issued.",
   "where": [
-   "src/web/ari-pages.ts:368"
+   "src/web/ari-pages.ts:367"
   ]
  },
  {
@@ -2782,13 +2782,13 @@
  {
   "en": "GrabExpress client: quotes, create, status, cancel, tracking webhook, unknown-outcome reconciliation.",
   "where": [
-   "src/web/ari-pages.ts:348"
+   "src/web/ari-pages.ts:347"
   ]
  },
  {
   "en": "GrabExpress on sandbox, Login with Grab on staging, GrabPay on test credentials. We run Grab's happy and unhappy paths and go through Grab's security review. No real users yet.",
   "where": [
-   "src/web/ari-pages.ts:326"
+   "src/web/ari-pages.ts:325"
   ]
  },
  {
@@ -2806,13 +2806,13 @@
  {
   "en": "GrabExpress: sandbox, then production for Bangkok (scope grab_express.partner_deliveries)",
   "where": [
-   "src/web/ari-pages.ts:333"
+   "src/web/ari-pages.ts:332"
   ]
  },
  {
   "en": "GrabID client for Login with Grab (openid, profile.read, phone)",
   "where": [
-   "src/web/ari-pages.ts:335"
+   "src/web/ari-pages.ts:334"
   ]
  },
  {
@@ -2842,13 +2842,13 @@
  {
   "en": "GrabPay merchant account for One-Time Charge in THB",
   "where": [
-   "src/web/ari-pages.ts:337"
+   "src/web/ari-pages.ts:336"
   ]
  },
  {
   "en": "GrabPay One-Time Charge with HMAC and proof-of-possession, automatic idempotent refunds.",
   "where": [
-   "src/web/ari-pages.ts:349"
+   "src/web/ari-pages.ts:348"
   ]
  },
  {
@@ -2872,7 +2872,7 @@
  {
   "en": "green curry",
   "where": [
-   "src/partners/webdemo.ts:155"
+   "src/partners/webdemo.ts:157"
   ]
  },
  {
@@ -2897,7 +2897,7 @@
  {
   "en": "grilled chicken",
   "where": [
-   "src/partners/webdemo.ts:164"
+   "src/partners/webdemo.ts:166"
   ]
  },
  {
@@ -2946,7 +2946,7 @@
  {
   "en": "halal",
   "where": [
-   "src/partners/webdemo.ts:613",
+   "src/partners/webdemo.ts:615",
    "src/web/copy.ts:50"
   ]
  },
@@ -2959,7 +2959,7 @@
  {
   "en": "Hand-off",
   "where": [
-   "src/web/ari-pages.ts:28"
+   "src/web/ari-pages.ts:27"
   ]
  },
  {
@@ -3026,13 +3026,13 @@
  {
   "en": "Here are the cancellation terms:",
   "where": [
-   "src/partners/webdemo.ts:1046"
+   "src/partners/webdemo.ts:1075"
   ]
  },
  {
   "en": "Here are the cancellation terms. The order is cancelled only when you confirm on the card:",
   "where": [
-   "src/partners/webdemo.ts:245"
+   "src/partners/webdemo.ts:247"
   ]
  },
  {
@@ -3044,13 +3044,13 @@
  {
   "en": "Here is everything with the final price. Tap Confirm when you are ready.",
   "where": [
-   "src/partners/webdemo.ts:965"
+   "src/partners/webdemo.ts:977"
   ]
  },
  {
   "en": "Here is the total with every fee. Confirm when ready.",
   "where": [
-   "src/partners/webdemo.ts:603"
+   "src/partners/webdemo.ts:605"
   ]
  },
  {
@@ -3062,7 +3062,7 @@
  {
   "en": "Hi, I'm Ari. Tell me what you need from Grab and I'll take care of it. Nothing is ordered until you confirm.",
   "where": [
-   "src/partners/webdemo.ts:932"
+   "src/partners/webdemo.ts:943"
   ]
  },
  {
@@ -3074,7 +3074,7 @@
  {
   "en": "Hi! In this demo I can order from Grab for you: a ride, food, groceries, flowers, pharmacy items, a cake or a parcel. What do you need?",
   "where": [
-   "src/partners/webdemo.ts:347"
+   "src/partners/webdemo.ts:349"
   ]
  },
  {
@@ -3086,15 +3086,15 @@
  {
   "en": "home",
   "where": [
-   "src/partners/webdemo.ts:516"
+   "src/partners/webdemo.ts:518"
   ]
  },
  {
   "en": "Home",
   "where": [
-   "src/partners/webdemo.ts:516",
-   "src/partners/webdemo.ts:868",
-   "src/web/ari-pages.ts:58"
+   "src/partners/webdemo.ts:518",
+   "src/partners/webdemo.ts:870",
+   "src/web/ari-pages.ts:59"
   ]
  },
  {
@@ -3219,79 +3219,79 @@
  {
   "en": "I assumed 2 kg; tell me the weight if it is heavier.",
   "where": [
-   "src/partners/webdemo.ts:548"
+   "src/partners/webdemo.ts:550"
   ]
  },
  {
   "en": "I can only order for right now: scheduling a time is not part of this demo.",
   "where": [
-   "src/partners/webdemo.ts:389"
+   "src/partners/webdemo.ts:391"
   ]
  },
  {
   "en": "I can't book a table, but I can have food delivered to you. For example:",
   "where": [
-   "src/partners/webdemo.ts:404"
+   "src/partners/webdemo.ts:406"
   ]
  },
  {
   "en": "I can't book flights, but I can get you a ride to the airport:",
   "where": [
-   "src/partners/webdemo.ts:411"
+   "src/partners/webdemo.ts:413"
   ]
  },
  {
   "en": "I can't call a doctor or an ambulance. In an emergency in Thailand call 1669. If it helps, I can order household remedies from a pharmacy or book a ride.",
   "where": [
-   "src/partners/webdemo.ts:380"
+   "src/partners/webdemo.ts:382"
   ]
  },
  {
   "en": "I can't do that. My rules stay as they are, and I never confirm an order myself: an order is placed only when you tap Confirm on its card. What would you like from Grab?",
   "where": [
-   "src/partners/webdemo.ts:365"
+   "src/partners/webdemo.ts:367"
   ]
  },
  {
   "en": "I can't find that order or card any more. Please ask me again.",
   "where": [
-   "src/partners/webdemo.ts:809"
+   "src/partners/webdemo.ts:811"
   ]
  },
  {
   "en": "I can't order prescription medicines such as antibiotics: they need a doctor or a pharmacist. Here I can order household remedies only, for example paracetamol, plasters or throat lozenges.",
   "where": [
-   "src/partners/webdemo.ts:358"
+   "src/partners/webdemo.ts:360"
   ]
  },
  {
   "en": "I can't skip the confirmation: nothing is ordered until you tap Confirm on the card.",
   "where": [
-   "src/partners/webdemo.ts:392"
+   "src/partners/webdemo.ts:394"
   ]
  },
  {
   "en": "I could not find \"{place}\" on the Bangkok demo map. Try one of these:",
   "where": [
-   "src/partners/webdemo.ts:788"
+   "src/partners/webdemo.ts:790"
   ]
  },
  {
   "en": "I could not find that place on the Bangkok demo map. Try one of these:",
   "where": [
-   "src/partners/webdemo.ts:789"
+   "src/partners/webdemo.ts:791"
   ]
  },
  {
   "en": "I could not repeat that order exactly as it was:",
   "where": [
-   "src/partners/webdemo.ts:262"
+   "src/partners/webdemo.ts:264"
   ]
  },
  {
   "en": "I did not catch which Grab service you need. I can book a ride, order food, groceries, flowers or pharmacy items, or send a parcel. Try one of these:",
   "where": [
-   "src/partners/webdemo.ts:135"
+   "src/partners/webdemo.ts:137"
   ]
  },
  {
@@ -3303,19 +3303,19 @@
  {
   "en": "I marked it as fragile for the courier.",
   "where": [
-   "src/partners/webdemo.ts:550"
+   "src/partners/webdemo.ts:552"
   ]
  },
  {
   "en": "I picked the chocolate cake; there is also a birthday cake, a pandan chiffon and a mango cheesecake.",
   "where": [
-   "src/partners/webdemo.ts:589"
+   "src/partners/webdemo.ts:591"
   ]
  },
  {
   "en": "I picked the seasonal bouquet; say roses, lilies or orchids if you prefer.",
   "where": [
-   "src/partners/webdemo.ts:588"
+   "src/partners/webdemo.ts:590"
   ]
  },
  {
@@ -3327,13 +3327,13 @@
  {
   "en": "I'm Ari, an AI assistant, not a human. In this demo I order Grab services for you through Unyly: you say what you need, I show a card with the price, and nothing is ordered until you confirm it.",
   "where": [
-   "src/partners/webdemo.ts:434"
+   "src/partners/webdemo.ts:436"
   ]
  },
  {
   "en": "ice cream",
   "where": [
-   "src/partners/webdemo.ts:178"
+   "src/partners/webdemo.ts:180"
   ]
  },
  {
@@ -3375,13 +3375,13 @@
  {
   "en": "In this demo I show how I would order from Grab for you: food, groceries, flowers, pharmacy items, cakes, rides and parcels. Say it in your own words, pick an option, then confirm on the card. Nothing is ordered until you confirm.",
   "where": [
-   "src/partners/webdemo.ts:130"
+   "src/partners/webdemo.ts:132"
   ]
  },
  {
   "en": "Incremental orders",
   "where": [
-   "src/web/ari-pages.ts:354"
+   "src/web/ari-pages.ts:353"
   ]
  },
  {
@@ -3399,7 +3399,7 @@
  {
   "en": "Integration spec for the Ari team (in Russian)",
   "where": [
-   "src/web/ari-pages.ts:473"
+   "src/web/ari-pages.ts:472"
   ]
  },
  {
@@ -3441,7 +3441,7 @@
  {
   "en": "It depends on the store and the distance. Before you confirm, the card lists the delivery fee, the service fee and the total, so there are no surprises. Try a request:",
   "where": [
-   "src/partners/webdemo.ts:464"
+   "src/partners/webdemo.ts:466"
   ]
  },
  {
@@ -3453,7 +3453,7 @@
  {
   "en": "It will be delivered to your saved address ({home}): sending to someone else's address is not part of this chat demo.",
   "where": [
-   "src/partners/webdemo.ts:597"
+   "src/partners/webdemo.ts:599"
   ]
  },
  {
@@ -3467,7 +3467,7 @@
  {
   "en": "Items come in store packs, one of each: check the sizes on the card.",
   "where": [
-   "src/partners/webdemo.ts:594"
+   "src/partners/webdemo.ts:596"
   ]
  },
  {
@@ -3497,7 +3497,7 @@
  {
   "en": "Joint review",
   "where": [
-   "src/web/ari-pages.ts:329"
+   "src/web/ari-pages.ts:328"
   ]
  },
  {
@@ -3509,13 +3509,13 @@
  {
   "en": "JustGrab, about 52 min. Here is the fare:",
   "where": [
-   "src/web/ari-pages.ts:76"
+   "src/web/ari-pages.ts:77"
   ]
  },
  {
   "en": "kebab",
   "where": [
-   "src/partners/webdemo.ts:171"
+   "src/partners/webdemo.ts:173"
   ]
  },
  {
@@ -3545,13 +3545,13 @@
  {
   "en": "kg",
   "where": [
-   "src/partners/core.ts:238"
+   "src/partners/core.ts:239"
   ]
  },
  {
   "en": "khao soi",
   "where": [
-   "src/partners/webdemo.ts:158"
+   "src/partners/webdemo.ts:160"
   ]
  },
  {
@@ -3655,7 +3655,7 @@
  {
   "en": "Live demo",
   "where": [
-   "src/web/ari-pages.ts:379",
+   "src/web/ari-pages.ts:378",
    "src/web/layout.ts:137"
   ]
  },
@@ -3698,7 +3698,7 @@
  {
   "en": "Login with Grab (OIDC, PKCE S256) with protection against account pre-hijacking; Farefeed estimates with deep links.",
   "where": [
-   "src/web/ari-pages.ts:350"
+   "src/web/ari-pages.ts:349"
   ]
  },
  {
@@ -3710,7 +3710,7 @@
  {
   "en": "Lunch for one under 150 baht",
   "where": [
-   "src/partners/webdemo.ts:481"
+   "src/partners/webdemo.ts:483"
   ]
  },
  {
@@ -3760,7 +3760,7 @@
  {
   "en": "mango sticky rice",
   "where": [
-   "src/partners/webdemo.ts:161"
+   "src/partners/webdemo.ts:163"
   ]
  },
  {
@@ -3851,7 +3851,7 @@
  {
   "en": "Menus, cart, order and status inside Ari under the same confirmation rules. A design discussion, outside the pilot.",
   "where": [
-   "src/web/ari-pages.ts:342"
+   "src/web/ari-pages.ts:341"
   ]
  },
  {
@@ -3875,7 +3875,7 @@
  {
   "en": "Method",
   "where": [
-   "src/web/ari-pages.ts:481"
+   "src/web/ari-pages.ts:480"
   ]
  },
  {
@@ -3899,14 +3899,14 @@
  {
   "en": "Milk and bananas",
   "where": [
-   "src/partners/webdemo.ts:580"
+   "src/partners/webdemo.ts:582"
   ]
  },
  {
   "en": "min",
   "where": [
    "src/partners/cards.ts:69",
-   "src/web/ari-pages.ts:68",
+   "src/web/ari-pages.ts:69",
    "src/web/ari-pages.ts:247"
   ]
  },
@@ -3988,7 +3988,7 @@
  {
   "en": "Needs a change before ordering",
   "where": [
-   "src/partners/core.ts:163"
+   "src/partners/core.ts:164"
   ]
  },
  {
@@ -4006,7 +4006,7 @@
  {
   "en": "Needs access beyond Grab's public docs",
   "where": [
-   "src/web/ari-pages.ts:22"
+   "src/web/ari-pages.ts:21"
   ]
  },
  {
@@ -4169,13 +4169,25 @@
  {
   "en": "No problem, nothing was ordered.",
   "where": [
-   "src/partners/webdemo.ts:1006"
+   "src/partners/webdemo.ts:1021"
   ]
  },
  {
   "en": "No problem, nothing was ordered. Anything else from Grab?",
   "where": [
-   "src/partners/webdemo.ts:453"
+   "src/partners/webdemo.ts:455"
+  ]
+ },
+ {
+  "en": "No public consumer ordering API (GrabFood Partner API is merchant-side POS)",
+  "where": [
+   "src/partners/catalog.ts:39"
+  ]
+ },
+ {
+  "en": "No public consumer ordering API (GrabMart Partner API is merchant-side POS)",
+  "where": [
+   "src/partners/catalog.ts:45"
   ]
  },
  {
@@ -4193,7 +4205,7 @@
  {
   "en": "No vehicle here takes {n} passengers: the largest seats {max}. Try a smaller group or two cars.",
   "where": [
-   "src/partners/webdemo.ts:544"
+   "src/partners/webdemo.ts:546"
   ]
  },
  {
@@ -4231,8 +4243,8 @@
  {
   "en": "Not available right now",
   "where": [
-   "src/partners/core.ts:68",
-   "src/partners/core.ts:86"
+   "src/partners/core.ts:69",
+   "src/partners/core.ts:87"
   ]
  },
  {
@@ -4274,7 +4286,7 @@
  {
   "en": "Nothing fits ฿{budget} for {people}. These are the closest options:",
   "where": [
-   "src/partners/webdemo.ts:745"
+   "src/partners/webdemo.ts:747"
   ]
  },
  {
@@ -4286,13 +4298,13 @@
  {
   "en": "Nothing matches right now. Try a bigger budget or fewer restrictions.",
   "where": [
-   "src/partners/webdemo.ts:750"
+   "src/partners/webdemo.ts:752"
   ]
  },
  {
   "en": "Nothing matches: no restaurant in the demo catalog declares its dishes as {diet}, and I never guess about that. Try the request without it.",
   "where": [
-   "src/partners/webdemo.ts:749"
+   "src/partners/webdemo.ts:751"
   ]
  },
  {
@@ -4328,7 +4340,7 @@
  {
   "en": "On a ride or parcel card the cheapest option is listed first. For food, tell me your budget and I will stay within it:",
   "where": [
-   "src/partners/webdemo.ts:478"
+   "src/partners/webdemo.ts:480"
   ]
  },
  {
@@ -4365,19 +4377,19 @@
  {
   "en": "One market, one city, up to 1,000 invited Ari users. GrabExpress deliveries paid with GrabPay, plus Farefeed ride estimates that hand off to the Grab app. Grab can pause the pilot at any moment.",
   "where": [
-   "src/web/ari-pages.ts:327"
+   "src/web/ari-pages.ts:326"
   ]
  },
  {
   "en": "One narrow integration surface",
   "where": [
-   "src/web/ari-pages.ts:357"
+   "src/web/ari-pages.ts:356"
   ]
  },
  {
   "en": "One partner client, server to server, with a short list of scopes. No scraping, no unofficial endpoints, no Grab credentials on the phone.",
   "where": [
-   "src/web/ari-pages.ts:357"
+   "src/web/ari-pages.ts:356"
   ]
  },
  {
@@ -4407,7 +4419,7 @@
  {
   "en": "One thread for certification, incidents and the weekly pilot report.",
   "where": [
-   "src/web/ari-pages.ts:344"
+   "src/web/ari-pages.ts:343"
   ]
  },
  {
@@ -4419,7 +4431,7 @@
  {
   "en": "online",
   "where": [
-   "src/web/ari-pages.ts:72",
+   "src/web/ari-pages.ts:73",
    "src/web/ari-pages.ts:126",
    "src/web/ari-pages.ts:268"
   ]
@@ -4484,7 +4496,7 @@
  {
   "en": "Open to review",
   "where": [
-   "src/web/ari-pages.ts:368"
+   "src/web/ari-pages.ts:367"
   ]
  },
  {
@@ -4520,7 +4532,7 @@
  {
   "en": "Order card with live status, courier and ETA",
   "where": [
-   "src/web/ari-pages.ts:436"
+   "src/web/ari-pages.ts:435"
   ]
  },
  {
@@ -4550,7 +4562,7 @@
  {
   "en": "Orders that start in a voice assistant at the moment of intent and are fulfilled by Grab. The pilot measures how many of them are new.",
   "where": [
-   "src/web/ari-pages.ts:354"
+   "src/web/ari-pages.ts:353"
   ]
  },
  {
@@ -4586,7 +4598,7 @@
  {
   "en": "pad kra pao",
   "where": [
-   "src/partners/webdemo.ts:156"
+   "src/partners/webdemo.ts:158"
   ]
  },
  {
@@ -4598,7 +4610,7 @@
  {
   "en": "pad thai",
   "where": [
-   "src/partners/webdemo.ts:153"
+   "src/partners/webdemo.ts:155"
   ]
  },
  {
@@ -4641,7 +4653,7 @@
  {
   "en": "Paracetamol and plasters",
   "where": [
-   "src/partners/webdemo.ts:140"
+   "src/partners/webdemo.ts:142"
   ]
  },
  {
@@ -4661,7 +4673,7 @@
  {
   "en": "Parcel {kg} kg from {from} to {to}.",
   "where": [
-   "src/partners/webdemo.ts:560"
+   "src/partners/webdemo.ts:562"
   ]
  },
  {
@@ -4673,7 +4685,7 @@
  {
   "en": "Parcel delivery by voice: quote, booking, tracking, cancellation. We also ask Grab to confirm that an assistant may book for its users, with Unyly as the shipper of record.",
   "where": [
-   "src/web/ari-pages.ts:334"
+   "src/web/ari-pages.ts:333"
   ]
  },
  {
@@ -4699,7 +4711,7 @@
   "where": [
    "src/web/ari-pages.ts:191",
    "src/web/ari-pages.ts:315",
-   "src/web/ari-pages.ts:379"
+   "src/web/ari-pages.ts:378"
   ]
  },
  {
@@ -4712,25 +4724,25 @@
  {
   "en": "Partner API for Ari",
   "where": [
-   "src/web/ari-pages.ts:468"
+   "src/web/ari-pages.ts:467"
   ]
  },
  {
   "en": "Partner API for Ari: signed requests, user mapping, cards, native confirmation, events and webhooks (tested end to end against mocks; not yet run in Grab's sandbox).",
   "where": [
-   "src/web/ari-pages.ts:347"
+   "src/web/ari-pages.ts:346"
   ]
  },
  {
   "en": "Partner credentials are issued per partner by Unyly. Demo mode returns fictional Bangkok data: stores, couriers and fares are invented, and nothing is ordered or charged. Live mode switches each Grab product on only after Grab grants access. No Grab credentials exist today.",
   "where": [
-   "src/web/ari-pages.ts:487"
+   "src/web/ari-pages.ts:486"
   ]
  },
  {
   "en": "Partner Farefeed (scope ride.estimate) with its display terms",
   "where": [
-   "src/web/ari-pages.ts:339"
+   "src/web/ari-pages.ts:338"
   ]
  },
  {
@@ -4748,7 +4760,7 @@
  {
   "en": "Partnership contact",
   "where": [
-   "src/web/ari-pages.ts:418",
+   "src/web/ari-pages.ts:417",
    "src/web/showcase.ts:304"
   ]
  },
@@ -4828,7 +4840,7 @@
  {
   "en": "pasta",
   "where": [
-   "src/partners/webdemo.ts:169"
+   "src/partners/webdemo.ts:171"
   ]
  },
  {
@@ -4840,7 +4852,7 @@
  {
   "en": "Path",
   "where": [
-   "src/web/ari-pages.ts:481"
+   "src/web/ari-pages.ts:480"
   ]
  },
  {
@@ -4858,7 +4870,7 @@
  {
   "en": "Payment for deliveries Ari books, on Grab's hosted checkout, with automatic refunds. Tokenisation (SG, MY, PH) is a later step.",
   "where": [
-   "src/web/ari-pages.ts:338"
+   "src/web/ari-pages.ts:337"
   ]
  },
  {
@@ -4906,7 +4918,7 @@
  {
   "en": "PDPA (Thailand)",
   "where": [
-   "src/web/ari-pages.ts:367"
+   "src/web/ari-pages.ts:366"
   ]
  },
  {
@@ -4937,7 +4949,7 @@
  {
   "en": "Per-user rate limits, an audit trail, Grab request IDs in our logs and a kill switch that stops new orders while tracking continues. Grab can revoke the keys at any time.",
   "where": [
-   "src/web/ari-pages.ts:358"
+   "src/web/ari-pages.ts:357"
   ]
  },
  {
@@ -5013,19 +5025,19 @@
  {
   "en": "pho",
   "where": [
-   "src/partners/webdemo.ts:174"
+   "src/partners/webdemo.ts:176"
   ]
  },
  {
   "en": "Pick a courier:",
   "where": [
-   "src/partners/webdemo.ts:562"
+   "src/partners/webdemo.ts:564"
   ]
  },
  {
   "en": "Pick a ride:",
   "where": [
-   "src/partners/webdemo.ts:558"
+   "src/partners/webdemo.ts:560"
   ]
  },
  {
@@ -5073,13 +5085,13 @@
  {
   "en": "Pilot proposal: Bangkok, 10 weeks",
   "where": [
-   "src/web/ari-pages.ts:394"
+   "src/web/ari-pages.ts:393"
   ]
  },
  {
   "en": "pizza",
   "where": [
-   "src/partners/webdemo.ts:166"
+   "src/partners/webdemo.ts:168"
   ]
  },
  {
@@ -5121,7 +5133,7 @@
  {
   "en": "pork-free",
   "where": [
-   "src/partners/webdemo.ts:614"
+   "src/partners/webdemo.ts:616"
   ]
  },
  {
@@ -5146,7 +5158,7 @@
  {
   "en": "Prepare a cancellation card with the fee",
   "where": [
-   "src/web/ari-pages.ts:437"
+   "src/web/ari-pages.ts:436"
   ]
  },
  {
@@ -5183,13 +5195,13 @@
  {
   "en": "Pricing, fulfilment, support and the brand remain Grab's. Users sign in with GrabID and pay with GrabPay.",
   "where": [
-   "src/web/ari-pages.ts:355"
+   "src/web/ari-pages.ts:354"
   ]
  },
  {
   "en": "Product",
   "where": [
-   "src/web/ari-pages.ts:371",
+   "src/web/ari-pages.ts:370",
    "src/web/layout.ts:162"
   ]
  },
@@ -5210,7 +5222,7 @@
   "where": [
    "src/web/ari-pages.ts:136",
    "src/web/ari-pages.ts:315",
-   "src/web/ari-pages.ts:374"
+   "src/web/ari-pages.ts:373"
   ]
  },
  {
@@ -5222,7 +5234,7 @@
  {
   "en": "Proposed",
   "where": [
-   "src/web/ari-pages.ts:30"
+   "src/web/ari-pages.ts:29"
   ]
  },
  {
@@ -5271,7 +5283,7 @@
  {
   "en": "Purpose",
   "where": [
-   "src/web/ari-pages.ts:481"
+   "src/web/ari-pages.ts:480"
   ]
  },
  {
@@ -5289,7 +5301,7 @@
  {
   "en": "ramen",
   "where": [
-   "src/partners/webdemo.ts:168"
+   "src/partners/webdemo.ts:170"
   ]
  },
  {
@@ -5321,7 +5333,7 @@
  {
   "en": "Ready today",
   "where": [
-   "src/web/ari-pages.ts:382"
+   "src/web/ari-pages.ts:381"
   ]
  },
  {
@@ -5357,7 +5369,7 @@
  {
   "en": "Refunds, lost items and complaints are handled by Grab support, not by me: open the Help Centre in the Grab app. Here I can show your latest order or place a new one.",
   "where": [
-   "src/partners/webdemo.ts:457"
+   "src/partners/webdemo.ts:459"
   ]
  },
  {
@@ -5388,7 +5400,7 @@
  {
   "en": "Report to Grab",
   "where": [
-   "src/web/ari-pages.ts:328"
+   "src/web/ari-pages.ts:327"
   ]
  },
  {
@@ -5418,19 +5430,19 @@
  {
   "en": "Restaurants did not declare the allergens you excluded, but I never mark a dish as safe.",
   "where": [
-   "src/partners/webdemo.ts:680"
+   "src/partners/webdemo.ts:682"
   ]
  },
  {
   "en": "Restaurants for you",
   "where": [
-   "src/partners/core.ts:102"
+   "src/partners/core.ts:103"
   ]
  },
  {
   "en": "Retention and deletion",
   "where": [
-   "src/web/ari-pages.ts:366"
+   "src/web/ari-pages.ts:365"
   ]
  },
  {
@@ -5528,7 +5540,7 @@
  {
   "en": "Run a tool: search_stores, estimate_trip, create_cart… returns a card",
   "where": [
-   "src/web/ari-pages.ts:434"
+   "src/web/ari-pages.ts:433"
   ]
  },
  {
@@ -5560,7 +5572,7 @@
  {
   "en": "Same as your last order ({title}), at today's price. Nothing is ordered until you confirm on the card.",
   "where": [
-   "src/partners/webdemo.ts:265"
+   "src/partners/webdemo.ts:267"
   ]
  },
  {
@@ -5578,7 +5590,7 @@
  {
   "en": "sandwiches",
   "where": [
-   "src/partners/webdemo.ts:172"
+   "src/partners/webdemo.ts:174"
   ]
  },
  {
@@ -5590,7 +5602,7 @@
  {
   "en": "Save Home, Work and delivery addresses",
   "where": [
-   "src/web/ari-pages.ts:433"
+   "src/web/ari-pages.ts:432"
   ]
  },
  {
@@ -5651,13 +5663,13 @@
  {
   "en": "seats",
   "where": [
-   "src/web/ari-pages.ts:80"
+   "src/web/ari-pages.ts:81"
   ]
  },
  {
   "en": "Seats {seats} only",
   "where": [
-   "src/partners/core.ts:117"
+   "src/partners/core.ts:118"
   ]
  },
  {
@@ -5675,7 +5687,7 @@
  {
   "en": "Security and data",
   "where": [
-   "src/web/ari-pages.ts:406"
+   "src/web/ari-pages.ts:405"
   ]
  },
  {
@@ -5705,31 +5717,31 @@
  {
   "en": "Send a {kg} kg parcel from {from} to {to}",
   "where": [
-   "src/partners/webdemo.ts:281"
+   "src/partners/webdemo.ts:283"
   ]
  },
  {
   "en": "Send a {kg} kg parcel to {to}",
   "where": [
-   "src/partners/webdemo.ts:285"
+   "src/partners/webdemo.ts:287"
   ]
  },
  {
   "en": "Send a parcel from {from} to {to}",
   "where": [
-   "src/partners/webdemo.ts:282"
+   "src/partners/webdemo.ts:284"
   ]
  },
  {
   "en": "Send a parcel from Siam Paragon to home",
   "where": [
-   "src/partners/webdemo.ts:505"
+   "src/partners/webdemo.ts:507"
   ]
  },
  {
   "en": "Send a parcel to {to}",
   "where": [
-   "src/partners/webdemo.ts:286"
+   "src/partners/webdemo.ts:288"
   ]
  },
  {
@@ -5778,7 +5790,7 @@
  {
   "en": "Server-to-server API between the Ari backend and the Unyly engine. Your LLM calls tools; every result comes with a card the app renders natively; the user confirms in the app; events arrive by signed webhook. Today it runs in demo mode with fictional data.",
   "where": [
-   "src/web/ari-pages.ts:472"
+   "src/web/ari-pages.ts:471"
   ]
  },
  {
@@ -5803,7 +5815,7 @@
  {
   "en": "Settings",
   "where": [
-   "src/web/ari-pages.ts:63"
+   "src/web/ari-pages.ts:64"
   ]
  },
  {
@@ -5839,7 +5851,7 @@
  {
   "en": "Shops near you",
   "where": [
-   "src/partners/core.ts:102"
+   "src/partners/core.ts:103"
   ]
  },
  {
@@ -5944,7 +5956,7 @@
  {
   "en": "Signing",
   "where": [
-   "src/web/ari-pages.ts:475"
+   "src/web/ari-pages.ts:474"
   ]
  },
  {
@@ -5993,7 +6005,7 @@
  {
   "en": "som tam",
   "where": [
-   "src/partners/webdemo.ts:157"
+   "src/partners/webdemo.ts:159"
   ]
  },
  {
@@ -6011,20 +6023,20 @@
  {
   "en": "Something went wrong. Please try again.",
   "where": [
-   "src/partners/webdemo.ts:798",
+   "src/partners/webdemo.ts:800",
    "src/web/ari-pages.ts:236"
   ]
  },
  {
   "en": "Sorry I let you down. Tell me what you need from Grab and I will do my best:",
   "where": [
-   "src/partners/webdemo.ts:471"
+   "src/partners/webdemo.ts:473"
   ]
  },
  {
   "en": "Sorry, I can't order that: alcohol, tobacco and other restricted goods are off limits for me. I can order food, groceries, flowers, a cake or pharmacy items, book a ride or send a parcel.",
   "where": [
-   "src/partners/webdemo.ts:372"
+   "src/partners/webdemo.ts:374"
   ]
  },
  {
@@ -6067,7 +6079,7 @@
  {
   "en": "spring rolls",
   "where": [
-   "src/partners/webdemo.ts:162"
+   "src/partners/webdemo.ts:164"
   ]
  },
  {
@@ -6079,7 +6091,7 @@
  {
   "en": "Start Login with Grab for this user",
   "where": [
-   "src/web/ari-pages.ts:439"
+   "src/web/ari-pages.ts:438"
   ]
  },
  {
@@ -6109,13 +6121,13 @@
  {
   "en": "Status legend",
   "where": [
-   "src/web/ari-pages.ts:43"
+   "src/web/ari-pages.ts:42"
   ]
  },
  {
   "en": "steak",
   "where": [
-   "src/partners/webdemo.ts:170"
+   "src/partners/webdemo.ts:172"
   ]
  },
  {
@@ -6175,7 +6187,7 @@
  {
   "en": "Sunscreen and mosquito repellent",
   "where": [
-   "src/partners/webdemo.ts:142"
+   "src/partners/webdemo.ts:144"
   ]
  },
  {
@@ -6205,7 +6217,7 @@
  {
   "en": "sushi",
   "where": [
-   "src/partners/webdemo.ts:167"
+   "src/partners/webdemo.ts:169"
   ]
  },
  {
@@ -6241,19 +6253,19 @@
  {
   "en": "tacos",
   "where": [
-   "src/partners/webdemo.ts:175"
+   "src/partners/webdemo.ts:177"
   ]
  },
  {
   "en": "Tap Choose to see every fee:",
   "where": [
-   "src/partners/webdemo.ts:730"
+   "src/partners/webdemo.ts:732"
   ]
  },
  {
   "en": "Tap one:",
   "where": [
-   "src/partners/webdemo.ts:747"
+   "src/partners/webdemo.ts:749"
   ]
  },
  {
@@ -6271,43 +6283,43 @@
  {
   "en": "Taxi from {from} to {to}",
   "where": [
-   "src/partners/webdemo.ts:289"
+   "src/partners/webdemo.ts:291"
   ]
  },
  {
   "en": "Taxi from Siam Paragon to home",
   "where": [
-   "src/partners/webdemo.ts:506"
+   "src/partners/webdemo.ts:508"
   ]
  },
  {
   "en": "Taxi from Suvarnabhumi airport to home",
   "where": [
-   "src/partners/webdemo.ts:506"
+   "src/partners/webdemo.ts:508"
   ]
  },
  {
   "en": "Taxi to {to}",
   "where": [
-   "src/partners/webdemo.ts:290"
+   "src/partners/webdemo.ts:292"
   ]
  },
  {
   "en": "Taxi to Don Mueang Airport (DMK)",
   "where": [
-   "src/partners/webdemo.ts:414"
+   "src/partners/webdemo.ts:416"
   ]
  },
  {
   "en": "Taxi to Siam Paragon",
   "where": [
-   "src/partners/webdemo.ts:512"
+   "src/partners/webdemo.ts:514"
   ]
  },
  {
   "en": "Taxi to Suvarnabhumi Airport (BKK)",
   "where": [
-   "src/partners/webdemo.ts:414"
+   "src/partners/webdemo.ts:416"
   ]
  },
  {
@@ -6361,19 +6373,19 @@
  {
   "en": "That did not go through and nothing was ordered. Please try again.",
   "where": [
-   "src/partners/webdemo.ts:813"
+   "src/partners/webdemo.ts:815"
   ]
  },
  {
   "en": "That is above your ฿{budget} budget.",
   "where": [
-   "src/partners/webdemo.ts:725"
+   "src/partners/webdemo.ts:727"
   ]
  },
  {
   "en": "That is outside what I can do here. I work with Grab services only: rides, food, groceries, flowers, pharmacy items, cakes and parcels. For example:",
   "where": [
-   "src/partners/webdemo.ts:418"
+   "src/partners/webdemo.ts:420"
   ]
  },
  {
@@ -6385,7 +6397,7 @@
  {
   "en": "That sounds like more than one request. I take them one at a time, so each gets its own card and its own confirmation. Which one first?",
   "where": [
-   "src/partners/webdemo.ts:488"
+   "src/partners/webdemo.ts:490"
   ]
  },
  {
@@ -6451,7 +6463,7 @@
  {
   "en": "The cancellation did not go through; the order continues.",
   "where": [
-   "src/partners/webdemo.ts:1065"
+   "src/partners/webdemo.ts:1095"
   ]
  },
  {
@@ -6517,7 +6529,7 @@
  {
   "en": "The demo is busy right now. Please try again in a few minutes.",
   "where": [
-   "src/partners/webdemo.ts:811"
+   "src/partners/webdemo.ts:813"
   ]
  },
  {
@@ -6535,7 +6547,7 @@
  {
   "en": "The demo session ended. Start again.",
   "where": [
-   "src/partners/webdemo.ts:810"
+   "src/partners/webdemo.ts:812"
   ]
  },
  {
@@ -6559,7 +6571,7 @@
  {
   "en": "The florist sells set bouquets, so I could not change the number of stems: check it on the card.",
   "where": [
-   "src/partners/webdemo.ts:593"
+   "src/partners/webdemo.ts:595"
   ]
  },
  {
@@ -6589,7 +6601,7 @@
  {
   "en": "The largest vehicle here seats {seats}, so your group needs two cars. I can book one car at a time:",
   "where": [
-   "src/partners/webdemo.ts:522"
+   "src/partners/webdemo.ts:524"
   ]
  },
  {
@@ -6601,7 +6613,7 @@
  {
   "en": "The main {shown} of {total} signed endpoints. The full list is in the OpenAPI document.",
   "where": [
-   "src/web/ari-pages.ts:480"
+   "src/web/ari-pages.ts:479"
   ]
  },
  {
@@ -6661,7 +6673,7 @@
  {
   "en": "The pharmacy in this demo carries household remedies only: paracetamol, plasters, throat lozenges, rehydration salts, antiseptic, a thermometer, face masks, mosquito repellent and sunscreen. Which one do you need?",
   "where": [
-   "src/partners/webdemo.ts:145"
+   "src/partners/webdemo.ts:147"
   ]
  },
  {
@@ -6691,7 +6703,7 @@
  {
   "en": "The same engine has an MCP server, so ChatGPT, Claude, Gemini and other assistants can follow one set of safety rules.",
   "where": [
-   "src/web/ari-pages.ts:359"
+   "src/web/ari-pages.ts:358"
   ]
  },
  {
@@ -6709,7 +6721,7 @@
  {
   "en": "The store sells at most {max} of {name} per order, so I set {max} instead of {asked}.",
   "where": [
-   "src/partners/webdemo.ts:591"
+   "src/partners/webdemo.ts:593"
   ]
  },
  {
@@ -6739,7 +6751,7 @@
  {
   "en": "The user tapped Confirm (Face ID above the threshold)",
   "where": [
-   "src/web/ari-pages.ts:435"
+   "src/web/ari-pages.ts:434"
   ]
  },
  {
@@ -6757,19 +6769,19 @@
  {
   "en": "There is no {dish} in the demo catalog.",
   "where": [
-   "src/partners/webdemo.ts:656"
+   "src/partners/webdemo.ts:658"
   ]
  },
  {
   "en": "There is no earlier order to repeat yet. What would you like from Grab?",
   "where": [
-   "src/partners/webdemo.ts:254"
+   "src/partners/webdemo.ts:256"
   ]
  },
  {
   "en": "There is nothing to cancel: you have no orders yet. A card you have not confirmed orders nothing.",
   "where": [
-   "src/partners/webdemo.ts:231"
+   "src/partners/webdemo.ts:233"
   ]
  },
  {
@@ -6787,13 +6799,13 @@
  {
   "en": "This card has expired and nothing was ordered. Ask me again for a fresh price.",
   "where": [
-   "src/partners/webdemo.ts:807"
+   "src/partners/webdemo.ts:809"
   ]
  },
  {
   "en": "This card is out of date: the order changed after it was shown, so nothing was ordered. Please use the newest card.",
   "where": [
-   "src/partners/webdemo.ts:806"
+   "src/partners/webdemo.ts:808"
   ]
  },
  {
@@ -6847,14 +6859,14 @@
  {
   "en": "This order can no longer be cancelled ({status}).",
   "where": [
-   "src/partners/webdemo.ts:242"
+   "src/partners/webdemo.ts:244"
   ]
  },
  {
   "en": "This order can no longer be cancelled.",
   "where": [
    "src/partners/cards.ts:194",
-   "src/partners/webdemo.ts:808"
+   "src/partners/webdemo.ts:810"
   ]
  },
  {
@@ -6872,13 +6884,13 @@
  {
   "en": "This total needs Face ID or the device passcode before I can place the order.",
   "where": [
-   "src/partners/webdemo.ts:812"
+   "src/partners/webdemo.ts:814"
   ]
  },
  {
   "en": "Throat lozenges",
   "where": [
-   "src/partners/webdemo.ts:141"
+   "src/partners/webdemo.ts:143"
   ]
  },
  {
@@ -6914,7 +6926,7 @@
  {
   "en": "Today",
   "where": [
-   "src/web/ari-pages.ts:372"
+   "src/web/ari-pages.ts:371"
   ]
  },
  {
@@ -6932,7 +6944,7 @@
  {
   "en": "Tokens and secrets",
   "where": [
-   "src/web/ari-pages.ts:365"
+   "src/web/ari-pages.ts:364"
   ]
  },
  {
@@ -6944,7 +6956,7 @@
  {
   "en": "tom yum",
   "where": [
-   "src/partners/webdemo.ts:154"
+   "src/partners/webdemo.ts:156"
   ]
  },
  {
@@ -6956,7 +6968,7 @@
  {
   "en": "Tool definitions and system instructions for your LLM",
   "where": [
-   "src/web/ari-pages.ts:431"
+   "src/web/ari-pages.ts:430"
   ]
  },
  {
@@ -7164,13 +7176,13 @@
  {
   "en": "Unyly Partner API",
   "where": [
-   "src/web/ari-pages.ts:471"
+   "src/web/ari-pages.ts:470"
   ]
  },
  {
   "en": "Unyly Partner API: signed server-to-server API between the Ari backend and the Unyly engine, with native cards and user confirmation. Demo mode, fictional data.",
   "where": [
-   "src/web/ari-pages.ts:487"
+   "src/web/ari-pages.ts:486"
   ]
  },
  {
@@ -7188,7 +7200,7 @@
  {
   "en": "Up to {kg} kg only",
   "where": [
-   "src/partners/core.ts:113"
+   "src/partners/core.ts:114"
   ]
  },
  {
@@ -7256,7 +7268,7 @@
  {
   "en": "Vegan lunch for 3",
   "where": [
-   "src/partners/webdemo.ts:407"
+   "src/partners/webdemo.ts:409"
   ]
  },
  {
@@ -7407,7 +7419,7 @@
  {
   "en": "Webhook and provider event logs are deleted after 30 days. Orders stay while the account exists. One signed DELETE call erases a user and their data.",
   "where": [
-   "src/web/ari-pages.ts:366"
+   "src/web/ari-pages.ts:365"
   ]
  },
  {
@@ -7419,13 +7431,13 @@
  {
   "en": "Week 10",
   "where": [
-   "src/web/ari-pages.ts:329"
+   "src/web/ari-pages.ts:328"
   ]
  },
  {
   "en": "Weeks 1-3",
   "where": [
-   "src/web/ari-pages.ts:326",
+   "src/web/ari-pages.ts:325",
    "src/web/showcase.ts:287"
   ]
  },
@@ -7438,13 +7450,13 @@
  {
   "en": "Weeks 4-9",
   "where": [
-   "src/web/ari-pages.ts:327"
+   "src/web/ari-pages.ts:326"
   ]
  },
  {
   "en": "What Ari does",
   "where": [
-   "src/web/ari-pages.ts:371"
+   "src/web/ari-pages.ts:370"
   ]
  },
  {
@@ -7462,7 +7474,7 @@
  {
   "en": "What Grab gets",
   "where": [
-   "src/web/ari-pages.ts:402"
+   "src/web/ari-pages.ts:401"
   ]
  },
  {
@@ -7474,7 +7486,7 @@
  {
   "en": "What should I put in the basket? The demo supermarket has rice, eggs, milk, water, bananas, mango, chicken, instant noodles, coffee and vegetables.",
   "where": [
-   "src/partners/webdemo.ts:577"
+   "src/partners/webdemo.ts:579"
   ]
  },
  {
@@ -7486,7 +7498,7 @@
  {
   "en": "What we ask from Grab, and what we build with it",
   "where": [
-   "src/web/ari-pages.ts:398"
+   "src/web/ari-pages.ts:397"
   ]
  },
  {
@@ -7498,13 +7510,13 @@
  {
   "en": "What we never see",
   "where": [
-   "src/web/ari-pages.ts:364"
+   "src/web/ari-pages.ts:363"
   ]
  },
  {
   "en": "What we store",
   "where": [
-   "src/web/ari-pages.ts:363"
+   "src/web/ari-pages.ts:362"
   ]
  },
  {
@@ -7534,37 +7546,37 @@
  {
   "en": "Where is my order",
   "where": [
-   "src/partners/webdemo.ts:460"
+   "src/partners/webdemo.ts:462"
   ]
  },
  {
   "en": "Where should I pick you up? For example \"from Siam Paragon\".",
   "where": [
-   "src/partners/webdemo.ts:506"
+   "src/partners/webdemo.ts:508"
   ]
  },
  {
   "en": "Where should the courier pick the parcel up? For example \"from Siam Paragon\".",
   "where": [
-   "src/partners/webdemo.ts:505"
+   "src/partners/webdemo.ts:507"
   ]
  },
  {
   "en": "Where should the parcel go? For example \"to ICONSIAM\".",
   "where": [
-   "src/partners/webdemo.ts:510"
+   "src/partners/webdemo.ts:512"
   ]
  },
  {
   "en": "Where to? For example \"to Suvarnabhumi airport\".",
   "where": [
-   "src/partners/webdemo.ts:512"
+   "src/partners/webdemo.ts:514"
   ]
  },
  {
   "en": "Which one do you mean?",
   "where": [
-   "src/partners/webdemo.ts:784",
+   "src/partners/webdemo.ts:786",
    "src/web/showcase.ts:395"
   ]
  },
@@ -7609,7 +7621,7 @@
  {
   "en": "With Grab",
   "where": [
-   "src/web/ari-pages.ts:372"
+   "src/web/ari-pages.ts:371"
   ]
  },
  {
@@ -7621,14 +7633,14 @@
  {
   "en": "Within budget",
   "where": [
-   "src/partners/core.ts:55",
-   "src/partners/webdemo.ts:618"
+   "src/partners/core.ts:56",
+   "src/partners/webdemo.ts:620"
   ]
  },
  {
   "en": "wonton soup",
   "where": [
-   "src/partners/webdemo.ts:163"
+   "src/partners/webdemo.ts:165"
   ]
  },
  {
@@ -7700,7 +7712,7 @@
  {
   "en": "You declined this order earlier, so nothing was ordered. Ask me again and I will prepare a fresh card.",
   "where": [
-   "src/partners/webdemo.ts:805"
+   "src/partners/webdemo.ts:807"
   ]
  },
  {
@@ -7718,7 +7730,7 @@
  {
   "en": "You have no orders yet. What would you like from Grab?",
   "where": [
-   "src/partners/webdemo.ts:232"
+   "src/partners/webdemo.ts:234"
   ]
  },
  {
@@ -7749,7 +7761,7 @@
  {
   "en": "You're welcome! Anything else from Grab?",
   "where": [
-   "src/partners/webdemo.ts:352"
+   "src/partners/webdemo.ts:354"
   ]
  },
  {
@@ -7809,7 +7821,7 @@
  {
   "en": "Your latest order: {status}.",
   "where": [
-   "src/partners/webdemo.ts:238"
+   "src/partners/webdemo.ts:240"
   ]
  },
  {

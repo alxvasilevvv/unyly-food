@@ -7,6 +7,7 @@ import { statusLabel } from '../domain/labels.js';
 import type { Service } from '../domain/regions.js';
 import type { FulfillmentStatus } from '../providers/types.js';
 import { fmt, tr, type Tri } from '../web/messages.js';
+import { demoName } from './demo-names.js';
 
 export type CardType = 'options' | 'checkout' | 'order' | 'orders' | 'cancellation' | 'handoff' | 'message';
 
@@ -174,13 +175,13 @@ export function dataText(text: string | null | undefined, l: Locale): string {
   if (l === 'en') return text;
   const exact = DEMO_TEXT.get(text);
   if (exact) return tr(l, exact);
-  const own = lookup(l, text);
+  const own = demoName(l, text) ?? lookup(l, text);
   if (own) return own;
   // "Wrapping: Gift box": the option group and the option are translated separately.
   const m = /^([^:]{1,40}): (.+)$/.exec(text);
   if (m) {
-    const a = lookup(l, m[1]);
-    const b = lookup(l, m[2]);
+    const a = demoName(l, m[1]) ?? lookup(l, m[1]);
+    const b = demoName(l, m[2]) ?? lookup(l, m[2]);
     if (a || b) return `${a ?? m[1]}: ${b ?? m[2]}`;
   }
   return text;
@@ -205,5 +206,16 @@ export function localText(text: string | null | undefined, l: Locale): string | 
   }
   if (/is preparing the order: 50% cancellation fee/.test(text)) return tr(l, { en: 'The order is being prepared: 50% cancellation fee (demo, not charged).', ru: 'Заказ уже готовят: плата за отмену 50% (демо, не списывается).', th: 'ร้านกำลังเตรียมคำสั่งซื้อ ค่าธรรมเนียมการยกเลิก 50% (เดโม ไม่เรียกเก็บจริง)' });
   // Russian and Thai keep provider text they have no wording for; the catalog languages may know it (store notices).
-  return l === 'ru' || l === 'th' ? text : lookup(l, text) ?? text;
+  return demoName(l, text) ?? (l === 'ru' || l === 'th' ? text : lookup(l, text) ?? text);
+}
+
+/**
+ * A place name or a route ("A → B") in the card language: the demo home label and Bangkok landmarks have
+ * Russian and Thai names, the catalog languages translate what their catalogs know, anything else (a street
+ * address the user typed) stays as written.
+ */
+export function placeText(text: string | null | undefined, l: Locale): string | undefined {
+  if (!text) return text ?? undefined;
+  if (l === 'en') return text;
+  return text.split(' → ').map((p) => demoName(l, p) ?? (p === 'Home' ? lookup(l, p) : undefined) ?? p).join(' → ');
 }

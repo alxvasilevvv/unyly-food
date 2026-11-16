@@ -1356,5 +1356,7 @@
  "Speaker": "Speaker",
  "Mute": "I-mute",
  "Captions": "Mga Caption",
- "Listening": "Nakikinig"
+ "Listening": "Nakikinig",
+ "No public consumer ordering API (GrabFood Partner API is merchant-side POS)": "Walang public API para mag-order para sa consumer (para sa POS ng merchant ang GrabFood Partner API)",
+ "No public consumer ordering API (GrabMart Partner API is merchant-side POS)": "Walang public API para mag-order para sa consumer (para sa POS ng merchant ang GrabMart Partner API)"
 }

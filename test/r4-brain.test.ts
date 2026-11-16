@@ -191,8 +191,8 @@ describe('r4 brain: replies', () => {
     expect(which.json.chips[0]).toBe('Taxi to Suvarnabhumi Airport (BKK) for 6 people');
     const six = await checkout('en', which.json.chips[0]);
     expect(['GrabCar SUV', 'GrabVan']).toContain(six.card.title);
-    expect((await say('ru', 'отвези меня в Гранд Палас')).json.card.route.to).toBe('Grand Palace');
-    expect((await say('ru', 'мототакси до Эккамая')).json.card.route.to).toBe('Ekkamai');
+    expect((await say('ru', 'отвези меня в Гранд Палас')).json.card.route.to).toBe('Большой дворец');
+    expect((await say('ru', 'мототакси до Эккамая')).json.card.route.to).toBe('Эккамай');
   });
 
   it('food: a named dish is found on the menu, a missing one is said to be missing, restrictions are respected', async () => {
@@ -202,7 +202,7 @@ describe('r4 brain: replies', () => {
     expect((await say('en', pad.json.chips[0])).json.card.options[0].subtitle).toBe('2× Pad Thai with shrimp');
     const both = await checkout('en', 'one pad thai and 2 spicy tom yum');
     expect(both.card.lines.map((x: any) => [x.title, x.quantity, x.detail])).toEqual([['Pad Thai with shrimp', 1, undefined], ['Tom Yum Goong', 2, 'Spice level: Thai hot']]);
-    for (const [lang, text] of [['ru', 'као сой'], ['th', 'ข้าวซอย'], ['en', 'khao soi']]) expect([text, (await say(lang, text)).json.card?.options?.[0]?.subtitle]).toEqual([text, '1× Khao soi chicken']);
+    for (const [lang, text, dish] of [['ru', 'као сой', 'Кхао сой с курицей'], ['th', 'ข้าวซอย', 'ข้าวซอยไก่'], ['en', 'khao soi', 'Khao soi chicken']]) expect([text, (await say(lang, text)).json.card?.options?.[0]?.subtitle]).toEqual([text, `1× ${dish}`]);
     // Pad thai declares peanuts: with "no peanuts" it is left out and never called safe.
     const nuts = await say('en', 'pad thai no peanuts');
     expect(nuts.json.reply).toMatch(/does not fit your restrictions.*never mark a dish as safe/);
@@ -235,7 +235,7 @@ describe('r4 brain: shops and parcels', () => {
     const para = await say('en', '5 paracetamol');
     expect(para.json.card.lines[0].quantity).toBe(2);
     expect(para.json.reply).toContain('at most 2');
-    expect((await say('th', 'ยาอมกับปรอทวัดไข้')).json.card.lines.map((x: any) => x.title)).toEqual(['Herbal throat lozenges', 'Digital thermometer']);
+    expect((await say('th', 'ยาอมกับปรอทวัดไข้')).json.card.lines.map((x: any) => x.title)).toEqual(['ยาอมสมุนไพรแก้เจ็บคอ', 'เทอร์โมมิเตอร์ดิจิทัล']);
     const mom = await say('en', 'send flowers to my mom');
     expect(mom.json.reply).toMatch(/I picked the seasonal bouquet.*delivered to your saved address \(Home\)/);
     expect((await say('en', '50 roses')).json.reply).toContain('could not change the number of stems');

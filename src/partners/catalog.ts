@@ -18,7 +18,7 @@ export interface GrabProduct {
   /** Public Grab API used (as named on developer.grab.com). English; also returned by GET /partner/v1/catalog. */
   api: string;
   /** Website-only translation of `api` where it is a sentence, not a product name. */
-  api_local?: { ru: string; th: string };
+  api_local?: Tri;
   /** What changes once Grab grants access. */
   with_grab: Tri;
 }
@@ -36,13 +36,13 @@ export const GRAB_PRODUCTS: GrabProduct[] = [
   },
   {
     id: 'food', name: 'GrabFood', group: 'deliver', today: 'handoff', api: 'No public consumer ordering API (GrabFood Partner API is merchant-side POS)',
-    api_local: { ru: 'Публичного API для заказа от имени покупателя нет (GrabFood Partner API предназначен для POS мерчантов)', th: 'ไม่มี API สาธารณะสำหรับสั่งแทนผู้บริโภค (GrabFood Partner API เป็น API ฝั่งร้านค้าสำหรับ POS)' },
+    api_local: { en: 'No public consumer ordering API (GrabFood Partner API is merchant-side POS)', ru: 'Публичного API для заказа от имени покупателя нет (GrabFood Partner API предназначен для POS мерчантов)', th: 'ไม่มี API สาธารณะสำหรับสั่งแทนผู้บริโภค (GrabFood Partner API เป็น API ฝั่งร้านค้าสำหรับ POS)' },
     ari: { en: '"Dinner for two under 600 baht, no nuts": Ari turns the request into a short checklist (dishes, budget, allergy note) and opens Grab; the user chooses and orders in the Grab app.', ru: '«Ужин на двоих до 600 бат без орехов»: Ari превращает просьбу в короткий чек-лист (блюда, бюджет, пометка об аллергии) и открывает Grab; выбирает и заказывает пользователь в приложении Grab.', th: '"มื้อเย็นสองคนไม่เกิน 600 บาท ไม่ใส่ถั่ว": Ari สรุปคำขอเป็นเช็กลิสต์สั้น ๆ (เมนู งบ หมายเหตุเรื่องแพ้อาหาร) แล้วเปิด Grab ให้ ผู้ใช้เลือกและสั่งเองในแอป Grab' },
     with_grab: { en: 'Our main ask: a consumer ordering scope (menus, cart, place order, status) for GrabFood.', ru: 'Наш главный запрос: доступ к заказу GrabFood для потребителя (меню, корзина, заказ, статус).', th: 'คำขอหลักของเรา: สิทธิ์สั่ง GrabFood สำหรับผู้บริโภค (เมนู ตะกร้า สั่ง สถานะ)' },
   },
   {
     id: 'mart', name: 'GrabMart', group: 'deliver', today: 'handoff', api: 'No public consumer ordering API (GrabMart Partner API is merchant-side POS)',
-    api_local: { ru: 'Публичного API для заказа от имени покупателя нет (GrabMart Partner API предназначен для POS мерчантов)', th: 'ไม่มี API สาธารณะสำหรับสั่งแทนผู้บริโภค (GrabMart Partner API เป็น API ฝั่งร้านค้าสำหรับ POS)' },
+    api_local: { en: 'No public consumer ordering API (GrabMart Partner API is merchant-side POS)', ru: 'Публичного API для заказа от имени покупателя нет (GrabMart Partner API предназначен для POS мерчантов)', th: 'ไม่มี API สาธารณะสำหรับสั่งแทนผู้บริโภค (GrabMart Partner API เป็น API ฝั่งร้านค้าสำหรับ POS)' },
     ari: { en: 'Groceries, flowers, pharmacy items and cakes: Ari builds the shopping list from one sentence and opens Grab; the order is placed in the Grab app.', ru: 'Продукты, цветы, товары из аптеки и торты: Ari собирает список покупок из одной фразы и открывает Grab; заказ оформляется в приложении Grab.', th: 'ของชำ ดอกไม้ ยาสามัญประจำบ้าน และเค้ก: Ari ทำรายการซื้อจากประโยคเดียวแล้วเปิด Grab ให้ การสั่งซื้อทำในแอป Grab' },
     with_grab: { en: 'Same scope as GrabFood: the order would be placed and tracked inside Ari.', ru: 'Тот же доступ, что и для GrabFood: заказ и отслеживание станут возможны прямо в Ari.', th: 'สิทธิ์เดียวกับ GrabFood: จะสั่งและติดตามคำสั่งซื้อได้ใน Ari' },
   },

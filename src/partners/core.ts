@@ -20,7 +20,7 @@ import {
 } from '../services/orders.js';
 import type { AddressRow } from '../services/users.js';
 import { tr } from '../web/messages.js';
-import { Card, CardAction, CardOption, cardLocale, chatLocale, dataText, demoCourier, localText, minutes, seatsBadge, statusBlock, T, trf } from './cards.js';
+import { Card, CardAction, CardOption, cardLocale, chatLocale, dataText, demoCourier, placeText, localText, minutes, seatsBadge, statusBlock, T, trf } from './cards.js';
 import type { PartnerConfig } from './config.js';
 import { adaptForPartner, callPartnerTool, ToolEnvelope } from './tools.js';
 import { partnerActor, PartnerUser } from './users.js';
@@ -101,7 +101,7 @@ function optionsFromStores(env: ToolEnvelope, args: Record<string, unknown>, l: 
   return {
     schema: 'unyly.card.v1', type: 'options', id: `search:${Date.now()}`, service,
     title: service === 'food' ? tr(l, { en: 'Restaurants for you', ru: 'Рестораны для вас', th: 'ร้านอาหารสำหรับคุณ' }) : tr(l, { en: 'Shops near you', ru: 'Магазины рядом', th: 'ร้านค้าใกล้คุณ' }),
-    subtitle: r.delivery_address ? `${r.delivery_address.label} · ${r.delivery_address.area ?? ''}`.trim() : undefined,
+    subtitle: r.delivery_address ? `${placeText(r.delivery_address.label, l)} · ${r.delivery_address.area ?? ''}`.trim() : undefined,
     demo: env.mode === 'demo', options, actions: [],
     footnote: localText(r.allergen_disclaimer, l),
   };
@@ -129,7 +129,7 @@ function optionsFromTrip(env: ToolEnvelope, args: Record<string, unknown>, l: Lo
   return {
     schema: 'unyly.card.v1', type: 'options', id: `trip:${Date.now()}`, service,
     title: service === 'ride' ? tr(l, { en: 'Choose a ride', ru: 'Выберите поездку', th: 'เลือกประเภทรถ' }) : tr(l, { en: 'Choose a courier', ru: 'Выберите курьера', th: 'เลือกประเภทการส่ง' }),
-    route: { from: r.trip.pickup?.name, to: r.trip.dropoff?.name, distance_km: r.trip.distance_km_estimate, minutes: r.trip.drive_minutes_estimate },
+    route: { from: placeText(r.trip.pickup?.name, l) as string, to: placeText(r.trip.dropoff?.name, l) as string, distance_km: r.trip.distance_km_estimate, minutes: r.trip.drive_minutes_estimate },
     demo: env.mode === 'demo',
     options: r.options.map((o: any): CardOption => ({
       id: o.item_id, title: dataText(o.name, l), subtitle: localText(o.description, l), price: o.estimated_total ? money(Number(o.estimated_total.amount_minor), o.estimated_total.currency, l).formatted : undefined,
@@ -241,14 +241,14 @@ export async function checkoutCard(ctx: Ctx, p: PartnerConfig, u: PartnerUser, c
   return {
     schema: 'unyly.card.v1', type: 'checkout', id: c.id, service,
     title: trip ? dataText(v.lines[0]?.name, l) : (v.restaurant_name ?? ''),
-    subtitle: trip ? undefined : v.address ? `${v.address.label}` : undefined,
+    subtitle: trip ? undefined : v.address ? `${placeText(v.address.label, l)}` : undefined,
     demo: c.mode === 'demo',
     badges: [
       ...(c.mode === 'demo' ? [tr(l, T.demo)] : []),
       ...(policy.large ? [tr(l, T.biometric)] : []),
       ...(pay ? ['GrabPay'] : []),
     ],
-    route: trip && v.trip ? { from: (v.trip as any).pickup?.name, to: (v.trip as any).dropoff?.name, distance_km: (v.trip as any).distance_km_estimate, minutes: (v.trip as any).drive_minutes_estimate } : undefined,
+    route: trip && v.trip ? { from: placeText((v.trip as any).pickup?.name, l) as string, to: placeText((v.trip as any).dropoff?.name, l) as string, distance_km: (v.trip as any).distance_km_estimate, minutes: (v.trip as any).drive_minutes_estimate } : undefined,
     lines: (v.lines as any[]).map((x) => ({ title: dataText(x.name, l), quantity: x.quantity, detail: (x.modifiers_desc ?? []).map?.((d: string) => dataText(d, l)).join(', ') || parcelDetail, value: money(Number(x.line_total_minor), c.currency, l).formatted })),
     breakdown,
     total: { label: tr(l, T.total), value: bd.total.formatted, amount_minor: Number(c.total_minor), currency: c.currency },
@@ -447,7 +447,7 @@ export async function orderCard(
   return {
     schema: 'unyly.card.v1', type: 'order', id: o.id, service: o.service,
     title: trip ? dataText(o.items[0]?.name, l) : o.restaurant_name,
-    subtitle: o.address_label,
+    subtitle: placeText(o.address_label, l),
     demo: o.mode === 'demo',
     badges: o.mode === 'demo' ? [tr(l, T.demo)] : [],
     lines: trip ? undefined : o.items.map((i: any) => ({ title: dataText(i.name, l), quantity: i.quantity, value: i.line_total_minor !== undefined ? money(Number(i.line_total_minor), o.currency, l).formatted : '' })),
