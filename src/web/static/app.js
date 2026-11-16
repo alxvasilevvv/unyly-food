@@ -226,9 +226,13 @@ document.addEventListener('keydown', (e) => {
     d.querySelector('summary')?.focus();
   }
 });
+// Keyboard only: close when focus moves to another element outside the menu. Safari does not focus a link
+// that is clicked with the mouse, so there focusout arrives with no relatedTarget in the middle of the click;
+// closing then removed the link before the click landed and the language never changed. A click outside is
+// handled above, Escape below.
 document.addEventListener('focusout', (e) => {
   const d = e.target.closest?.('details.lang-menu[open]');
-  if (d && !d.contains(e.relatedTarget)) d.removeAttribute('open');
+  if (d && e.relatedTarget && !d.contains(e.relatedTarget)) d.removeAttribute('open');
 });
 // Keep the current query (for example ?q= or ?next=) when switching language.
 for (const a of document.querySelectorAll('.lang-menu a[hreflang]')) {
